@@ -125,15 +125,17 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 - Owns: `orders`, `order_items`, `order_events` (audit trail).
 
 ### 3.6 `payments`
-- `PaymentProvider` port with three implementations:
-  `RazorpayProvider`, `CodProvider`, `FakeProvider` (tests/local).
+- Online payments only — Cash on Delivery is a deliberate product
+  exclusion. Orders reach CONFIRMED only after payment succeeds.
+- `PaymentProvider` port with two implementations:
+  `RazorpayProvider`, `FakeProvider` (tests/local/M3 demo). Adding a
+  COD or alternative provider later is a new implementation, not a
+  redesign.
 - Razorpay flow: create payment intent → client completes UPI/card →
   **webhook** (signature-verified, idempotent) confirms → emits
   `PaymentSucceeded` / `PaymentFailed`. Orders are never confirmed off
   a client-side callback alone.
-- COD: trivially marks payment as collect-on-delivery; settled by staff
-  at the DELIVERED transition.
-- Unpaid online orders auto-cancel after a timeout, releasing stock.
+- Unpaid orders auto-cancel after a timeout, releasing reserved stock.
 - Owns: `payments`, `payment_webhook_log`.
 
 ### 3.7 `serviceability`
@@ -170,7 +172,7 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
-  checkout (COD / Razorpay) → live tracking (SSE) → history → reorder.
+  checkout (Razorpay) → live tracking (SSE) → history → reorder.
 - Talks only to the backend's public REST API via the **generated
   TypeScript client** (see §6) — the frontend never knows internal
   module topology.
@@ -224,9 +226,9 @@ Ecomm/
 - 2 Fargate tasks minimum across two AZs behind an ALB; rolling deploys
   with health checks → zero-downtime releases.
 - RDS Postgres multi-AZ with automated failover, daily snapshots, PITR.
-- Graceful degradation: catalog browsing works if payments is down
-  (COD still available); checkout queues web-push retries; SSE clients
-  auto-reconnect.
+- Graceful degradation: catalog browsing and cart remain available if
+  payments is down (checkout shows a clear retry state); web-push
+  retries; SSE clients auto-reconnect.
 
 **Scalability (the 10–50x dial)**
 - Stateless API → raise Fargate task count.
@@ -251,7 +253,7 @@ Ecomm/
 **Failure modes considered**
 | Failure | Behavior |
 |---|---|
-| Razorpay down | COD checkout still works; online payment surfaces a retry; unpaid orders auto-cancel + release stock |
+| Razorpay down | Checkout temporarily unavailable with clear retry messaging; browsing/cart unaffected; unpaid orders auto-cancel + release stock |
 | SMS/OTP provider down | Existing sessions unaffected (our JWTs); staff email login unaffected |
 | One API task dies | ALB routes to the healthy task; ECS replaces it |
 | AZ outage | Second task in other AZ; RDS fails over |
@@ -285,12 +287,13 @@ boundary validates the architecture better than any document.
    boundary tests, Postgres schemas + Flyway, docker-compose, CI green.
 2. **M2 — Browse:** catalog + serviceability (5 km gate), storefront
    browse/search, seed data, PWA shell installable.
-3. **M3 — Order (COD):** cart, checkout with idempotency + stock
-   reservation, order state machine, admin order queue with SSE,
-   customer tracking page. **First end-to-end order.**
+3. **M3 — Order:** cart, checkout with idempotency + stock
+   reservation (payments via `FakeProvider` in test mode), order state
+   machine, admin order queue with SSE, customer tracking page.
+   **First end-to-end order.**
 4. **M4 — Identity:** phone OTP (Firebase), JWTs, addresses, order
    history; staff logins + roles.
-5. **M5 — Payments:** Razorpay intent + webhook flow, auto-cancel
+5. **M5 — Payments:** Razorpay intent + webhook flow live, auto-cancel
    timeout; web-push status notifications.
 6. **M6 — Production:** Terraform, staging + prod on AWS, observability
    + alarms, admin inventory/catalog management polish.
@@ -310,7 +313,7 @@ beyond basic dashboards.
 | 3 | Next.js for both frontends | SSR speed on low-end mobiles, PWA tooling, image pipeline | — |
 | 4 | Generated TS client from OpenAPI | Closes the Java↔TS type gap mechanically | — |
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
-| 6 | Razorpay + COD behind `PaymentProvider` | India coverage (UPI); COD is ~half of grocery orders | New market/vendor |
+| 6 | Razorpay only behind `PaymentProvider`; no COD | Online-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
 | 7 | ECS Fargate + RDS multi-AZ, no Kubernetes | HA without an ops full-timer | Multiple services + dedicated ops |
 | 8 | Postgres FTS for search | Catalog is small; one less system | Search quality complaints at scale |
 | 9 | `store_id` everywhere, one store operated | Multi-store retrofit is brutal; modeling it now is cheap | — |
