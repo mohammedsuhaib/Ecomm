@@ -41,31 +41,30 @@ and service extraction — not a rewrite.
 ## 2. System overview
 
 ```
-                ┌──────────────────────────┐
-                │   Customer PWA (Next.js)  │  Vercel (CDN/edge)
-                └────────────┬─────────────┘
-                ┌────────────┴─────────────┐
-                │  Admin Dashboard (Next.js)│  Vercel
-                └────────────┬─────────────┘
-                             │ HTTPS (REST, generated TS client)
-                             ▼
-                ┌──────────────────────────┐
-                │   ALB  (health checks)    │
-                └────────────┬─────────────┘
-                             ▼
-        ┌─────────────────────────────────────────┐
-        │   Spring Boot Modular Monolith (×2 tasks)│  ECS Fargate
-        │                                          │  ap-south-1
-        │  identity │ catalog │ inventory │ cart   │
-        │  orders │ payments │ serviceability      │
-        │  notifications │ shared                  │
-        └────────────────────┬─────────────────────┘
-                             ▼
-                ┌──────────────────────────┐
-                │  RDS Postgres (multi-AZ)  │  schema per module
-                │  + Modulith event registry│  (transactional outbox)
-                └──────────────────────────┘
+        ┌──────────────────────────────────────────────┐
+        │      CloudFront (CDN, TLS, edge caching)      │
+        └──────────────────────┬───────────────────────┘
+                               ▼
+        ┌──────────────────────────────────────────────┐
+        │   ALB — host-based routing + health checks    │
+        │   shop.example.com │ admin.… │ api.…          │
+        └──────┬───────────────┬───────────────┬───────┘
+               ▼               ▼               ▼
+        ┌────────────┐  ┌────────────┐  ┌────────────────────┐
+        │ Storefront │  │   Admin    │  │  Spring Boot        │
+        │ Next.js ×2 │  │ Next.js ×1 │  │  Modular Monolith ×2│
+        └────────────┘  └────────────┘  │ identity│catalog│…  │
+                 ECS Fargate, ap-south-1│ orders│payments│…   │
+                                        └─────────┬──────────┘
+                                                  ▼
+                              ┌──────────────────────────┐
+                              │  RDS Postgres (multi-AZ)  │
+                              │  schema per module        │
+                              │  + Modulith event registry│
+                              └──────────────────────────┘
 
+All compute and data on a single AWS account owned by the client.
+Frontends call the API via the generated TS client (HTTPS/REST).
 External: Razorpay (payments) · Firebase Auth (phone OTP)
           Web Push/VAPID (notifications) · S3+CloudFront (product images)
 ```
@@ -273,8 +272,9 @@ Ecomm/
   regeneration + frontend type-check/build + Lighthouse PWA check.
 - **CD:** merge to `main` → build images → deploy to **staging** →
   smoke test → manual approve → **production** (rolling).
-- **Cost estimate (production):** Fargate ×2 small tasks + ALB +
-  RDS small multi-AZ + S3/CloudFront + Vercel ≈ **$80–150/month**.
+- **Cost estimate (production):** Fargate small tasks (API ×2,
+  storefront ×2, admin ×1) + ALB + RDS small multi-AZ + S3/CloudFront
+  ≈ **$100–180/month**, all on the client's single AWS account.
 
 ---
 
@@ -315,5 +315,6 @@ beyond basic dashboards.
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
 | 6 | Razorpay only behind `PaymentProvider`; no COD | Online-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
 | 7 | ECS Fargate + RDS multi-AZ, no Kubernetes | HA without an ops full-timer | Multiple services + dedicated ops |
+| 7a | All-AWS: Next.js apps as ECS containers behind CloudFront (no Vercel) | Single vendor/account/bill for client handover | Preview-deploy workflow or frontend scale favors a frontend PaaS |
 | 8 | Postgres FTS for search | Catalog is small; one less system | Search quality complaints at scale |
 | 9 | `store_id` everywhere, one store operated | Multi-store retrofit is brutal; modeling it now is cheap | — |
