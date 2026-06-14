@@ -149,12 +149,18 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 
 ### 3.8 `notifications`
 - Consumes order/payment events; fans out to channels behind a
-  `NotificationChannel` port: **Web Push (VAPID)** for status updates,
-  **SSE** endpoint for the live order-tracking page and the admin order
-  queue (new-order alerts). SMS/WhatsApp channels are later plug-ins.
+  `NotificationChannel` port.
+- **Core (included):** **SSE** endpoint for the live order-tracking page
+  (customer) and the admin order queue (new-order alerts). No external
+  messaging — tracking works while the app/page is open.
+- **Add-ons (priced, Annexure C):** Web Push (VAPID) for updates when the
+  app is closed, plus Email / SMS / WhatsApp channels. Because every
+  channel is a `NotificationChannel` implementation behind the same
+  event consumer, each is an additive plug-in, not a rework.
 - Delivery is best-effort and retried; a notification failure never
   blocks an order transition.
-- Owns: `push_subscriptions`, `notification_log`.
+- Owns: `notification_log` (core); `push_subscriptions` added with the
+  Web Push add-on.
 
 ### 3.9 `shared`
 - Domain event types, money/quantity value types, error model. No
@@ -167,7 +173,8 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 ### 4.1 Customer storefront — `apps/storefront` (Next.js, TypeScript)
 - **PWA:** Workbox (via Serwist) service worker — precached app shell,
   stale-while-revalidate for catalog, offline fallback page, install
-  prompt, web-push subscription. Lighthouse PWA-installable is a CI gate.
+  prompt. Lighthouse PWA-installable is a CI gate. (Web-push
+  subscription wiring lands with the Web Push add-on.)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
@@ -291,16 +298,22 @@ boundary validates the architecture better than any document.
    reservation (payments via `FakeProvider` in test mode), order state
    machine, admin order queue with SSE, customer tracking page.
    **First end-to-end order.**
-4. **M4 — Identity:** phone OTP (Firebase), JWTs, addresses, order
-   history; staff logins + roles.
+4. **M4 — Identity:** phone OTP (Firebase), JWTs, one saved address,
+   basic order history; staff logins + roles.
 5. **M5 — Payments:** Razorpay intent + webhook flow live, auto-cancel
-   timeout; web-push status notifications.
+   timeout.
 6. **M6 — Production:** Terraform, staging + prod on AWS, observability
    + alarms, admin inventory/catalog management polish.
 
-Out of MVP scope (designed-for, not built): offers/coupons, loyalty,
-delivery-slot scheduling, POS sync, multi-store operations, analytics
-beyond basic dashboards.
+This is the **Core Package** (the commercial fixed-price scope). Order
+tracking and admin alerts use in-app SSE; no external messaging in core.
+
+**Add-ons — designed-for, built only when ordered (Annexure C of the
+contract):** web push / email / SMS / WhatsApp notifications, multiple
+addresses, one-tap reorder, offers/coupons, loyalty/wallet, delivery-slot
+scheduling, ratings & reviews, analytics dashboard, Cash on Delivery,
+multi-store, POS/ERP sync, native app. Each maps to an existing module or
+provider port, so it is additive — no rebuild of delivered functionality.
 
 ---
 
