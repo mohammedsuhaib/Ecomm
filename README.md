@@ -48,8 +48,9 @@ Two **Next.js (TypeScript)** frontends (storefront + admin) consume the backend
 through a TypeScript client generated from the OpenAPI spec, so the API
 contract cannot silently drift between Java and TypeScript.
 
-Everything runs on a single AWS account: ECS Fargate behind CloudFront + ALB,
-with RDS Postgres (multi-AZ).
+Everything runs on a single DigitalOcean droplet (Bangalore) via Docker
+Compose, with Caddy for reverse-proxy + auto-TLS and nightly Postgres
+backups to DO Spaces — cost-optimised for the store's scale.
 
 See **[`ARCHITECTURE.md`](./ARCHITECTURE.md)** for the full design — module
 responsibilities, data ownership, event contracts, failure modes, scaling
@@ -67,7 +68,7 @@ strategy, and key decisions.
 | API contract | springdoc OpenAPI → generated TypeScript client |
 | Auth | Phone OTP via Firebase Auth; own JWTs |
 | Payments | Paytm Payment Gateway — UPI (behind a `PaymentProvider` port) |
-| Infrastructure | AWS (ECS Fargate, RDS, CloudFront, ALB, S3), Terraform |
+| Infrastructure | DigitalOcean droplet, Docker Compose, Caddy (auto-TLS), DO Spaces |
 | CI/CD | GitHub Actions |
 
 ---
@@ -84,7 +85,7 @@ strategy, and key decisions.
 │   └── api-client/   # TypeScript client generated from OpenAPI
 ├── infra/
 │   ├── docker-compose.yml   # local dev: Postgres + api + apps + seed data
-│   └── terraform/           # AWS infrastructure
+│   └── deploy/              # DigitalOcean: compose.prod, Caddyfile, backups
 ├── .github/workflows/       # CI/CD
 └── ARCHITECTURE.md
 ```
@@ -117,7 +118,7 @@ docker compose -f infra/docker-compose.yml up
 | M3 | Cart, checkout, order state machine, admin queue — first end-to-end order |
 | M4 | Phone-OTP login, saved address, order history, staff roles |
 | M5 | Paytm PG UPI payments live |
-| M6 | AWS deployment, monitoring, UAT, go-live |
+| M6 | DigitalOcean deployment, backups, monitoring, UAT, go-live |
 
 ---
 

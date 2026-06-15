@@ -41,32 +41,32 @@ and service extraction — not a rewrite.
 ## 2. System overview
 
 ```
+   DigitalOcean Droplet (Bangalore region) — Docker Compose
         ┌──────────────────────────────────────────────┐
-        │      CloudFront (CDN, TLS, edge caching)      │
-        └──────────────────────┬───────────────────────┘
-                               ▼
-        ┌──────────────────────────────────────────────┐
-        │   ALB — host-based routing + health checks    │
+        │   Caddy — reverse proxy + auto-TLS            │
         │  shop.town-basket.com │ admin.… │ api.…       │
         └──────┬───────────────┬───────────────┬───────┘
                ▼               ▼               ▼
         ┌────────────┐  ┌────────────┐  ┌────────────────────┐
         │ Storefront │  │   Admin    │  │  Spring Boot        │
-        │ Next.js ×2 │  │ Next.js ×1 │  │  Modular Monolith ×2│
+        │  Next.js   │  │  Next.js   │  │  Modular Monolith   │
         └────────────┘  └────────────┘  │ identity│catalog│…  │
-                 ECS Fargate, ap-south-1│ orders│payments│…   │
+                                        │ orders│payments│…   │
                                         └─────────┬──────────┘
                                                   ▼
                               ┌──────────────────────────┐
-                              │  RDS Postgres (multi-AZ)  │
-                              │  schema per module        │
-                              │  + Modulith event registry│
-                              └──────────────────────────┘
+                              │   PostgreSQL              │
+                              │   schema per module       │
+                              │   + Modulith event registry│
+                              └─────────────┬────────────┘
+                                            ▼
+                         DO Spaces — nightly DB backups + product images
 
-All compute and data on a single AWS account owned by the client.
+All containers on one DigitalOcean droplet owned by the client; Postgres
+either containerized or on DO Managed Database (recommended for durability).
 Frontends call the API via the generated TS client (HTTPS/REST).
 External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
-          Web Push/VAPID (notifications) · S3+CloudFront (product images)
+          Web Push/VAPID (notifications) · DO Spaces (product images)
 ```
 
 ---
@@ -211,8 +211,10 @@ Ecomm/
 ├── packages/
 │   └── api-client/       # TS client generated from OpenAPI (CI artifact)
 ├── infra/
-│   ├── docker-compose.yml   # local: Postgres + api + apps + seed data
-│   └── terraform/           # ECS, RDS, ALB, S3/CloudFront, secrets
+│   ├── docker-compose.yml      # local: Postgres + api + apps + seed data
+│   └── deploy/                 # prod: docker-compose.prod.yml, Caddyfile,
+│       │                       #       backup + provisioning scripts
+│       └── ...                 # (DigitalOcean droplet)
 ├── .github/workflows/       # CI/CD (see §8)
 └── ARCHITECTURE.md
 ```
@@ -233,41 +235,53 @@ Ecomm/
 
 ## 7. Cross-cutting concerns
 
-**Availability**
-- 2 Fargate tasks minimum across two AZs behind an ALB; rolling deploys
-  with health checks → zero-downtime releases.
-- RDS Postgres multi-AZ with automated failover, daily snapshots, PITR.
+**Availability** *(single-server, cost-optimised for ~100 orders/day)*
+- One DigitalOcean droplet running all containers under Docker Compose
+  with restart policies; deploys via pull-and-restart (brief blip, not
+  multi-instance zero-downtime — acceptable at this scale).
+- **Durability is the priority, not failover:** automated **nightly
+  PostgreSQL backups to DO Spaces** (off-server, retained, with a tested
+  restore runbook). Postgres on **DO Managed Database** is recommended so
+  backups/patching/PITR are handled by the provider.
+- Conscious trade-off: a single droplet has **no automatic failover** —
+  a host/provider outage means downtime until restart/restore (minutes
+  to a couple of hours, rare). Acceptable for this business; data is
+  protected by backups regardless.
 - Graceful degradation: catalog browsing and cart remain available if
   payments is down (checkout shows a clear retry state); web-push
   retries; SSE clients auto-reconnect.
 
-**Scalability (the 10–50x dial)**
-- Stateless API → raise Fargate task count.
-- Read load → CDN/cache headers already in place; add Redis if measured.
-- DB → bigger RDS tier, then read replicas.
-- Module extraction → Modulith event externalization to SQS + lift the
-  module's schema into its own database. Contracts don't change.
+**Scalability (the dial, when needed)**
+- Vertical first → resize the droplet (more CPU/RAM); trivial on DO.
+- Read load → cache headers + Postgres tuning; add Redis if measured.
+- Then horizontal/managed → move to a managed/HA setup (managed DB +
+  multiple app instances behind a load balancer) — a deployment change,
+  no code rework, because the app is containerised and stateless.
+- Module extraction → Modulith event externalization + lift the module's
+  schema into its own database. Contracts don't change.
 
 **Security**
 - Short-lived JWTs + rotating refresh tokens; role-based authorization
   per endpoint; admin app behind staff roles.
 - Paytm PG webhook/checksum verification; idempotent webhook handling.
-- Secrets in AWS Secrets Manager (never in the repo); TLS everywhere;
+- Secrets in environment files with restricted permissions (never in the
+  repo); firewall (only 80/443 + restricted SSH); auto-TLS via Caddy;
   rate limiting on OTP and checkout endpoints.
 
 **Observability**
-- Structured JSON logs → CloudWatch; Spring Boot Actuator health/metrics;
-  request tracing with correlation IDs propagated from the frontend.
-- Alarms: 5xx rate, p95 latency, DB CPU/connections, failed event
-  publications (outbox backlog), payment-webhook failures.
+- Structured JSON logs (shipped/retained off-server); Spring Boot Actuator
+  health/metrics; request tracing with correlation IDs from the frontend.
+- Uptime + disk/memory/CPU monitoring with alerts; alerts on 5xx rate,
+  failed event publications (outbox backlog), payment-webhook failures,
+  and backup success/failure.
 
 **Failure modes considered**
 | Failure | Behavior |
 |---|---|
 | Paytm PG down | Checkout temporarily unavailable with clear retry messaging; browsing/cart unaffected; unpaid orders auto-cancel + release stock |
 | SMS/OTP provider down | Existing sessions unaffected (our JWTs); staff email login unaffected |
-| One API task dies | ALB routes to the healthy task; ECS replaces it |
-| AZ outage | Second task in other AZ; RDS fails over |
+| A container crashes | Docker restart policy brings it back automatically |
+| Droplet/host outage | Downtime until restart; restore from nightly backup if needed (no auto-failover — accepted trade-off) |
 | Double-submit checkout | Idempotency key returns the original order |
 | Webhook replay/duplicate | Idempotent handler keyed on Paytm PG order/txn id |
 | Stock oversell race | Atomic conditional UPDATE on reservation; no oversell |
@@ -282,11 +296,13 @@ Ecomm/
 - **CI (GitHub Actions):** build + unit/integration tests +
   `ModularityTests` (Modulith boundary verification) + OpenAPI client
   regeneration + frontend type-check/build + Lighthouse PWA check.
-- **CD:** merge to `main` → build images → deploy to **staging** →
-  smoke test → manual approve → **production** (rolling).
-- **Cost estimate (production):** Fargate small tasks (API ×2,
-  storefront ×2, admin ×1) + ALB + RDS small multi-AZ + S3/CloudFront
-  ≈ **$100–180/month**, all on the client's single AWS account.
+- **CD:** merge to `main` → build images → push to a registry → the
+  droplet pulls and restarts via `docker-compose.prod.yml` (Caddy fronts
+  the three subdomains with auto-TLS). Optional staging on a small droplet.
+- **Cost estimate (production):** one DigitalOcean droplet
+  (2 vCPU / 4 GB, Bangalore) ≈ ₹2,000/month; + DO Spaces for backups/
+  images (~₹150) and, recommended, DO Managed Postgres (~₹1,200) →
+  **≈ ₹2,000–3,300/month total** on the client's DigitalOcean account.
 
 ---
 
@@ -307,8 +323,9 @@ boundary validates the architecture better than any document.
    basic order history; staff logins + roles.
 5. **M5 — Payments:** Paytm PG UPI + webhook flow live, auto-cancel
    timeout.
-6. **M6 — Production:** Terraform, staging + prod on AWS, observability
-   + alarms, admin inventory/catalog management polish.
+6. **M6 — Production:** DigitalOcean droplet provisioning + Docker Compose
+   deploy (Caddy + subdomains + auto-TLS), nightly DB backups to Spaces,
+   monitoring/alerts, admin inventory/catalog management polish.
 
 This is the **Core Package** (the commercial fixed-price scope). Order
 tracking and admin alerts use in-app SSE; no external messaging in core.
@@ -345,7 +362,8 @@ provider port, so it is additive — no rebuild of delivered functionality.
 | 4 | Generated TS client from OpenAPI | Closes the Java↔TS type gap mechanically | — |
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
 | 6 | Paytm PG (UPI only) behind `PaymentProvider`; no COD | Online UPI-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
-| 7 | ECS Fargate + RDS multi-AZ, no Kubernetes | HA without an ops full-timer | Multiple services + dedicated ops |
-| 7a | All-AWS: Next.js apps as ECS containers behind CloudFront (no Vercel) | Single vendor/account/bill for client handover | Preview-deploy workflow or frontend scale favors a frontend PaaS |
+| 7 | Single DigitalOcean droplet (Docker Compose), not AWS multi-AZ | Cost is the priority at ~100 orders/day; ~₹2–3k/mo vs ~₹9–16k; HA overkill here | Sustained growth or store becomes mission-critical → managed/HA |
+| 7a | Durability via nightly off-site backups (+ optional managed Postgres); accept no auto-failover | Protect data (non-negotiable) while trading away availability (tolerable at this scale) | Downtime starts costing real revenue |
+| 7b | Caddy reverse proxy + auto-TLS; DO Spaces for images/backups | Simple, free TLS, S3-compatible object storage | — |
 | 8 | Postgres FTS for search | Catalog is small; one less system | Search quality complaints at scale |
 | 9 | `store_id` everywhere, one store operated | Multi-store retrofit is brutal; modeling it now is cheap | — |
