@@ -1,7 +1,8 @@
-# QuickMart
+# Town Basket
 
 A quick-commerce platform for a single supermarket, delivering groceries
-within a configurable radius (default 5 km) of the store. Customers order
+within a configurable radius (default 5 km) of the store. Live at
+**town-basket.com**. Customers order
 through an installable Progressive Web App; store staff manage the catalogue
 and fulfil orders through a web dashboard. No native mobile app and no
 delivery-rider app — by design.

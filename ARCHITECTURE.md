@@ -1,4 +1,4 @@
-# QuickMart — Architecture Document
+# Town Basket — Architecture Document
 
 Quick-commerce platform for a single supermarket delivering within a 5 km
 radius. Customer-facing PWA + store-ops admin dashboard. No native apps,
@@ -47,7 +47,7 @@ and service extraction — not a rewrite.
                                ▼
         ┌──────────────────────────────────────────────┐
         │   ALB — host-based routing + health checks    │
-        │   shop.example.com │ admin.… │ api.…          │
+        │  shop.town-basket.com │ admin.… │ api.…       │
         └──────┬───────────────┬───────────────┬───────┘
                ▼               ▼               ▼
         ┌────────────┐  ┌────────────┐  ┌────────────────────┐
