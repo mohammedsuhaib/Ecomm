@@ -1,0 +1,10 @@
+town-basket.com, www.town-basket.com {
+	encode gzip zstd
+	root * /srv
+
+	# Don't serve repo/deploy files — only the static site
+	@hidden path /deploy/* /README.md /*.py
+	respond @hidden 404
+
+	file_server
+}

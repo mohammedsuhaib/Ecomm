@@ -1,0 +1,19 @@
+# Serves the Town Basket holding site over HTTPS (auto-TLS via Caddy).
+# Run from this directory:  docker compose up -d
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: town-basket-holding
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../:/srv:ro          # mounts the holding-site/ folder (index.html, policy pages, css)
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
