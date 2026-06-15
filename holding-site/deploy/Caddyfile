@@ -2,6 +2,24 @@ town-basket.com, www.town-basket.com {
 	encode gzip zstd
 	root * /srv
 
+	# Security headers
+	header {
+		# Force HTTPS for a year, including subdomains
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Stop MIME-type sniffing
+		X-Content-Type-Options "nosniff"
+		# Disallow framing (clickjacking protection)
+		X-Frame-Options "DENY"
+		# Limit referrer leakage
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Static site: only load resources from our own origin
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		# Disable powerful browser features we don't use
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		# Don't advertise the server software
+		-Server
+	}
+
 	# Don't serve repo/deploy files — only the static site
 	@hidden path /deploy/* /README.md /*.py
 	respond @hidden 404
