@@ -83,7 +83,9 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 
 ### 3.2 `catalog`
 - Categories, products, variants (e.g., 500 g / 1 kg), images, pricing,
-  per-store availability flags.
+  per-store availability flags. Each variant carries a **selling price**
+  and a **cost price**, both maintained manually by store staff (no
+  automated cost averaging); cost price feeds gross-profit reporting.
 - Search: Postgres full-text (`tsvector` + trigram for typo tolerance).
   Sufficient for a supermarket-sized catalog (~5–20k SKUs); a search
   service is a later extraction if ever needed.
@@ -324,9 +326,11 @@ provider port, so it is additive — no rebuild of delivered functionality.
   `OUT_FOR_DELIVERY → DELIVERED` transitions move from staff to the
   assigned delivery person. No separate app, no live location tracking.
 - *Sales & analytics dashboard incl. gross-profit %:* a read-model over
-  order data. Requires a **cost price** on products (`catalog`) and the
-  per-line **COGS snapshot** in `orders` (above). Profit is reported as
-  gross margin (sales − cost of goods sold).
+  order data. Uses the manually-maintained **cost price** on each product
+  (`catalog`) and the per-line **COGS snapshot** in `orders` (above).
+  Profit is reported as gross margin (selling price − cost price); no
+  weighted-average or FIFO costing — the current cost set by staff is
+  used and snapshotted at the time of each sale.
 
 ---
 
