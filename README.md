@@ -20,7 +20,7 @@ delivery-rider app — by design.
 - Browse by category, search, cart, checkout
 - Phone-OTP login and a saved delivery address
 - Payment by online UPI (Paytm Payment Gateway) or Cash on Delivery
-- Live in-app order status tracking and order history
+- Live in-app order status tracking, in-app delivery OTP (proof of delivery), and order history
 
 **Store Admin Dashboard**
 - Live order queue with status management

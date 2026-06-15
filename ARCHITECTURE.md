@@ -124,6 +124,11 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   retries (flaky mobile networks) cannot double-order.
 - Each transition emits an event (`OrderPlaced`, `OrderConfirmed`, …)
   consumed by `inventory`, `payments`, `notifications`.
+- **Delivery OTP (all orders, UPI and COD):** a one-time delivery code is
+  generated per order and shown in the customer's app; the
+  `→ DELIVERED` transition requires that code to be verified (entered by
+  staff in the admin queue, or by the rider in the Phase-2 delivery role).
+  Serves as proof of delivery and a COD fraud safeguard.
 - Price snapshot stored on the order (catalog price changes never
   mutate history). When the analytics add-on is engaged, each order
   line also snapshots the **cost price at time of sale** (COGS), so
