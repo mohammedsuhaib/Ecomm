@@ -65,7 +65,7 @@ and service extraction — not a rewrite.
 
 All compute and data on a single AWS account owned by the client.
 Frontends call the API via the generated TS client (HTTPS/REST).
-External: Razorpay (payments) · Firebase Auth (phone OTP)
+External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
           Web Push/VAPID (notifications) · S3+CloudFront (product images)
 ```
 
@@ -131,13 +131,14 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 - Online payments only — Cash on Delivery is a deliberate product
   exclusion. Orders reach CONFIRMED only after payment succeeds.
 - `PaymentProvider` port with two implementations:
-  `RazorpayProvider`, `FakeProvider` (tests/local/M3 demo). Adding a
+  `PaytmProvider`, `FakeProvider` (tests/local/M3 demo). Adding a
   COD or alternative provider later is a new implementation, not a
   redesign.
-- Razorpay flow: create payment intent → client completes UPI/card →
-  **webhook** (signature-verified, idempotent) confirms → emits
-  `PaymentSucceeded` / `PaymentFailed`. Orders are never confirmed off
-  a client-side callback alone.
+- Paytm PG flow: create a payment order → customer completes **UPI** in
+  their payment app → **webhook/callback** (checksum-verified, idempotent)
+  confirms → emits `PaymentSucceeded` / `PaymentFailed`. Orders are never
+  confirmed off a client-side callback alone; the server verifies
+  transaction status with Paytm before confirming.
 - Unpaid orders auto-cancel after a timeout, releasing reserved stock.
 - Owns: `payments`, `payment_webhook_log`.
 
@@ -182,7 +183,7 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
-  checkout (Razorpay) → live tracking (SSE) → history → reorder.
+  checkout (UPI via Paytm PG) → live tracking (SSE) → history → reorder.
 - Talks only to the backend's public REST API via the **generated
   TypeScript client** (see §6) — the frontend never knows internal
   module topology.
@@ -250,7 +251,7 @@ Ecomm/
 **Security**
 - Short-lived JWTs + rotating refresh tokens; role-based authorization
   per endpoint; admin app behind staff roles.
-- Razorpay webhook signature verification; idempotent webhook handling.
+- Paytm PG webhook/checksum verification; idempotent webhook handling.
 - Secrets in AWS Secrets Manager (never in the repo); TLS everywhere;
   rate limiting on OTP and checkout endpoints.
 
@@ -263,12 +264,12 @@ Ecomm/
 **Failure modes considered**
 | Failure | Behavior |
 |---|---|
-| Razorpay down | Checkout temporarily unavailable with clear retry messaging; browsing/cart unaffected; unpaid orders auto-cancel + release stock |
+| Paytm PG down | Checkout temporarily unavailable with clear retry messaging; browsing/cart unaffected; unpaid orders auto-cancel + release stock |
 | SMS/OTP provider down | Existing sessions unaffected (our JWTs); staff email login unaffected |
 | One API task dies | ALB routes to the healthy task; ECS replaces it |
 | AZ outage | Second task in other AZ; RDS fails over |
 | Double-submit checkout | Idempotency key returns the original order |
-| Webhook replay/duplicate | Idempotent handler keyed on Razorpay event id |
+| Webhook replay/duplicate | Idempotent handler keyed on Paytm PG order/txn id |
 | Stock oversell race | Atomic conditional UPDATE on reservation; no oversell |
 
 ---
@@ -304,7 +305,7 @@ boundary validates the architecture better than any document.
    **First end-to-end order.**
 4. **M4 — Identity:** phone OTP (Firebase), JWTs, one saved address,
    basic order history; staff logins + roles.
-5. **M5 — Payments:** Razorpay intent + webhook flow live, auto-cancel
+5. **M5 — Payments:** Paytm PG UPI + webhook flow live, auto-cancel
    timeout.
 6. **M6 — Production:** Terraform, staging + prod on AWS, observability
    + alarms, admin inventory/catalog management polish.
@@ -343,7 +344,7 @@ provider port, so it is additive — no rebuild of delivered functionality.
 | 3 | Next.js for both frontends | SSR speed on low-end mobiles, PWA tooling, image pipeline | — |
 | 4 | Generated TS client from OpenAPI | Closes the Java↔TS type gap mechanically | — |
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
-| 6 | Razorpay only behind `PaymentProvider`; no COD | Online-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
+| 6 | Paytm PG (UPI only) behind `PaymentProvider`; no COD | Online UPI-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
 | 7 | ECS Fargate + RDS multi-AZ, no Kubernetes | HA without an ops full-timer | Multiple services + dedicated ops |
 | 7a | All-AWS: Next.js apps as ECS containers behind CloudFront (no Vercel) | Single vendor/account/bill for client handover | Preview-deploy workflow or frontend scale favors a frontend PaaS |
 | 8 | Postgres FTS for search | Catalog is small; one less system | Search quality complaints at scale |

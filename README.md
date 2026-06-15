@@ -19,7 +19,7 @@ delivery-rider app — by design.
 - Serviceability check — enforces the delivery radius before ordering
 - Browse by category, search, cart, checkout
 - Phone-OTP login and a saved delivery address
-- Online payment via Razorpay (UPI / cards / net-banking)
+- Online UPI payment via Paytm Payment Gateway (opens the customer's UPI app)
 - Live in-app order status tracking and order history
 
 **Store Admin Dashboard**
@@ -66,7 +66,7 @@ strategy, and key decisions.
 | Frontend | Next.js, React, TypeScript, Serwist (PWA) |
 | API contract | springdoc OpenAPI → generated TypeScript client |
 | Auth | Phone OTP via Firebase Auth; own JWTs |
-| Payments | Razorpay (behind a `PaymentProvider` port) |
+| Payments | Paytm Payment Gateway — UPI (behind a `PaymentProvider` port) |
 | Infrastructure | AWS (ECS Fargate, RDS, CloudFront, ALB, S3), Terraform |
 | CI/CD | GitHub Actions |
 
@@ -116,7 +116,7 @@ docker compose -f infra/docker-compose.yml up
 | M2 | Catalogue, search, 5 km serviceability gate, installable PWA shell |
 | M3 | Cart, checkout, order state machine, admin queue — first end-to-end order |
 | M4 | Phone-OTP login, saved address, order history, staff roles |
-| M5 | Razorpay payments live |
+| M5 | Paytm PG UPI payments live |
 | M6 | AWS deployment, monitoring, UAT, go-live |
 
 ---
