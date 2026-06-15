@@ -325,9 +325,8 @@ provider port, so it is additive — no rebuild of delivered functionality.
   assigned delivery person. No separate app, no live location tracking.
 - *Sales & analytics dashboard incl. gross-profit %:* a read-model over
   order data. Requires a **cost price** on products (`catalog`) and the
-  per-line **COGS snapshot** in `orders` (above). Gross margin only;
-  net profit (after gateway/delivery/packaging/discount costs) is a
-  separate quote.
+  per-line **COGS snapshot** in `orders` (above). Profit is reported as
+  gross margin (sales − cost of goods sold).
 
 ---
 
