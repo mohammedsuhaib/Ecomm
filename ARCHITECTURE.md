@@ -120,7 +120,9 @@ External: Razorpay (payments) · Firebase Auth (phone OTP)
 - Each transition emits an event (`OrderPlaced`, `OrderConfirmed`, …)
   consumed by `inventory`, `payments`, `notifications`.
 - Price snapshot stored on the order (catalog price changes never
-  mutate history).
+  mutate history). When the analytics add-on is engaged, each order
+  line also snapshots the **cost price at time of sale** (COGS), so
+  gross-profit reporting stays accurate even as costs change later.
 - Owns: `orders`, `order_items`, `order_events` (audit trail).
 
 ### 3.6 `payments`
@@ -314,6 +316,18 @@ addresses, one-tap reorder, offers/coupons, loyalty/wallet, delivery-slot
 scheduling, ratings & reviews, analytics dashboard, Cash on Delivery,
 multi-store, POS/ERP sync, native app. Each maps to an existing module or
 provider port, so it is additive — no rebuild of delivered functionality.
+
+**Engaged add-ons (Phase 2):**
+- *Delivery management (role-based, no GPS):* add a `DELIVERY` role in
+  `identity` and a small `delivery` context (assignment, delivery status,
+  proof of delivery) with mobile-friendly pages in the existing PWA. The
+  `OUT_FOR_DELIVERY → DELIVERED` transitions move from staff to the
+  assigned delivery person. No separate app, no live location tracking.
+- *Sales & analytics dashboard incl. gross-profit %:* a read-model over
+  order data. Requires a **cost price** on products (`catalog`) and the
+  per-line **COGS snapshot** in `orders` (above). Gross margin only;
+  net profit (after gateway/delivery/packaging/discount costs) is a
+  separate quote.
 
 ---
 
