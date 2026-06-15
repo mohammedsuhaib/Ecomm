@@ -9,8 +9,10 @@ required policy pages. It uses Caddy (auto-TLS) in Docker.
 > `docker compose restart` on the droplet).
 
 ## Prerequisites
-- A DigitalOcean droplet (Ubuntu 24.04, Bangalore region; the smallest
-  $4–6/mo droplet is plenty for a static site). Note its **public IP**.
+- A DigitalOcean droplet (Bangalore region; the smallest $4–6/mo droplet is
+  plenty for a static site). **Recommended: create it from the Marketplace
+  "Docker on Ubuntu" image** so Docker + Compose are pre-installed.
+  Note its **public IP**.
 - Access to the **town-basket.com DNS** at your domain registrar.
 
 ## Steps
@@ -26,12 +28,18 @@ At the registrar for town-basket.com, create two **A records**:
 Wait for propagation (usually minutes; can take up to ~30).
 
 ### 2. Prepare the droplet
-SSH in and install Docker:
+SSH in and open the web ports:
 ```bash
 ssh root@<droplet-ip>
-curl -fsSL https://get.docker.com | sh
 ufw allow 80 && ufw allow 443 && ufw allow OpenSSH && ufw --force enable
 ```
+If you used a plain Ubuntu image (not the Marketplace "Docker" image),
+also install Docker first:
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+The Marketplace "Docker on Ubuntu" image already has Docker + Compose —
+skip the install line.
 
 ### 3. Get the site onto the droplet
 Clone the repo (or copy the `holding-site/` folder up with scp):
