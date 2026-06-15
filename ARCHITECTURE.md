@@ -86,6 +86,9 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   per-store availability flags. Each variant carries a **selling price**
   and a **cost price**, both maintained manually by store staff (no
   automated cost averaging); cost price feeds gross-profit reporting.
+  Catalogue is **fixed-price packaged goods only** (dry groceries + dairy;
+  no loose/weight-priced items), so variants are discrete pack sizes —
+  no weigh-at-packing price adjustment.
 - Search: Postgres full-text (`tsvector` + trigram for typo tolerance).
   Sufficient for a supermarket-sized catalog (~5–20k SKUs); a search
   service is a later extraction if ever needed.
