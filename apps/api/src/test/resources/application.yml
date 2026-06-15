@@ -1,0 +1,22 @@
+spring:
+  # Datasource is supplied at runtime by @ServiceConnection / Testcontainers
+  # (see AbstractIntegrationTest). ModularityTests itself needs no DB.
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    schemas: flyway
+    default-schema: flyway
+    create-schemas: true
+    locations:
+      - classpath:db/migration/shared
+      - classpath:db/migration/identity
+      - classpath:db/migration/catalog
+      - classpath:db/migration/inventory
+      - classpath:db/migration/cart
+      - classpath:db/migration/orders
+      - classpath:db/migration/payments
+      - classpath:db/migration/serviceability
+      - classpath:db/migration/notifications

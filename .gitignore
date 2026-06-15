@@ -1,0 +1,42 @@
+# ───── Java / Gradle ─────
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+*.class
+*.log
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+out/
+bin/
+
+# ───── Node / Next.js ─────
+node_modules/
+.next/
+out/
+.turbo/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# ───── Environment / secrets ─────
+.env
+.env.*
+!.env.example
+*.local
+
+# ───── Editors / OS ─────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ───── Generated artifacts ─────
+# OpenAPI-generated TS client sources (regenerated in CI)
+packages/api-client/src/generated/
+# Spring Modulith generated docs
+apps/api/build/spring-modulith-docs/

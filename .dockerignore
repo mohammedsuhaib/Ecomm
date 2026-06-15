@@ -1,0 +1,10 @@
+**/node_modules
+**/.next
+**/build
+**/.gradle
+**/dist
+**/out
+.git
+holding-site
+**/*.md
+!packages/api-client/README.md

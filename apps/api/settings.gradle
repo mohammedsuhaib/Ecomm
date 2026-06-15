@@ -1,0 +1,3 @@
+// Standalone settings so apps/api can also be built on its own
+// (e.g. inside the api Docker image) independent of the monorepo root build.
+rootProject.name = 'api'

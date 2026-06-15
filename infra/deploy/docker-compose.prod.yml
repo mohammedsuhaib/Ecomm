@@ -1,0 +1,65 @@
+# Production stack (DigitalOcean droplet). Skeleton — finalised in M6.
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Images are pre-built and pushed by CI; ${REGISTRY} and ${TAG} come from the
+# root-restricted .env on the droplet (never committed).
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - storefront
+      - admin
+
+  api:
+    image: ${REGISTRY}/town-basket-api:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # Recommended: point at DO Managed Postgres.
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    expose:
+      - "8080"
+
+  storefront:
+    image: ${REGISTRY}/town-basket-storefront:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: https://api.town-basket.com/api/v1
+    expose:
+      - "3000"
+
+  admin:
+    image: ${REGISTRY}/town-basket-admin:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: https://api.town-basket.com/api/v1
+    expose:
+      - "3001"
+
+  # Optional self-hosted Postgres (fallback to DO Managed Database).
+  # Uncomment only for a cost-sensitive single-box deployment.
+  # postgres:
+  #   image: postgres:16-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: ${DB_USERNAME}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
+  #     POSTGRES_DB: townbasket
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  # pgdata:

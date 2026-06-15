@@ -1,0 +1,7 @@
+# pnpm workspace tying the TypeScript frontends and shared packages together.
+# The Spring Boot backend (apps/api) is a Gradle build and is intentionally
+# not part of the JS workspace.
+packages:
+  - 'apps/storefront'
+  - 'apps/admin'
+  - 'packages/*'

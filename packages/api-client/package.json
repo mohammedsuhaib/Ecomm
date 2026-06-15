@@ -1,0 +1,20 @@
+{
+  "name": "@town-basket/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Typed TypeScript client for the Town Basket API. Generated from the backend OpenAPI spec in CI — do not edit generated sources by hand.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ${OPENAPI_SPEC:-../../apps/api/build/openapi/openapi.json} -o src/generated/schema.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "town-basket",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Town Basket — quick-commerce monorepo (frontends + shared TS packages). Backend lives in apps/api (Gradle).",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build:storefront": "pnpm --filter @town-basket/storefront build",
+    "build:admin": "pnpm --filter @town-basket/admin build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "build": "pnpm -r --if-present run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
