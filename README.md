@@ -19,7 +19,7 @@ delivery-rider app — by design.
 - Serviceability check — enforces the delivery radius before ordering
 - Browse by category, search, cart, checkout
 - Phone-OTP login and a saved delivery address
-- Online UPI payment via Paytm Payment Gateway (opens the customer's UPI app)
+- Payment by online UPI (Paytm Payment Gateway) or Cash on Delivery
 - Live in-app order status tracking and order history
 
 **Store Admin Dashboard**
@@ -29,8 +29,8 @@ delivery-rider app — by design.
 - Store configuration (delivery radius, hours) and daily order overview
 
 Features beyond this core set (push/SMS/WhatsApp notifications, coupons,
-loyalty, delivery slots, analytics, Cash on Delivery, multi-store, POS
-integration) are designed-for but built as add-ons — see `ARCHITECTURE.md`.
+loyalty, delivery slots, analytics, multi-store, POS integration) are
+designed-for but built as add-ons — see `ARCHITECTURE.md`.
 
 ---
 

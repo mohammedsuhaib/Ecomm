@@ -128,18 +128,22 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 - Owns: `orders`, `order_items`, `order_events` (audit trail).
 
 ### 3.6 `payments`
-- Online payments only — Cash on Delivery is a deliberate product
-  exclusion. Orders reach CONFIRMED only after payment succeeds.
-- `PaymentProvider` port with two implementations:
-  `PaytmProvider`, `FakeProvider` (tests/local/M3 demo). Adding a
-  COD or alternative provider later is a new implementation, not a
-  redesign.
-- Paytm PG flow: create a payment order → customer completes **UPI** in
-  their payment app → **webhook/callback** (checksum-verified, idempotent)
-  confirms → emits `PaymentSucceeded` / `PaymentFailed`. Orders are never
-  confirmed off a client-side callback alone; the server verifies
-  transaction status with Paytm before confirming.
-- Unpaid orders auto-cancel after a timeout, releasing reserved stock.
+- Two payment methods, chosen by the customer at checkout: **online UPI**
+  (Paytm PG) and **Cash on Delivery (COD)**.
+- `PaymentProvider` port with implementations: `PaytmProvider` (UPI),
+  `CodProvider`, and `FakeProvider` (tests/local/M3 demo). The port keeps
+  methods independently swappable/addable.
+- **Online (UPI):** Paytm PG flow — create a payment order → customer
+  completes UPI in their payment app → **webhook/callback**
+  (checksum-verified, idempotent) confirms → emits `PaymentSucceeded` /
+  `PaymentFailed`. The order reaches CONFIRMED only after payment succeeds;
+  the server verifies transaction status with Paytm before confirming
+  (never off a client-side callback alone). Unpaid online orders auto-cancel
+  after a timeout, releasing reserved stock.
+- **COD:** the order is confirmed at placement (no prepayment); payment is
+  recorded as collected when staff mark the order delivered. No
+  auto-cancel-on-non-payment; cancellation before dispatch simply releases
+  stock with no refund needed.
 - Owns: `payments`, `payment_webhook_log`.
 
 ### 3.7 `serviceability`
@@ -183,7 +187,8 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
-  checkout (UPI via Paytm PG) → live tracking (SSE) → history → reorder.
+  checkout (UPI via Paytm PG, or Cash on Delivery) → live tracking (SSE)
+  → history → reorder.
 - Talks only to the backend's public REST API via the **generated
   TypeScript client** (see §6) — the frontend never knows internal
   module topology.
@@ -278,7 +283,7 @@ Ecomm/
 **Failure modes considered**
 | Failure | Behavior |
 |---|---|
-| Paytm PG down | Checkout temporarily unavailable with clear retry messaging; browsing/cart unaffected; unpaid orders auto-cancel + release stock |
+| Paytm PG down | UPI checkout shows a clear retry message; **Cash on Delivery remains available as a fallback**; browsing/cart unaffected; unpaid online orders auto-cancel + release stock |
 | SMS/OTP provider down | Existing sessions unaffected (our JWTs); staff email login unaffected |
 | A container crashes | Docker restart policy brings it back automatically |
 | Droplet/host outage | Downtime until restart; restore from nightly backup if needed (no auto-failover — accepted trade-off) |
@@ -333,7 +338,7 @@ tracking and admin alerts use in-app SSE; no external messaging in core.
 **Add-ons — designed-for, built only when ordered (Annexure C of the
 contract):** web push / email / SMS / WhatsApp notifications, multiple
 addresses, one-tap reorder, offers/coupons, loyalty/wallet, delivery-slot
-scheduling, ratings & reviews, analytics dashboard, Cash on Delivery,
+scheduling, ratings & reviews, analytics dashboard,
 multi-store, POS/ERP sync, native app. Each maps to an existing module or
 provider port, so it is additive — no rebuild of delivered functionality.
 
@@ -361,7 +366,7 @@ provider port, so it is additive — no rebuild of delivered functionality.
 | 3 | Next.js for both frontends | SSR speed on low-end mobiles, PWA tooling, image pipeline | — |
 | 4 | Generated TS client from OpenAPI | Closes the Java↔TS type gap mechanically | — |
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
-| 6 | Paytm PG (UPI only) behind `PaymentProvider`; no COD | Online UPI-only by product decision; port keeps COD/vendors addable later | Client requests COD or new vendor |
+| 6 | Paytm PG (UPI) + Cash on Delivery behind `PaymentProvider` | Customer picks method at checkout; COD also a fallback if UPI is down | New vendor/method requested |
 | 7 | Single DigitalOcean droplet (Docker Compose), not AWS multi-AZ | Cost is the priority at ~100 orders/day; ~₹2–3k/mo vs ~₹9–16k; HA overkill here | Sustained growth or store becomes mission-critical → managed/HA |
 | 7a | Durability via nightly off-site backups (+ optional managed Postgres); accept no auto-failover | Protect data (non-negotiable) while trading away availability (tolerable at this scale) | Downtime starts costing real revenue |
 | 7b | Caddy reverse proxy + auto-TLS; DO Spaces for images/backups | Simple, free TLS, S3-compatible object storage | — |
