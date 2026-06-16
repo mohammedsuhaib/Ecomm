@@ -292,14 +292,57 @@ export function removeCartItem(cartId: string, itemId: string): Promise<Cart> {
  * POST /orders — place an order. The Idempotency-Key header makes retries
  * (flaky mobile networks) safe: the same key returns the original order
  * rather than creating a duplicate (ARCHITECTURE.md §3.5).
+ *
+ * Ties the order to the logged-in user by sending the access token when a
+ * session exists, so the order's user_id is set server-side and it appears in
+ * "My orders" / order history. POST /orders is PUBLIC, so an expired token does
+ * NOT 401 — it would silently place a GUEST order — therefore we proactively
+ * refresh a stale access token first. Guests (no session) place as before.
  */
-export function placeOrder(
+export async function placeOrder(
   req: PlaceOrderRequest,
   idempotencyKey: string,
 ): Promise<Order> {
-  return apiMutate<Order>('POST', '/orders', req, {
-    'Idempotency-Key': idempotencyKey,
-  });
+  await ensureFreshAccessToken();
+  const access = loadAccessToken();
+  const headers: Record<string, string> = { 'Idempotency-Key': idempotencyKey };
+  if (access) headers.Authorization = `Bearer ${access}`;
+  return apiMutate<Order>('POST', '/orders', req, headers);
+}
+
+/** Decode a JWT payload's `exp` (epoch seconds); null if not decodable. */
+function jwtExpiry(token: string): number | null {
+  const part = token.split('.')[1];
+  if (!part) return null;
+  try {
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    return typeof payload.exp === 'number' ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * If a session exists and its access token is expired/near-expiry, rotate it
+ * via the refresh token so the following call carries a valid Bearer. No-op for
+ * guests; if the refresh token is dead, clear the session and proceed as a
+ * guest rather than blocking checkout.
+ */
+async function ensureFreshAccessToken(): Promise<void> {
+  const access = loadAccessToken();
+  if (!access) return;
+  const exp = jwtExpiry(access);
+  const now = Math.floor(Date.now() / 1000);
+  if (exp !== null && exp - now > 30) return; // still valid (>30s headroom)
+  const refresh = loadRefreshToken();
+  if (!refresh) return;
+  try {
+    saveTokens(await refreshTokens(refresh));
+  } catch {
+    clearAuth();
+  }
 }
 
 /** GET /orders/{id} — order summary + status timeline (live). */
