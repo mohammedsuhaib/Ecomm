@@ -59,7 +59,7 @@ class CartServiceImpl implements CartService {
                         existing -> existing.setQty(existing.getQty() + qty),
                         () -> cart.getItems().add(new CartItemEntity(cart, variantId, qty)));
         cart.touch();
-        return toDto(cart);
+        return toDto(carts.saveAndFlush(cart));
     }
 
     @Override
@@ -78,7 +78,7 @@ class CartServiceImpl implements CartService {
             item.setQty(qty);
         }
         cart.touch();
-        return toDto(cart);
+        return toDto(carts.saveAndFlush(cart));
     }
 
     @Override
@@ -86,7 +86,7 @@ class CartServiceImpl implements CartService {
         CartEntity cart = require(cartId);
         cart.getItems().removeIf(i -> i.getId().equals(itemId));
         cart.touch();
-        return toDto(cart);
+        return toDto(carts.saveAndFlush(cart));
     }
 
     @Override
