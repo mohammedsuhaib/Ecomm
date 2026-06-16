@@ -25,7 +25,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     @Query(value = """
             SELECT * FROM catalog.products p
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
-               OR :q <% p.name
+               OR word_similarity(:q, p.name) >= 0.3
             ORDER BY ts_rank(p.search_vector, websearch_to_tsquery('simple', :q)) DESC,
                      word_similarity(:q, p.name) DESC,
                      p.name ASC
@@ -33,7 +33,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             countQuery = """
             SELECT count(*) FROM catalog.products p
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
-               OR :q <% p.name
+               OR word_similarity(:q, p.name) >= 0.3
             """,
             nativeQuery = true)
     Page<ProductEntity> search(@Param("q") String q, Pageable pageable);

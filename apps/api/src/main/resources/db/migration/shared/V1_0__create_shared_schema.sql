@@ -4,11 +4,13 @@
 -- schema.
 --
 -- NOTE: Spring Modulith's JPA `JpaEventPublication` entity is NOT schema-
--- qualified, so it resolves to the connection's default schema (public). The
--- table must live there for both Hibernate `validate` and the outbox at runtime
--- to find it — do not move it into a named schema without also configuring
--- Modulith/Hibernate's default schema to match.
-CREATE TABLE IF NOT EXISTS event_publication (
+-- qualified, so it resolves to the app connection's default schema (`public`).
+-- This migration runs with Flyway's default schema set to `flyway`, so the
+-- table is qualified with `public` explicitly — otherwise it would be created
+-- in the `flyway` schema and Hibernate `validate` (and the outbox at runtime)
+-- would not find it. Keep it in `public` unless Modulith/Hibernate's default
+-- schema is reconfigured to match.
+CREATE TABLE IF NOT EXISTS public.event_publication (
     id               UUID NOT NULL,
     listener_id      TEXT NOT NULL,
     event_type       TEXT NOT NULL,
@@ -19,7 +21,7 @@ CREATE TABLE IF NOT EXISTS event_publication (
 );
 
 CREATE INDEX IF NOT EXISTS event_publication_serialized_event_hash_idx
-    ON event_publication (event_type, listener_id);
+    ON public.event_publication (event_type, listener_id);
 
 CREATE INDEX IF NOT EXISTS event_publication_by_completion_date_idx
-    ON event_publication (completion_date);
+    ON public.event_publication (completion_date);

@@ -6,7 +6,11 @@
 -- reporting and must NEVER be returned in any public API response.
 
 -- Trigram extension for typo-tolerant search on product name.
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Installed into `public` explicitly: this migration runs with Flyway's
+-- default schema set to `flyway`, but the app queries with `public` on its
+-- search_path, so the trigram operators (<%, word_similarity, gin_trgm_ops)
+-- must live in `public` to be resolvable at runtime.
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA public;
 
 CREATE TABLE catalog.categories (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -49,7 +53,9 @@ CREATE INDEX idx_product_variants_product_id ON catalog.product_variants (produc
 CREATE INDEX idx_products_search_vector ON catalog.products USING GIN (search_vector);
 
 -- GIN trigram index for typo-tolerant fuzzy matching on the product name.
-CREATE INDEX idx_products_name_trgm ON catalog.products USING GIN (name gin_trgm_ops);
+-- Operator class qualified with `public` since pg_trgm lives there (see above)
+-- and `public` is not on Flyway's migration-time search_path.
+CREATE INDEX idx_products_name_trgm ON catalog.products USING GIN (name public.gin_trgm_ops);
 
 -- Keep search_vector in sync on insert/update.
 CREATE OR REPLACE FUNCTION catalog.products_search_vector_update()
