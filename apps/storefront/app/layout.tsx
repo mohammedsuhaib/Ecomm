@@ -4,6 +4,7 @@ import './globals.css';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LocationGate from './components/LocationGate';
+import CartProvider from './components/CartProvider';
 
 export const metadata: Metadata = {
   title: 'Town Basket — Groceries delivered',
@@ -37,12 +38,16 @@ export default function RootLayout({
             visit and blocks the catalogue when out of range; otherwise it
             renders children. */}
         <LocationGate>
-          <Header />
-          <main className="wrap">
-            {/* SearchBar/useSearchParams need a Suspense boundary. */}
-            <Suspense fallback={null}>{children}</Suspense>
-          </main>
-          <Footer />
+          {/* CartProvider holds the server cart id + state for the header
+              badge, add-to-cart controls, cart and checkout pages. */}
+          <CartProvider>
+            <Header />
+            <main className="wrap">
+              {/* SearchBar/useSearchParams need a Suspense boundary. */}
+              <Suspense fallback={null}>{children}</Suspense>
+            </main>
+            <Footer />
+          </CartProvider>
         </LocationGate>
       </body>
     </html>

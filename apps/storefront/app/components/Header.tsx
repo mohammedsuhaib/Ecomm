@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import SearchBar from './SearchBar';
 import LocationIndicator from './LocationIndicator';
+import CartIndicator from './CartIndicator';
 
 /** Site header: brand, search, and the delivery-location indicator. */
 export default function Header() {
@@ -22,6 +23,7 @@ export default function Header() {
           </Suspense>
         </div>
         <LocationIndicator />
+        <CartIndicator />
       </div>
     </header>
   );

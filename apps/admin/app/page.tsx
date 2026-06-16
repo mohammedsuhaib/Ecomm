@@ -1,12 +1,23 @@
+import OrderQueue from './components/OrderQueue';
+
+/** Admin home = live order queue (M3). Catalogue/inventory polish lands later. */
 export default function Home() {
   return (
-    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: 640 }}>
-      <h1>Town Basket — Store Admin</h1>
-      <p>Order queue, catalogue management, inventory and store configuration.</p>
-      <p style={{ color: '#666' }}>
-        Admin scaffold (M1). The live order queue (SSE), catalogue CRUD and bulk
-        inventory corrections arrive from M3 onward.
-      </p>
-    </main>
+    <>
+      <header className="admin-header">
+        <div className="admin-header-inner">
+          <span className="admin-brand">
+            <span className="logo" aria-hidden>
+              🧺
+            </span>
+            Town Basket — Store Admin
+          </span>
+          <span className="admin-sub">Order queue</span>
+        </div>
+      </header>
+      <main className="admin-main">
+        <OrderQueue />
+      </main>
+    </>
   );
 }

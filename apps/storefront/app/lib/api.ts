@@ -11,8 +11,11 @@
 // speaks this contract (ARCHITECTURE.md §4.1, §6).
 
 import type {
+  Cart,
   Category,
+  Order,
   Page,
+  PlaceOrderRequest,
   Product,
   ServiceabilityResult,
   Store,
@@ -115,6 +118,45 @@ async function apiFetch<T>(
   return (text ? JSON.parse(text) : null) as T;
 }
 
+// Mutating JSON request (POST/PUT/DELETE). Always live (no caching), sends a
+// JSON body when provided, and supports extra headers (e.g. Idempotency-Key
+// for checkout). Cart/order calls run browser-side; the public base URL is used.
+async function apiMutate<T>(
+  method: 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  body?: unknown,
+  extraHeaders?: Record<string, string>,
+): Promise<T> {
+  const url = buildUrl(path);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  const init: RequestInit = { method, headers, cache: 'no-store' };
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+  if (extraHeaders) Object.assign(headers, extraHeaders);
+
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (cause) {
+    throw new ApiError(0, url, `Network error reaching API: ${String(cause)}`);
+  }
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch {
+      /* ignore body read errors */
+    }
+    throw new ApiError(res.status, url, detail || res.statusText);
+  }
+
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
+}
+
 // ---- Endpoint functions -------------------------------------------------
 
 /** GET /store — store profile, hours, radius, min order value. */
@@ -181,4 +223,84 @@ export function searchProducts(
   opts?: FetchOpts,
 ): Promise<Page<Product>> {
   return apiFetch<Page<Product>>('/products/search', { q, page, size }, opts);
+}
+
+// ---- Cart (M3, browser-side) --------------------------------------------
+
+/** POST /carts — create a new server-side cart, returns its id. */
+export function createCart(): Promise<{ cartId: string }> {
+  return apiMutate<{ cartId: string }>('POST', '/carts');
+}
+
+/** GET /carts/{cartId} — current cart (live; prices/stock validated server-side). */
+export function getCart(cartId: string): Promise<Cart> {
+  return apiFetch<Cart>(`/carts/${encodeURIComponent(cartId)}`, undefined, {
+    noStore: true,
+  });
+}
+
+/** POST /carts/{cartId}/items — add a variant; returns the updated cart. */
+export function addCartItem(
+  cartId: string,
+  variantId: string,
+  qty: number,
+): Promise<Cart> {
+  return apiMutate<Cart>(
+    'POST',
+    `/carts/${encodeURIComponent(cartId)}/items`,
+    { variantId, qty },
+  );
+}
+
+/** PUT /carts/{cartId}/items/{itemId} — set quantity (0 removes the line). */
+export function updateCartItem(
+  cartId: string,
+  itemId: string,
+  qty: number,
+): Promise<Cart> {
+  return apiMutate<Cart>(
+    'PUT',
+    `/carts/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
+    { qty },
+  );
+}
+
+/** DELETE /carts/{cartId}/items/{itemId} — remove a line. */
+export function removeCartItem(cartId: string, itemId: string): Promise<Cart> {
+  return apiMutate<Cart>(
+    'DELETE',
+    `/carts/${encodeURIComponent(cartId)}/items/${encodeURIComponent(itemId)}`,
+  );
+}
+
+// ---- Orders (M3, browser-side) ------------------------------------------
+
+/**
+ * POST /orders — place an order. The Idempotency-Key header makes retries
+ * (flaky mobile networks) safe: the same key returns the original order
+ * rather than creating a duplicate (ARCHITECTURE.md §3.5).
+ */
+export function placeOrder(
+  req: PlaceOrderRequest,
+  idempotencyKey: string,
+): Promise<Order> {
+  return apiMutate<Order>('POST', '/orders', req, {
+    'Idempotency-Key': idempotencyKey,
+  });
+}
+
+/** GET /orders/{id} — order summary + status timeline (live). */
+export function getOrder(id: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${encodeURIComponent(id)}`, undefined, {
+    noStore: true,
+  });
+}
+
+/**
+ * URL for the per-order SSE stream (GET /orders/{id}/stream). Consumed by the
+ * tracking page with `new EventSource(...)`, so it must use the public
+ * (browser-reachable) base URL.
+ */
+export function orderStreamUrl(id: string): string {
+  return `${API_BASE_URL.replace(/\/$/, '')}/orders/${encodeURIComponent(id)}/stream`;
 }

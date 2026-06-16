@@ -71,11 +71,6 @@ export default async function ProductPage({ params }: Params) {
           ) : (
             <p className="empty-state">No sizes available.</p>
           )}
-
-          <p className="muted" style={{ fontSize: '0.85rem' }}>
-            Cart &amp; checkout arrive in the next release — “Add” is a preview
-            for now.
-          </p>
         </div>
       </article>
     </>

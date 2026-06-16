@@ -55,3 +55,79 @@ export interface Page<T> {
   size: number;
   totalElements: number;
 }
+
+// ---- Cart (M3) ----------------------------------------------------------
+
+export interface CartItem {
+  itemId: string;
+  variantId: string;
+  productId: string;
+  productName: string;
+  label: string; // variant label, e.g. "500 g"
+  unitPrice: number; // decimal rupees
+  qty: number;
+  lineTotal: number; // decimal rupees
+  available: boolean; // false => line is out of stock / unbuyable
+}
+
+export interface Cart {
+  cartId: string;
+  items: CartItem[];
+  subtotal: number; // decimal rupees
+  itemCount: number; // total quantity across lines
+}
+
+// ---- Orders (M3) --------------------------------------------------------
+
+export type PaymentMethod = 'COD' | 'UPI';
+
+export type OrderStatus =
+  | 'PLACED'
+  | 'CONFIRMED'
+  | 'PACKING'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+export interface OrderAddress {
+  line: string;
+  lat: number;
+  lng: number;
+}
+
+export interface OrderItem {
+  productName: string;
+  label: string;
+  unitPrice: number;
+  qty: number;
+  lineTotal: number;
+}
+
+export interface OrderTimelineEntry {
+  toStatus: OrderStatus;
+  at: string; // ISO timestamp
+}
+
+export interface Order {
+  id: string;
+  status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  paymentStatus: string;
+  customerName: string;
+  phone: string;
+  address: OrderAddress;
+  items: OrderItem[];
+  subtotal: number;
+  total: number;
+  deliveryOtp: string;
+  placedAt: string; // ISO timestamp
+  timeline: OrderTimelineEntry[];
+}
+
+export interface PlaceOrderRequest {
+  cartId: string;
+  customerName: string;
+  phone: string;
+  address: OrderAddress;
+  paymentMethod: PaymentMethod;
+}
