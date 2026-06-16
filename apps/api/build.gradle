@@ -32,6 +32,10 @@ dependencies {
     implementation 'org.springframework.modulith:spring-modulith-starter-core'
     implementation 'org.springframework.modulith:spring-modulith-starter-jpa'
 
+    // OpenAPI / Swagger UI — single source of truth for the generated TS client
+    // (ARCHITECTURE §6). 2.6.0 is compatible with Spring Boot 3.3.x.
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+
     // Database + migrations
     runtimeOnly 'org.postgresql:postgresql'
     implementation 'org.flywaydb:flyway-core'

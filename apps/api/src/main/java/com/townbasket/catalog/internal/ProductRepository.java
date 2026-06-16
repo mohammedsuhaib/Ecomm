@@ -1,0 +1,40 @@
+package com.townbasket.catalog.internal;
+
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+/** Module-internal Spring Data repository for products. */
+interface ProductRepository extends JpaRepository<ProductEntity, Long> {
+
+    Page<ProductEntity> findByCategoryId(Long categoryId, Pageable pageable);
+
+    Optional<ProductEntity> findBySlug(String slug);
+
+    /**
+     * Full-text + trigram search over product name/description.
+     *
+     * <p>Combines Postgres full-text matching (websearch_to_tsquery against the
+     * trigger-maintained {@code search_vector}) with a pg_trgm similarity match
+     * on the name, so typos ("biscit" -> "biscuit") still surface results.
+     * Ordered by full-text rank, then trigram similarity.
+     */
+    @Query(value = """
+            SELECT * FROM catalog.products p
+            WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
+               OR :q <% p.name
+            ORDER BY ts_rank(p.search_vector, websearch_to_tsquery('simple', :q)) DESC,
+                     word_similarity(:q, p.name) DESC,
+                     p.name ASC
+            """,
+            countQuery = """
+            SELECT count(*) FROM catalog.products p
+            WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
+               OR :q <% p.name
+            """,
+            nativeQuery = true)
+    Page<ProductEntity> search(@Param("q") String q, Pageable pageable);
+}
