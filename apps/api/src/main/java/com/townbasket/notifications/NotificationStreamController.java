@@ -15,7 +15,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * the customer order-tracking stream and the admin order-queue stream. Backed by
  * an in-memory emitter registry; order events are pushed by
  * {@code NotificationEventListener}. CORS for {@code /api/**} (incl. SSE) is
- * handled by {@code WebCorsConfig}.
+ * owned by the security layer ({@code SecurityConfig}). The admin stream
+ * ({@code /admin/orders/stream}) is staff/admin-only and accepts the access
+ * token via the {@code ?token=} query param (EventSource can't set headers).
  */
 @RestController
 @RequestMapping("/api/v1")

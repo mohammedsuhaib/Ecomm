@@ -793,6 +793,197 @@ a:hover {
   margin: 0.5rem 0;
 }
 
+/* ---- Account indicator (header) ---- */
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  max-width: 9rem;
+}
+.account-pill:hover {
+  background: rgba(255, 255, 255, 0.26);
+  color: #fff;
+}
+.account-pill .account-label {
+  display: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (min-width: 480px) {
+  .account-pill .account-label {
+    display: inline;
+  }
+}
+
+/* ---- Auth / login form ---- */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 420px;
+}
+.auth-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.auth-form label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.auth-form input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.7rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
+}
+
+/* ---- Account area ---- */
+.account-section {
+  margin: 0 0 1.5rem;
+}
+.account-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.account-section-head .btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+.profile-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.account-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.link-action {
+  background: none;
+  border: none;
+  color: var(--green-dark);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  font-weight: 600;
+}
+.link-action:hover {
+  color: var(--green);
+}
+.link-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Address list */
+.address-list,
+.order-history {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.address-row,
+.order-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+}
+.address-info,
+.order-history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1 1 220px;
+}
+.address-label,
+.order-history-id {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.address-coords {
+  font-size: 0.78rem;
+}
+.default-tag {
+  background: var(--green-light);
+  color: var(--green-dark);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.address-actions,
+.order-history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.order-history-actions .btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+/* Saved-address quick picks (checkout) */
+.saved-address-picks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.address-chip {
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.address-chip:hover {
+  border-color: var(--green);
+}
+.address-chip.active {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.address-chip .chip-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--green-dark);
+}
+.address-chip .chip-line {
+  font-size: 0.82rem;
+}
+
 /* breadcrumb */
 .breadcrumb {
   font-size: 0.85rem;

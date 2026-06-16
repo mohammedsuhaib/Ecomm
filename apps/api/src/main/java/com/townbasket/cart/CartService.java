@@ -30,4 +30,25 @@ public interface CartService {
 
     /** Mark a cart as checked out (called by the orders checkout). No-op if already checked out. */
     void markCheckedOut(UUID cartId);
+
+    /**
+     * Create a new empty cart owned by {@code userId} and return it. Used on
+     * login (no guest cart to merge) and by {@code orders} reorder.
+     */
+    CartDto createUserCart(Long userId);
+
+    /**
+     * Merge the guest cart {@code guestCartId} into {@code userId}'s active cart
+     * (M4_CONTRACT §5):
+     * <ul>
+     *   <li>no active user cart → claim the guest cart for the user;</li>
+     *   <li>active user cart exists → add the guest lines into it (sum qty per
+     *       variant), check the guest cart out, return the USER cart;</li>
+     *   <li>guest cart missing/empty → return the user's active cart (creating an
+     *       empty one if none). Never fails on a stale guest id.</li>
+     * </ul>
+     * The returned {@code cartId} may differ from {@code guestCartId} — the
+     * client must store it.
+     */
+    CartDto merge(UUID guestCartId, Long userId);
 }

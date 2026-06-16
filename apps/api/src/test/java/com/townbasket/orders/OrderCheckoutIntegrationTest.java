@@ -70,7 +70,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         int before = inventoryService.availability(variant.id());
 
         CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cod-key-1");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cod-key-1", null);
 
         assertThat(order.status()).isEqualTo("CONFIRMED");
         assertThat(order.paymentMethod()).isEqualTo("COD");
@@ -90,7 +90,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         ProductVariantDto variant = pickPricyVariant();
         CartDto cart = cartWithValue(variant, 5);
 
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.UPI), "upi-key-1");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.UPI), "upi-key-1", null);
 
         assertThat(order.status()).isEqualTo("CONFIRMED");
         assertThat(order.paymentMethod()).isEqualTo("UPI");
@@ -103,8 +103,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         int before = inventoryService.availability(variant.id());
         CartDto cart = cartWithValue(variant, 5);
 
-        OrderDto first = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1");
-        OrderDto second = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1");
+        OrderDto first = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1", null);
+        OrderDto second = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1", null);
 
         assertThat(second.id()).isEqualTo(first.id());
         // Stock reserved only once.
@@ -120,7 +120,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
                 .findFirst().orElseThrow();
         CartDto cart = cartWithValue(cheap, 1);
 
-        assertThatThrownBy(() -> orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "min-key-1"))
+        assertThatThrownBy(() -> orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "min-key-1", null))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
@@ -133,7 +133,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
                 new AddressDto("Far away", 12.2958, 76.6394), // ~25 km
                 PaymentMethod.COD, null);
 
-        assertThatThrownBy(() -> orderService.placeOrder(req, "radius-key-1"))
+        assertThatThrownBy(() -> orderService.placeOrder(req, "radius-key-1", null))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
@@ -142,7 +142,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
         CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", null);
 
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
@@ -166,7 +166,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void illegalTransitionIsRejected() {
         ProductVariantDto variant = pickPricyVariant();
         CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "illegal-key-1");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "illegal-key-1", null);
 
         // CONFIRMED cannot jump straight to DELIVERED.
         assertThatThrownBy(() -> orderService.transition(order.id(),
@@ -180,7 +180,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         int before = inventoryService.availability(variant.id());
         CartDto cart = cartWithValue(variant, 5);
 
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cancel-key-1");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cancel-key-1", null);
         assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5);
 
         orderService.transition(order.id(), new TransitionRequest("CANCELLED", null, "Customer changed mind"));
@@ -222,9 +222,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void adminListReturnsNewestFirst() {
         ProductVariantDto variant = pickPricyVariant();
         OrderDto o1 = orderService.placeOrder(
-                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-1");
+                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-1", null);
         OrderDto o2 = orderService.placeOrder(
-                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-2");
+                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-2", null);
 
         List<OrderDto> all = orderService.listOrders(null, PageRequest.of(0, 50)).content();
         List<Long> ids = all.stream().map(OrderDto::id).toList();

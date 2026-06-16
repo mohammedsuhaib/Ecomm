@@ -1,5 +1,6 @@
 package com.townbasket;
 
+import com.townbasket.identity.InvalidCredentialsException;
 import com.townbasket.shared.ApiError;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
@@ -27,6 +28,16 @@ class GlobalExceptionHandler {
             IllegalArgumentException.class})
     ResponseEntity<ApiError> handleBadRequest(Exception ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    /**
+     * Failed authentication (bad phone token, wrong staff credentials, invalid
+     * refresh token) -> 401. Distinct from the security filter's 401 for a
+     * missing/invalid Bearer token on a protected route.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    ResponseEntity<ApiError> handleUnauthorized(InvalidCredentialsException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
     /** Missing/unknown resources (e.g. cart or order id) -> 404. */

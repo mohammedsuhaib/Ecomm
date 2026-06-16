@@ -131,3 +131,50 @@ export interface PlaceOrderRequest {
   address: OrderAddress;
   paymentMethod: PaymentMethod;
 }
+
+// ---- Identity (M4) ------------------------------------------------------
+// Exact JSON field names per M4_CONTRACT §7. The frontend only ever sees our
+// own JWTs + this contract; the auth vendor (Firebase) is hidden behind a
+// backend port.
+
+export type UserRole = 'CUSTOMER' | 'STORE_STAFF' | 'ADMIN';
+
+export interface UserDto {
+  id: number;
+  role: string; // UserRole, kept as string to mirror the API exactly
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/** Issued by POST /auth/phone/verify (login/signup). */
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: UserDto;
+}
+
+/** Issued by POST /auth/refresh (rotating). */
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/** GET /me/addresses item (= backend SavedAddressDto). */
+export interface SavedAddress {
+  id: number;
+  label: string | null;
+  line: string;
+  lat: number;
+  lng: number;
+  isDefault: boolean;
+}
+
+/** POST/PUT /me/addresses body. */
+export interface AddressInput {
+  label?: string | null;
+  line: string;
+  lat: number;
+  lng: number;
+  isDefault?: boolean;
+}

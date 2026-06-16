@@ -30,6 +30,10 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/townbasket
       DB_USERNAME: townbasket
       DB_PASSWORD: townbasket
+      # Dev-only JWT signing secret (>= 32 bytes). Override with a real secret in
+      # production. Firebase is left unconfigured locally, so the FAKE phone
+      # verifier is active (accepts dev:<10-digit-phone> tokens).
+      JWT_SECRET: dev-only-insecure-jwt-secret-change-me-32bytes+
     ports:
       - "8080:8080"
     depends_on:

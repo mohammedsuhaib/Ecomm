@@ -33,6 +33,9 @@ class OrderEntity {
     @Column(name = "cart_id")
     private UUID cartId;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
@@ -88,10 +91,11 @@ class OrderEntity {
         // JPA
     }
 
-    OrderEntity(UUID cartId, Long storeId, String customerName, String phone, String addressLine,
+    OrderEntity(UUID cartId, Long userId, Long storeId, String customerName, String phone, String addressLine,
                 double lat, double lng, String paymentMethod, String paymentStatus, OrderStatus status,
                 BigDecimal subtotal, BigDecimal total, String deliveryOtp, String idempotencyKey) {
         this.cartId = cartId;
+        this.userId = userId;
         this.storeId = storeId;
         this.customerName = customerName;
         this.phone = phone;
@@ -114,6 +118,10 @@ class OrderEntity {
 
     UUID getCartId() {
         return cartId;
+    }
+
+    Long getUserId() {
+        return userId;
     }
 
     Long getStoreId() {

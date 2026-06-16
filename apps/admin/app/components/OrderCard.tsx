@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ApiError, transitionOrder } from '@/app/lib/api';
+import { ApiError, AuthRequiredError, transitionOrder } from '@/app/lib/api';
 import { formatRupees, formatTime } from '@/app/lib/format';
 import { STATUS_LABELS, canCancel, nextStatus } from '@/app/lib/status';
 import type { Order } from '@/app/lib/types';
@@ -39,7 +39,12 @@ export default function OrderCard({
       setOtpPrompt(false);
       setOtp('');
     } catch (err) {
-      if (err instanceof ApiError && (err.status === 400 || err.status === 422)) {
+      if (err instanceof AuthRequiredError) {
+        setError('Session expired — please log in again.');
+      } else if (
+        err instanceof ApiError &&
+        (err.status === 400 || err.status === 422)
+      ) {
         setError(
           next === 'DELIVERED'
             ? 'Incorrect delivery code. Please re-check with the customer.'
@@ -72,8 +77,12 @@ export default function OrderCard({
         reason: reason || 'Cancelled by staff',
       });
       onUpdated(updated);
-    } catch {
-      setError('Could not cancel the order. Please try again.');
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        setError('Session expired — please log in again.');
+      } else {
+        setError('Could not cancel the order. Please try again.');
+      }
     } finally {
       setBusy(false);
     }

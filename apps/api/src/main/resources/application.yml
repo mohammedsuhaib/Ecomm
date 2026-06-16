@@ -2,6 +2,16 @@ spring:
   application:
     name: town-basket-api
 
+  autoconfigure:
+    # Authentication is handled solely by our stateless JwtAuthenticationFilter
+    # (SecurityConfig disables httpBasic/formLogin), so Spring Boot's default
+    # in-memory UserDetailsService is a dead, unreachable credential. Excluding it
+    # removes that credential and the random-password line logged at every boot.
+    # NOTE: a property exclude is used (not @SpringBootApplication(exclude=...))
+    # because @Modulith's meta @SpringBootApplication wins the annotation merge
+    # and silently ignores the annotation-level exclude.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
   datasource:
     # Env-var driven so the same image runs locally (docker-compose) and in prod.
     url: ${DB_URL:jdbc:postgresql://localhost:5432/townbasket}
@@ -72,6 +82,28 @@ logging:
 
 # CORS allowed origins for the browser-facing apps (override in prod with the
 # real domains, e.g. https://town-basket.com,https://admin.town-basket.com).
+# CORS is owned by Spring Security (SecurityConfig) reading this property.
 app:
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+
+# Identity / security (M4).
+townbasket:
+  security:
+    jwt:
+      # HS256 signing key. MUST be >= 32 bytes. The value below is a CLEARLY
+      # MARKED DEV DEFAULT — override with the JWT_SECRET env var in every real
+      # deployment (it is intentionally not a production secret and is in the repo
+      # only so local dev / docker-compose work out of the box).
+      secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-32bytes+}
+      access-ttl: PT15M   # access token lifetime (15 minutes)
+      refresh-ttl: P30D   # refresh token lifetime (30 days)
+  identity:
+    firebase:
+      # project-id is intentionally LEFT UNSET here. While unset, the FAKE phone
+      # verifier is active (accepts only dev:<10-digit-phone> tokens). In
+      # production, set it (e.g. export FIREBASE_PROJECT_ID / pass
+      # -Dtownbasket.identity.firebase.project-id=<id>) to activate the real
+      # Google-signed-token verifier and disable the fake — a hard security
+      # requirement. Do NOT give it an empty-string default: an empty value
+      # would still count as "present" and wrongly activate the real verifier.

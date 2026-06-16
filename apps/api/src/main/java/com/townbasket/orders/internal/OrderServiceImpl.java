@@ -4,6 +4,7 @@ import com.townbasket.cart.CartDto;
 import com.townbasket.cart.CartItemDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
+import com.townbasket.catalog.VariantView;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.orders.AddressDto;
@@ -31,6 +32,7 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -77,7 +79,7 @@ class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderDto placeOrder(PlaceOrderRequest request, String idempotencyKey) {
+    public OrderDto placeOrder(PlaceOrderRequest request, String idempotencyKey, Long userId) {
         String key = resolveIdempotencyKey(request, idempotencyKey);
 
         // Idempotency: a retry with the same key returns the original order.
@@ -121,7 +123,7 @@ class OrderServiceImpl implements OrderService {
         boolean upi = method == PaymentMethod.UPI;
 
         OrderEntity order = new OrderEntity(
-                cart.cartId(), storeId, request.customerName(), request.phone(), address.line(),
+                cart.cartId(), userId, storeId, request.customerName(), request.phone(), address.line(),
                 address.lat(), address.lng(), method.name(),
                 upi ? "PENDING" : "COD_PENDING",
                 OrderStatus.PLACED, subtotal, subtotal, generateOtp(), key);
@@ -176,6 +178,32 @@ class OrderServiceImpl implements OrderService {
                 ? orders.findAllByOrderByPlacedAtDescIdDesc(pageable)
                 : orders.findByStatusOrderByPlacedAtDescIdDesc(parseStatus(status), pageable);
         return PagedResponse.of(page, this::toDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable) {
+        return PagedResponse.of(orders.findByUserIdOrderByPlacedAtDescIdDesc(userId, pageable), this::toDto);
+    }
+
+    @Override
+    public CartDto reorder(Long orderId, Long userId) {
+        OrderEntity order = orders.findById(orderId)
+                .filter(o -> userId.equals(o.getUserId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+
+        CartDto cart = cartService.createUserCart(userId);
+        UUID cartId = cart.cartId();
+        // Add each currently catalog-available line; skip unavailable ones.
+        for (OrderItemEntity item : order.getItems()) {
+            boolean available = catalogService.findVariant(item.getVariantId())
+                    .map(VariantView::available)
+                    .orElse(false);
+            if (available) {
+                cart = cartService.addItem(cartId, item.getVariantId(), item.getQty());
+            }
+        }
+        return cart;
     }
 
     @Override

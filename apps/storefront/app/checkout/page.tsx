@@ -3,15 +3,23 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, checkServiceability, getStore, placeOrder } from '@/app/lib/api';
+import {
+  ApiError,
+  checkServiceability,
+  getStore,
+  listAddresses,
+  placeOrder,
+} from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
-import type { PaymentMethod } from '@/app/lib/types';
+import { useAuth } from '@/app/components/AuthProvider';
+import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, refresh } = useCart();
+  const { user, isAuthenticated } = useAuth();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -19,6 +27,12 @@ export default function CheckoutPage() {
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+
+  // Logged-in extras: prefill name/phone and offer saved addresses as quick
+  // picks. Guests see none of this and the flow is unchanged.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  // Track whether the name/phone have been touched so we don't clobber typing.
+  const prefilled = useRef(false);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -52,6 +66,40 @@ export default function CheckoutPage() {
       setLng(String(stored.lng));
     }
   }, []);
+
+  // When logged in, prefill name/phone from the profile (once) and load saved
+  // addresses for quick-pick. Guests skip this entirely.
+  useEffect(() => {
+    if (!isAuthenticated || !user || prefilled.current) return;
+    prefilled.current = true;
+    if (user.name) setName(user.name);
+    if (user.phone) setPhone(user.phone);
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSavedAddresses([]);
+      return;
+    }
+    listAddresses()
+      .then((list) => {
+        setSavedAddresses(list);
+        // Pre-pick the default address if the form is still empty.
+        const def = list.find((a) => a.isDefault) ?? list[0];
+        if (def) {
+          setLine((prev) => (prev.trim() ? prev : def.line));
+          setLat((prev) => (prev.trim() ? prev : String(def.lat)));
+          setLng((prev) => (prev.trim() ? prev : String(def.lng)));
+        }
+      })
+      .catch(() => setSavedAddresses([]));
+  }, [isAuthenticated]);
+
+  function pickAddress(a: SavedAddress) {
+    setLine(a.line);
+    setLat(String(a.lat));
+    setLng(String(a.lng));
+  }
 
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal ?? 0;
@@ -185,6 +233,33 @@ export default function CheckoutPage() {
               <span className="add-error">Enter a 10-digit phone number.</span>
             )}
           </div>
+          {savedAddresses.length > 0 && (
+            <div className="field">
+              <label>Saved addresses</label>
+              <div className="saved-address-picks">
+                {savedAddresses.map((a) => {
+                  const active =
+                    line.trim() === a.line.trim() &&
+                    String(a.lat) === lat &&
+                    String(a.lng) === lng;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className={`address-chip ${active ? 'active' : ''}`}
+                      onClick={() => pickAddress(a)}
+                    >
+                      <span className="chip-label">
+                        {a.label || 'Address'}
+                        {a.isDefault ? ' · Default' : ''}
+                      </span>
+                      <span className="chip-line muted">{a.line}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="field">
             <label htmlFor="line">Delivery address</label>
             <textarea

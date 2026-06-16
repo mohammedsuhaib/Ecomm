@@ -24,6 +24,8 @@
         <!-- Spring Modulith BOM keeps all spring-modulith-* artifacts on one version. -->
         <spring-modulith.version>1.2.4</spring-modulith.version>
         <springdoc.version>2.6.0</springdoc.version>
+        <!-- JJWT — sign/verify our own HS256 access tokens (identity module). -->
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencies>
@@ -39,6 +41,33 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Security — stateless JWT auth + BCrypt password hashing (M4 identity).
+             We issue our OWN JWTs; the security layer is resource-server-style
+             (a custom OncePerRequestFilter validates the Bearer token). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- JJWT — compile API + runtime impl/jackson (HS256 access tokens). -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Spring Modulith — module boundaries + event publication registry (outbox) -->
@@ -84,6 +113,11 @@
         <dependency>
             <groupId>org.springframework.modulith</groupId>
             <artifactId>spring-modulith-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
