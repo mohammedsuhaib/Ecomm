@@ -17,7 +17,8 @@ class OpenApiConfiguration {
     OpenAPI townBasketOpenApi() {
         return new OpenAPI().info(new Info()
                 .title("Town Basket API")
-                .description("Quick-commerce storefront API (catalog + serviceability).")
+                .description("Quick-commerce storefront API (catalog, serviceability, cart, "
+                        + "orders, payments, inventory, notifications).")
                 .version("v1"));
     }
 }

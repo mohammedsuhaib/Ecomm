@@ -4,7 +4,9 @@ import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.CategoryDto;
 import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
+import com.townbasket.catalog.VariantView;
 import com.townbasket.shared.PagedResponse;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -25,10 +27,14 @@ class CatalogServiceImpl implements CatalogService {
 
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final ProductVariantRepository variantRepository;
 
-    CatalogServiceImpl(CategoryRepository categoryRepository, ProductRepository productRepository) {
+    CatalogServiceImpl(CategoryRepository categoryRepository,
+                       ProductRepository productRepository,
+                       ProductVariantRepository variantRepository) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
+        this.variantRepository = variantRepository;
     }
 
     @Override
@@ -61,6 +67,34 @@ class CatalogServiceImpl implements CatalogService {
             return new PagedResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0);
         }
         return PagedResponse.of(productRepository.search(q, pageable), CatalogServiceImpl::toProductDto);
+    }
+
+    @Override
+    public Optional<VariantView> findVariant(Long variantId) {
+        if (variantId == null) {
+            return Optional.empty();
+        }
+        return variantRepository.findById(variantId).map(v -> {
+            String productName = productRepository.findById(v.getProductId())
+                    .map(ProductEntity::getName)
+                    .orElse(null);
+            return new VariantView(
+                    v.getId(),
+                    v.getProductId(),
+                    productName,
+                    v.getLabel(),
+                    v.getSellingPrice(),
+                    v.isAvailable());
+        });
+    }
+
+    @Override
+    public Optional<BigDecimal> costPrice(Long variantId) {
+        if (variantId == null) {
+            return Optional.empty();
+        }
+        // INTERNAL: cost price for the orders COGS snapshot only — never serialized.
+        return variantRepository.findById(variantId).map(ProductVariantEntity::getCostPrice);
     }
 
     private static Optional<Long> parseLong(String value) {

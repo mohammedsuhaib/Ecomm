@@ -1,14 +1,16 @@
 package com.townbasket.catalog;
 
 import com.townbasket.shared.PagedResponse;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 
 /**
- * Published API of the catalog module. Read-only at M2.
+ * Published API of the catalog module. Read-only browsing plus cross-module
+ * variant lookups used by {@code cart} and {@code orders} (by id only).
  *
- * <p>Returns DTOs only — entities and repositories stay module-internal.
+ * <p>Returns DTOs / views only — entities and repositories stay module-internal.
  */
 public interface CatalogService {
 
@@ -20,4 +22,18 @@ public interface CatalogService {
     Optional<ProductDto> findProduct(String idOrSlug);
 
     PagedResponse<ProductDto> search(String query, Pageable pageable);
+
+    /**
+     * Resolve a single variant (product name, label, selling price, availability)
+     * by id, for {@code cart} / {@code orders}. Empty if no such variant.
+     * Never includes cost price.
+     */
+    Optional<VariantView> findVariant(Long variantId);
+
+    /**
+     * Cost price (COGS) for a variant, for the orders module's per-line
+     * snapshot only. INTERNAL — never returned to any client. Empty if no such
+     * variant.
+     */
+    Optional<BigDecimal> costPrice(Long variantId);
 }
