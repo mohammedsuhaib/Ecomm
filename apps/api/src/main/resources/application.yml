@@ -27,6 +27,12 @@ spring:
     schemas: flyway
     default-schema: flyway
     create-schemas: true
+    # Schema-per-module migrations use per-module version bands (inventory 4.x,
+    # cart 5.x, orders 6.x, … serviceability 8.x). Adding a migration to a lower
+    # band after a higher band is already applied is "out of order" for Flyway;
+    # allow it since per-module migrations are independent. Without this, an
+    # existing DB (e.g. upgraded M2 -> M3) fails validation.
+    out-of-order: true
     locations:
       - classpath:db/migration/shared
       - classpath:db/migration/identity
