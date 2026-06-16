@@ -63,3 +63,9 @@ server:
 logging:
   level:
     root: INFO
+
+# CORS allowed origins for the browser-facing apps (override in prod with the
+# real domains, e.g. https://town-basket.com,https://admin.town-basket.com).
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
