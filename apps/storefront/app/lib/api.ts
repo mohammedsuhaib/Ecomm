@@ -18,8 +18,24 @@ import type {
   Store,
 } from './types';
 
-export const API_BASE_URL =
+// Resolve the API base URL per execution context:
+//  - Browser: the publicly reachable URL (NEXT_PUBLIC_API_BASE_URL).
+//  - Server (SSR / inside Docker): an internal URL when provided
+//    (INTERNAL_API_BASE_URL, e.g. http://api:8080/api/v1 under docker-compose),
+//    because "localhost" on the server refers to the frontend container itself,
+//    not the API container.
+const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
+
+export function getApiBaseUrl(): string {
+  if (typeof window === 'undefined') {
+    return process.env.INTERNAL_API_BASE_URL ?? PUBLIC_API_BASE_URL;
+  }
+  return PUBLIC_API_BASE_URL;
+}
+
+// Public (browser) base URL — also referenced by the service worker.
+export const API_BASE_URL = PUBLIC_API_BASE_URL;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -40,7 +56,7 @@ type FetchOpts = {
 };
 
 function buildUrl(path: string, query?: Record<string, unknown>): string {
-  const base = API_BASE_URL.replace(/\/$/, '');
+  const base = getApiBaseUrl().replace(/\/$/, '');
   const url = new URL(`${base}${path.startsWith('/') ? path : `/${path}`}`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
