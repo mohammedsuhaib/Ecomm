@@ -1,14 +1,25 @@
 import type { Metadata, Viewport } from 'next';
+import { Suspense } from 'react';
+import './globals.css';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import LocationGate from './components/LocationGate';
 
 export const metadata: Metadata = {
   title: 'Town Basket — Groceries delivered',
   description:
-    'Order groceries from your neighbourhood supermarket, delivered fast within the delivery radius.',
+    'Order groceries from your neighbourhood supermarket, delivered fast within 5 km.',
   manifest: '/manifest.webmanifest',
+  applicationName: 'Town Basket',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Town Basket',
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1f8a4c',
+  themeColor: '#2e7d32',
   width: 'device-width',
   initialScale: 1,
 };
@@ -20,7 +31,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {/* LocationGate is the provider for the whole shell so the header's
+            location pill can re-open it. It prompts for location on first
+            visit and blocks the catalogue when out of range; otherwise it
+            renders children. */}
+        <LocationGate>
+          <Header />
+          <main className="wrap">
+            {/* SearchBar/useSearchParams need a Suspense boundary. */}
+            <Suspense fallback={null}>{children}</Suspense>
+          </main>
+          <Footer />
+        </LocationGate>
+      </body>
     </html>
   );
 }
