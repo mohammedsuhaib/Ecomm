@@ -1,0 +1,21 @@
+# Town Basket reverse proxy + automatic TLS (Let's Encrypt).
+# Three subdomains front the three containers. Finalised in M6.
+
+shop.town-basket.com {
+	encode gzip zstd
+	reverse_proxy storefront:3000
+}
+
+admin.town-basket.com {
+	encode gzip zstd
+	reverse_proxy admin:3001
+}
+
+api.town-basket.com {
+	encode gzip zstd
+	# SSE (live order tracking + admin queue) needs unbuffered, long-lived
+	# responses — disable flush buffering on the API upstream.
+	reverse_proxy api:8080 {
+		flush_interval -1
+	}
+}

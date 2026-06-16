@@ -1,0 +1,69 @@
+# Local development stack for Town Basket.
+#   docker compose -f infra/docker-compose.yml up --build
+#
+# Postgres (5432) + API (8080) + storefront (3000) + admin (3001).
+# Flyway (in the API) creates each module's schema on startup; the init script
+# below is belt-and-braces and creates the database/role only.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: townbasket
+      POSTGRES_PASSWORD: townbasket
+      POSTGRES_DB: townbasket
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U townbasket -d townbasket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/townbasket
+      DB_USERNAME: townbasket
+      DB_PASSWORD: townbasket
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  storefront:
+    build:
+      context: ..
+      dockerfile: apps/storefront/Dockerfile
+    environment:
+      # Browser-facing URL (used by the visitor's browser on the host).
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+      # Server-side / SSR URL (container-to-container via the compose network).
+      INTERNAL_API_BASE_URL: http://api:8080/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+      INTERNAL_API_BASE_URL: http://api:8080/api/v1
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:

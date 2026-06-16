@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───── Backend: build + tests, including Modulith boundary verification ─────
+  api:
+    name: API (Maven + Modulith)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test (includes ModularityTests boundary verification)
+        run: ./mvnw -B -ntp verify
+        working-directory: apps/api
+        # Integration tests use Testcontainers; Docker is available on
+        # ubuntu-latest GitHub runners out of the box.
+
+      - name: Upload Modulith docs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spring-modulith-docs
+          path: apps/api/target/spring-modulith-docs/
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: apps/api/target/surefire-reports/
+          if-no-files-found: ignore
+
+  # ───── Frontends: type-check + build both Next.js apps ─────
+  frontends:
+    name: Frontends (Next.js type-check + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        # pnpm version comes from the "packageManager" field in package.json
+        # (specifying it here too makes pnpm/action-setup@v4 fail).
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # NOTE: once the backend exposes its OpenAPI spec (M2+), regenerate the
+      # API client here so contract drift fails the frontend build:
+      #   - run: pnpm --filter @town-basket/api-client generate
+      - name: Type-check
+        run: pnpm -r --if-present run typecheck
+
+      - name: Build storefront
+        run: pnpm --filter @town-basket/storefront build
+
+      - name: Build admin
+        run: pnpm --filter @town-basket/admin build
+
+      # TODO (M2): Lighthouse PWA-installable gate on the storefront.

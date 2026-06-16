@@ -1,0 +1,14 @@
+{
+  // Type-checking config for the service worker (app/sw.ts). The SW runs in a
+  // WebWorker context, not the DOM, so it needs the WebWorker lib. Node types
+  // are included for `process.env` (replaced at build time by Serwist/Next).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "webworker"],
+    "types": ["node"],
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["app/sw.ts"],
+  "exclude": ["node_modules"]
+}
