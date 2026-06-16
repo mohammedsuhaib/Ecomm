@@ -1,5 +1,0 @@
-rootProject.name = 'town-basket'
-
-// The Spring Boot modular monolith lives under apps/api.
-include ':api'
-project(':api').projectDir = file('apps/api')

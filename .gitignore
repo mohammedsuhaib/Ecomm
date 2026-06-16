@@ -1,11 +1,7 @@
-# ───── Java / Gradle ─────
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
+# ───── Java / Maven ─────
+target/
 *.class
 *.log
-*.jar
-!**/gradle/wrapper/gradle-wrapper.jar
 out/
 bin/
 
@@ -39,4 +35,4 @@ Thumbs.db
 # OpenAPI-generated TS client sources (regenerated in CI)
 packages/api-client/src/generated/
 # Spring Modulith generated docs
-apps/api/build/spring-modulith-docs/
+apps/api/target/spring-modulith-docs/

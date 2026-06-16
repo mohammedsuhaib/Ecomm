@@ -3,23 +3,23 @@
 
 # ───── build ─────
 FROM eclipse-temurin:21-jdk AS build
-WORKDIR /workspace
+WORKDIR /workspace/apps/api
 
-# Gradle wrapper + build scripts first for better layer caching.
-COPY gradlew settings.gradle build.gradle ./
-COPY gradle ./gradle
-COPY apps/api/build.gradle apps/api/build.gradle
-RUN ./gradlew :api:dependencies --no-daemon || true
+# Maven wrapper + pom first for better layer caching.
+COPY apps/api/.mvn .mvn
+COPY apps/api/mvnw mvnw
+COPY apps/api/pom.xml pom.xml
+RUN ./mvnw -B -ntp dependency:go-offline || true
 
 # Sources
-COPY apps/api/src apps/api/src
-RUN ./gradlew :api:bootJar --no-daemon -x test
+COPY apps/api/src src
+RUN ./mvnw -B -ntp -DskipTests clean package
 
 # ───── runtime ─────
 FROM eclipse-temurin:21-jre AS runtime
 WORKDIR /app
 RUN useradd -r -u 1001 spring
-COPY --from=build /workspace/apps/api/build/libs/*.jar app.jar
+COPY --from=build /workspace/apps/api/target/*.jar app.jar
 USER spring
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

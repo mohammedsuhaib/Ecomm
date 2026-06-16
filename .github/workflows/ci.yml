@@ -12,7 +12,7 @@ concurrency:
 jobs:
   # ───── Backend: build + tests, including Modulith boundary verification ─────
   api:
-    name: API (Gradle + Modulith)
+    name: API (Maven + Modulith)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,21 +22,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+          cache: maven
 
       - name: Build and test (includes ModularityTests boundary verification)
-        run: ./gradlew :api:build
-        # ModularityTests integration tests use Testcontainers; Docker is
-        # available on ubuntu-latest GitHub runners out of the box.
+        run: ./mvnw -B -ntp verify
+        working-directory: apps/api
+        # Integration tests use Testcontainers; Docker is available on
+        # ubuntu-latest GitHub runners out of the box.
 
       - name: Upload Modulith docs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: spring-modulith-docs
-          path: apps/api/build/spring-modulith-docs/
+          path: apps/api/target/spring-modulith-docs/
           if-no-files-found: ignore
 
       - name: Upload test results
@@ -44,7 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: api-test-results
-          path: apps/api/build/reports/tests/
+          path: apps/api/target/surefire-reports/
           if-no-files-found: ignore
 
   # ───── Frontends: type-check + build both Next.js apps ─────
