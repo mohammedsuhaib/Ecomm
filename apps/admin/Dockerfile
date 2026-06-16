@@ -17,6 +17,10 @@ RUN pnpm --filter @town-basket/admin build
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+# Next.js standalone server.js listens on $PORT (default 3000); the admin app
+# is published on 3001, so bind it there.
+ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
 COPY --from=build /repo/apps/admin/.next/standalone ./
 COPY --from=build /repo/apps/admin/.next/static ./apps/admin/.next/static
 EXPOSE 3001
