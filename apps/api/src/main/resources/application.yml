@@ -112,3 +112,10 @@ townbasket:
       # Google-signed-token verifier and disable the fake — a hard security
       # requirement. Do NOT give it an empty-string default: an empty value
       # would still count as "present" and wrongly activate the real verifier.
+  serviceability:
+    # TESTING ONLY: override the store's base coordinates for the 5 km gate so you
+    # can test serviceability from your OWN location without changing the seeded
+    # store. Set BOTH (env TOWNBASKET_SERVICEABILITY_STORE_LAT / _LNG). Unset in
+    # production; a blank/malformed value is ignored (falls back to the seeded store).
+    # store-lat: 12.9716
+    # store-lng: 77.5946

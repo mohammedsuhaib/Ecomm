@@ -34,6 +34,11 @@ services:
       # production. Firebase is left unconfigured locally, so the FAKE phone
       # verifier is active (accepts dev:<10-digit-phone> tokens).
       JWT_SECRET: dev-only-insecure-jwt-secret-change-me-32bytes+
+      # TESTING: set STORE_LAT/STORE_LNG (your coordinates) to make the 5 km
+      # serviceability gate measure from you instead of the seeded Mysuru store.
+      # Empty => seeded store. e.g. STORE_LAT=12.97 STORE_LNG=77.59 docker compose up
+      TOWNBASKET_SERVICEABILITY_STORE_LAT: ${STORE_LAT:-}
+      TOWNBASKET_SERVICEABILITY_STORE_LNG: ${STORE_LNG:-}
     ports:
       - "8080:8080"
     depends_on:
