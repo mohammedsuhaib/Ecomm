@@ -69,25 +69,19 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
         });
     };
 
-    const startPolling = () => {
-      if (pollTimer) return;
-      // Gentle cadence — history is a background view, not the live tracker.
-      pollTimer = setInterval(refetch, 15000);
-    };
+    // Poll on a gentle cadence regardless of SSE: the stream sends NAMED "status"
+    // events (es.onmessage won't receive them) and can stay open+silent, so the
+    // poll is what reliably advances the stamp. SSE just makes it snappier.
+    pollTimer = setInterval(refetch, 15000);
 
     if (typeof EventSource !== 'undefined') {
       try {
         es = new EventSource(orderStreamUrl(orderId));
+        es.addEventListener('status', refetch);
         es.onmessage = refetch;
-        es.onerror = () => {
-          // Browser auto-reconnects; meanwhile poll as a fallback.
-          startPolling();
-        };
       } catch {
-        startPolling();
+        /* polling covers it */
       }
-    } else {
-      startPolling();
     }
 
     return () => {

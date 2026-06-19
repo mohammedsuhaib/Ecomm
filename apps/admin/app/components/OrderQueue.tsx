@@ -86,29 +86,24 @@ export default function OrderQueue() {
         });
     };
 
-    const startPolling = () => {
-      if (pollTimer) return;
-      pollTimer = setInterval(refetch, 8000);
-    };
+    // Poll on a steady cadence regardless of SSE: the admin stream emits NAMED
+    // events ("order-placed"/"order-updated"), which es.onmessage doesn't receive,
+    // and the connection can stay open+silent — so the poll keeps the queue current
+    // (and reliably surfaces a dead token via AuthRequiredError). SSE just makes
+    // new orders / transitions appear instantly when it works.
+    pollTimer = setInterval(refetch, 8000);
 
     if (typeof EventSource !== 'undefined') {
       try {
         es = new EventSource(adminOrderStreamUrl());
         es.onopen = () => setLive(true);
+        es.addEventListener('order-placed', () => refetch());
+        es.addEventListener('order-updated', () => refetch());
         es.onmessage = () => refetch();
-        es.onerror = () => {
-          // EventSource can't surface the HTTP status; a token rejected by the
-          // stream just errors. Fall back to polling, which DOES report 401s
-          // (via AuthRequiredError) and will trigger re-login if the token is
-          // truly dead — otherwise it transparently recovers.
-          setLive(false);
-          startPolling();
-        };
+        es.onerror = () => setLive(false);
       } catch {
-        startPolling();
+        /* polling covers it */
       }
-    } else {
-      startPolling();
     }
 
     return () => {

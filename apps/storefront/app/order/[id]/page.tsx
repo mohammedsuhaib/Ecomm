@@ -77,48 +77,54 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     };
   }, [orderId, applyOrder]);
 
-  // Live updates: subscribe to the order SSE stream; fall back to polling if
-  // EventSource is unavailable or errors out (ARCHITECTURE §3.8).
+  // Live updates. The order SSE stream emits NAMED "status" events, so we listen
+  // for them explicitly (es.onmessage only fires for *unnamed* events and would
+  // miss them). We ALSO poll on a steady interval as the reliable fallback: the
+  // connection can stay open and silent, so polling — not just onerror — is what
+  // guarantees the status advances. Stops once the order is terminal.
   useEffect(() => {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let es: EventSource | null = null;
+    let stopped = false;
 
-    const startPolling = () => {
-      if (pollTimer) return;
-      pollTimer = setInterval(() => {
-        getOrder(orderId)
-          .then(applyOrder)
-          .catch(() => {
-            /* transient; keep polling */
-          });
-      }, 5000);
+    const stop = () => {
+      stopped = true;
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (es) {
+        es.close();
+        es = null;
+      }
     };
+    const refetch = () => {
+      if (stopped) return;
+      getOrder(orderId)
+        .then((o) => {
+          applyOrder(o);
+          if (o.status === 'DELIVERED' || o.status === 'CANCELLED') stop();
+        })
+        .catch(() => {
+          /* transient; keep trying */
+        });
+    };
+
+    pollTimer = setInterval(refetch, 6000);
 
     if (typeof EventSource !== 'undefined') {
       try {
         es = new EventSource(orderStreamUrl(orderId));
         es.onopen = () => setLive(true);
-        es.onmessage = () => {
-          // Refetch on any event so we always render the canonical order
-          // (the event payload carries at least the new status).
-          getOrder(orderId).then(applyOrder).catch(() => {});
-        };
-        es.onerror = () => {
-          // Browser auto-reconnects EventSource; meanwhile poll as a fallback.
-          setLive(false);
-          startPolling();
-        };
+        es.addEventListener('status', refetch); // backend pushes NAMED "status" events
+        es.onmessage = refetch; // also handle any unnamed events
+        es.onerror = () => setLive(false); // browser auto-reconnects; poll keeps us current
       } catch {
-        startPolling();
+        /* polling already covers updates */
       }
-    } else {
-      startPolling();
     }
 
-    return () => {
-      if (es) es.close();
-      if (pollTimer) clearInterval(pollTimer);
-    };
+    return stop;
   }, [orderId, applyOrder]);
 
   if (error) {
