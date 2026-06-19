@@ -7,8 +7,9 @@ import java.util.List;
 /**
  * Public order representation (confirmation + tracking + admin queue).
  *
- * <p>{@code deliveryOtp} IS returned (shown to the customer; required to mark the
- * order delivered). Per-line {@code cost_price} (COGS) is NEVER exposed — see
+ * <p>{@code deliveryOtp} is returned to the customer while the order is in
+ * progress (the handover code) and is omitted (null) once the order is DELIVERED
+ * or CANCELLED. Per-line {@code cost_price} (COGS) is NEVER exposed — see
  * {@link OrderItemDto}.
  */
 public record OrderDto(

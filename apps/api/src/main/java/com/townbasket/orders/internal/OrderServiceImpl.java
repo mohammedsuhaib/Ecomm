@@ -307,6 +307,11 @@ class OrderServiceImpl implements OrderService {
         List<OrderTimelineEntryDto> timeline = o.getEvents().stream()
                 .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt()))
                 .toList();
+        // The delivery OTP is proof-of-handover; once the order is DELIVERED (code
+        // spent) or CANCELLED, omit it from the response. The DELIVERED transition
+        // still verifies against the stored value on the entity, not this DTO.
+        boolean otpRelevant = o.getStatus() != OrderStatus.DELIVERED
+                && o.getStatus() != OrderStatus.CANCELLED;
         return new OrderDto(
                 o.getId(),
                 o.getStatus().name(),
@@ -318,7 +323,7 @@ class OrderServiceImpl implements OrderService {
                 items,
                 o.getSubtotal(),
                 o.getTotal(),
-                o.getDeliveryOtp(),
+                otpRelevant ? o.getDeliveryOtp() : null,
                 o.getPlacedAt(),
                 timeline);
     }
