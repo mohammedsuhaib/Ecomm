@@ -16,6 +16,7 @@ import {
   type StoredServiceability,
 } from '@/app/lib/serviceability';
 import type { ServiceabilityResult } from '@/app/lib/types';
+import LocationPicker from './LocationPicker';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
 
@@ -44,8 +45,9 @@ type Phase =
  * the result. If not serviceable it shows a clear blocking screen; otherwise
  * it renders the catalogue (children).
  *
- * Lightweight by design — no paid maps SDK, just the Geolocation API +
- * manual coordinate entry (ARCHITECTURE.md §3.7, §4.1).
+ * Location is set with the shared {@link LocationPicker} — a Google-Maps pin-drop
+ * when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is configured, otherwise a "use my current
+ * location" geolocation fallback (ARCHITECTURE.md §3.7, §4.1).
  */
 export default function LocationGate({
   children,
@@ -55,12 +57,18 @@ export default function LocationGate({
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<ServiceabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
+  // The point chosen via the map pin-drop (LocationPicker), as strings.
+  const [pickLat, setPickLat] = useState('');
+  const [pickLng, setPickLng] = useState('');
 
   // Decide initial phase from persisted result (runs client-side only).
   useEffect(() => {
     const stored: StoredServiceability | null = loadServiceability();
+    if (stored) {
+      // Prefill the picker with the last-used point so re-opening shows it.
+      setPickLat(String(stored.lat));
+      setPickLng(String(stored.lng));
+    }
     if (stored?.result.serviceable) {
       setResult(stored.result);
       setPhase('serviceable');
@@ -90,47 +98,23 @@ export default function LocationGate({
     }
   }, []);
 
-  const useBrowserLocation = useCallback(() => {
-    setError(null);
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setError(
-        'Your browser doesn’t support location. Please enter coordinates manually.',
-      );
+  // Check the point chosen on the map / via "use my current location".
+  const checkPicked = useCallback(() => {
+    const lat = Number.parseFloat(pickLat);
+    const lng = Number.parseFloat(pickLng);
+    if (
+      Number.isNaN(lat) ||
+      Number.isNaN(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      setError('Please set your location on the map first.');
       return;
     }
-    setPhase('checking');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => runCheck(pos.coords.latitude, pos.coords.longitude),
-      () => {
-        setError(
-          'Location permission was denied. Enter coordinates manually or browse anyway.',
-        );
-        setPhase('prompt');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, [runCheck]);
-
-  const submitManual = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      const lat = Number.parseFloat(manualLat);
-      const lng = Number.parseFloat(manualLng);
-      if (
-        Number.isNaN(lat) ||
-        Number.isNaN(lng) ||
-        lat < -90 ||
-        lat > 90 ||
-        lng < -180 ||
-        lng > 180
-      ) {
-        setError('Please enter a valid latitude and longitude.');
-        return;
-      }
-      runCheck(lat, lng);
-    },
-    [manualLat, manualLng, runCheck],
-  );
+    runCheck(lat, lng);
+  }, [pickLat, pickLng, runCheck]);
 
   // "Browse anyway" — let them into the catalogue without a serviceable
   // result. Checkout (M3) will re-verify, per the architecture.
@@ -160,65 +144,40 @@ export default function LocationGate({
           <div className="gate-card">
             <h2>🧺 Where should we deliver?</h2>
             <p>
-              We deliver groceries within 5&nbsp;km of our store. Share your
-              location so we can check if you’re in range.
+              We deliver groceries within 5&nbsp;km of our store. Drop a pin on
+              the map (or use your current location) so we can check if you’re in
+              range.
             </p>
 
             {error && <p className="gate-error">{error}</p>}
+
+            <LocationPicker
+              lat={pickLat}
+              lng={pickLng}
+              onChange={(la, ln) => {
+                setPickLat(String(la));
+                setPickLng(String(ln));
+                setError(null);
+              }}
+            />
 
             <div className="gate-actions">
               <button
                 type="button"
                 className="btn btn-block"
-                onClick={useBrowserLocation}
+                onClick={checkPicked}
                 disabled={phase === 'checking'}
               >
-                {phase === 'checking'
-                  ? 'Checking…'
-                  : '📍 Use my current location'}
+                {phase === 'checking' ? 'Checking…' : 'Check this location'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline btn-block"
+                onClick={browseAnyway}
+              >
+                Just browse for now
               </button>
             </div>
-
-            <div className="gate-divider">— or enter coordinates —</div>
-
-            <form onSubmit={submitManual}>
-              <div className="field">
-                <label htmlFor="lat">Latitude</label>
-                <input
-                  id="lat"
-                  inputMode="decimal"
-                  placeholder="e.g. 12.9716"
-                  value={manualLat}
-                  onChange={(e) => setManualLat(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="lng">Longitude</label>
-                <input
-                  id="lng"
-                  inputMode="decimal"
-                  placeholder="e.g. 77.5946"
-                  value={manualLng}
-                  onChange={(e) => setManualLng(e.target.value)}
-                />
-              </div>
-              <div className="gate-actions">
-                <button
-                  type="submit"
-                  className="btn btn-outline btn-block"
-                  disabled={phase === 'checking'}
-                >
-                  Check this location
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-block"
-                  onClick={browseAnyway}
-                >
-                  Just browse for now
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
