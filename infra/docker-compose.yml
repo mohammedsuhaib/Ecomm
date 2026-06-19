@@ -45,6 +45,10 @@ services:
     build:
       context: ..
       dockerfile: apps/storefront/Dockerfile
+      args:
+        # Google Maps pin-drop. Public, HTTP-referrer-restricted browser key,
+        # inlined by Next at build time. Override via the env var if needed.
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-AIzaSyBT7nnGEdDd9y66tZCF2Ajv9QriIduxpuA}
     environment:
       # Browser-facing URL (used by the visitor's browser on the host).
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
