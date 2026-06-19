@@ -15,8 +15,13 @@ export default function LoginPage() {
   const params = useSearchParams();
   const next = params.get('next') || '/account';
 
-  const { loginWithPhone } = useAuth();
+  const { loginWithPhone, startPhoneLogin, firebaseEnabled } = useAuth();
   const { refresh } = useCart();
+
+  // Invisible reCAPTCHA mount point for the real Firebase phone flow. Firebase
+  // binds the widget to this element id during "send code"; it is harmless
+  // (empty) in dev mode where no SMS is sent.
+  const RECAPTCHA_CONTAINER_ID = 'tb-recaptcha-container';
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
@@ -27,16 +32,29 @@ export default function LoginPage() {
   const phoneValid = useMemo(() => /^[0-9]{10}$/.test(phone.trim()), [phone]);
   const codeValid = useMemo(() => /^[0-9]{6}$/.test(code.trim()), [code]);
 
-  function sendCode(e: React.FormEvent) {
+  async function sendCode(e: React.FormEvent) {
     e.preventDefault();
-    if (!phoneValid) {
-      setError('Enter a valid 10-digit mobile number.');
+    if (!phoneValid || busy) {
+      if (!phoneValid) setError('Enter a valid 10-digit mobile number.');
       return;
     }
-    // Dev flow: there is no real SMS. The OTP step is cosmetic locally —
-    // any 6-digit code works. (In prod the Firebase SDK would send the SMS.)
     setError(null);
-    setStep('code');
+    // Real mode: actually send the SMS OTP via Firebase (this also runs the
+    // invisible reCAPTCHA). Dev mode: no-op — the OTP step is cosmetic locally
+    // and any 6-digit code works.
+    setBusy(true);
+    try {
+      await startPhoneLogin(phone.trim(), RECAPTCHA_CONTAINER_ID);
+      setStep('code');
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not send the code. Please try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function verify(e: React.FormEvent) {
@@ -64,6 +82,11 @@ export default function LoginPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('We could not verify that number. Please try again.');
+      } else if (err instanceof ApiError) {
+        setError('Something went wrong signing you in. Please try again.');
+      } else if (err instanceof Error) {
+        // Friendly Firebase error (e.g. wrong/expired code) from the real flow.
+        setError(err.message);
       } else {
         setError('Something went wrong signing you in. Please try again.');
       }
@@ -103,12 +126,24 @@ export default function LoginPage() {
               <span className="add-error">Enter a 10-digit phone number.</span>
             )}
           </div>
-          <button type="submit" className="btn btn-block" disabled={!phoneValid}>
-            Send code
+          <button
+            type="submit"
+            className="btn btn-block"
+            disabled={!phoneValid || busy}
+          >
+            {busy ? 'Sending…' : 'Send code'}
           </button>
-          <p className="muted" style={{ fontSize: '0.8rem' }}>
-            Local dev: no SMS is sent — enter any 6-digit code on the next step.
-          </p>
+          {firebaseEnabled ? (
+            <p className="muted" style={{ fontSize: '0.8rem' }}>
+              We&apos;ll text a 6-digit code to <strong>+91 {phone || 'your number'}</strong>.
+            </p>
+          ) : (
+            <p className="muted" style={{ fontSize: '0.8rem' }}>
+              Local dev: no SMS is sent — enter any 6-digit code on the next step.
+            </p>
+          )}
+          {/* Invisible reCAPTCHA mount for the real Firebase phone flow. */}
+          <div id={RECAPTCHA_CONTAINER_ID} />
         </form>
       ) : (
         <form className="auth-form" onSubmit={verify}>
@@ -152,9 +187,15 @@ export default function LoginPage() {
           >
             Change number
           </button>
-          <p className="muted" style={{ fontSize: '0.8rem' }}>
-            Local dev: any 6-digit code is accepted.
-          </p>
+          {firebaseEnabled ? (
+            <p className="muted" style={{ fontSize: '0.8rem' }}>
+              Enter the code from the SMS we just sent.
+            </p>
+          ) : (
+            <p className="muted" style={{ fontSize: '0.8rem' }}>
+              Local dev: any 6-digit code is accepted.
+            </p>
+          )}
         </form>
       )}
     </>

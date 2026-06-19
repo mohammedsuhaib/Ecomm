@@ -12,6 +12,26 @@ COPY packages ./packages
 RUN pnpm install --filter @town-basket/storefront... --frozen-lockfile || \
     pnpm install --filter @town-basket/storefront...
 COPY apps/storefront apps/storefront
+
+# Firebase Web config (phone-OTP login). Next inlines NEXT_PUBLIC_* at BUILD
+# time, so these must be present during `next build` to enable the real flow in
+# the resulting image. All six are PUBLIC values (safe to bake into the client
+# bundle). Pass them with `--build-arg NEXT_PUBLIC_FIREBASE_*=...`. They default
+# to empty → the build still succeeds and the image falls back to the dev/fake
+# verifier (`dev:<phone>`) — see app/lib/firebase.ts `isFirebaseConfigured()`.
+ARG NEXT_PUBLIC_FIREBASE_API_KEY=""
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=""
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID=""
+ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=""
+ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=""
+ARG NEXT_PUBLIC_FIREBASE_APP_ID=""
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY \
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID \
+    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET \
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID \
+    NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
+
 RUN pnpm --filter @town-basket/storefront build
 
 # ───── runtime (Next.js standalone) ─────

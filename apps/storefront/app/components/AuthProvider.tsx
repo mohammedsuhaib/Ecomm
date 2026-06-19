@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { getMe, logout as logoutApi, phoneVerify } from '@/app/lib/api';
@@ -16,6 +17,11 @@ import {
   saveAuth,
   saveUser,
 } from '@/app/lib/auth';
+import { isFirebaseConfigured } from '@/app/lib/firebase';
+import {
+  startPhoneSignIn,
+  type PhoneSignInSession,
+} from '@/app/lib/firebasePhoneAuth';
 import type { UserDto } from '@/app/lib/types';
 
 // Auth state shared across the storefront shell: the header link, the login
@@ -26,7 +32,25 @@ import type { UserDto } from '@/app/lib/types';
 interface AuthContextValue {
   user: UserDto | null;
   isAuthenticated: boolean;
-  /** Verify the phone+code, store tokens+user. Returns the signed-in user. */
+  /**
+   * True when the REAL Firebase phone-OTP flow is active (NEXT_PUBLIC_FIREBASE_*
+   * configured). When false, the dev/fake verifier fallback is used and any
+   * 6-digit code is accepted locally. Lets the login UI tailor its copy.
+   */
+  firebaseEnabled: boolean;
+  /**
+   * Step 1 — "send code". In real mode this actually sends an SMS OTP via
+   * Firebase (an invisible reCAPTCHA is mounted on `recaptchaContainerId`) and
+   * stashes the confirmation session for `loginWithPhone`. In dev mode this is
+   * a no-op (no SMS is sent). Throws a friendly Error if the send fails.
+   */
+  startPhoneLogin: (phone: string, recaptchaContainerId: string) => Promise<void>;
+  /**
+   * Step 2 — verify the code, store tokens+user, return the signed-in user. In
+   * real mode this confirms the SMS OTP against the session from
+   * `startPhoneLogin` and POSTs the genuine Firebase ID token; in dev mode it
+   * sends `dev:<phone>` (the OTP is cosmetic locally).
+   */
   loginWithPhone: (phone: string, otp: string) => Promise<UserDto>;
   /** Revoke the refresh token server-side and clear the local session. */
   logout: () => Promise<void>;
@@ -49,6 +73,14 @@ export default function AuthProvider({
 }) {
   const [user, setUser] = useState<UserDto | null>(null);
 
+  // Whether the real Firebase flow is configured. Computed once; the string
+  // check is SSR/build-safe and does not import the Firebase SDK.
+  const firebaseEnabled = isFirebaseConfigured();
+
+  // Holds the in-flight Firebase confirmation session between "send code"
+  // (startPhoneLogin) and "verify" (loginWithPhone). Unused in dev mode.
+  const phoneSessionRef = useRef<PhoneSignInSession | null>(null);
+
   // Hydrate the cached user on mount; keep in sync across tabs and same-tab
   // updates (login/logout/refresh all dispatch `tb:auth-changed`).
   useEffect(() => {
@@ -62,29 +94,44 @@ export default function AuthProvider({
     };
   }, []);
 
+  // ---- Step 1: send code -------------------------------------------------
+  // Real mode (NEXT_PUBLIC_FIREBASE_* set): actually send the SMS OTP via the
+  // Firebase Web SDK (invisible reCAPTCHA mounted on the given container) and
+  // stash the confirmation session for loginWithPhone. The `firebase` SDK is
+  // dynamically imported, in the browser, only here — never at SSR/build.
+  // Dev mode: no SMS is sent; the OTP step is cosmetic (any 6-digit code).
+  const startPhoneLogin = useCallback(
+    async (phone: string, recaptchaContainerId: string): Promise<void> => {
+      if (!firebaseEnabled) return; // dev: nothing to send
+      phoneSessionRef.current = await startPhoneSignIn(
+        phone,
+        recaptchaContainerId,
+      );
+    },
+    [firebaseEnabled],
+  );
+
+  // ---- Step 2: verify ----------------------------------------------------
+  // Real mode: confirm the SMS OTP against the session from startPhoneLogin,
+  // mint a genuine Firebase ID token, and POST it to /auth/phone/verify.
+  // Dev mode: the backend's dev/fake verifier accepts `dev:<phone>` (the OTP is
+  // cosmetic and is not sent). Tokens are never logged.
   const loginWithPhone = useCallback(
     async (phone: string, otp: string): Promise<UserDto> => {
-      // ---- Firebase seam (production) -----------------------------------
-      // In production, with NEXT_PUBLIC_FIREBASE_* configured, this is where
-      // the real Firebase Web SDK would run the phone-OTP flow and hand us a
-      // *real* ID token to send to the backend, e.g.:
-      //
-      //   if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
-      //     // import { getAuth, signInWithPhoneNumber } from 'firebase/auth';
-      //     // const confirmation = await signInWithPhoneNumber(auth, '+91'+phone, recaptcha);
-      //     // const cred = await confirmation.confirm(otp);
-      //     // firebaseIdToken = await cred.user.getIdToken();
-      //   }
-      //
-      // The `firebase` npm package is intentionally NOT a dependency yet (no
-      // keys; keeps the pnpm lockfile/CI stable per M4_CONTRACT §9). Until the
-      // seam above is wired, we always use the backend's dev/fake verifier,
-      // which accepts tokens of the form `dev:<phone>`. The OTP is validated
-      // cosmetically by the login UI (any 6-digit code) and is not sent in dev.
-      void otp; // cosmetic in dev; consumed by the real Firebase SDK in prod
-      const firebaseIdToken = `dev:${phone}`;
+      let firebaseIdToken: string;
+      if (firebaseEnabled) {
+        const session = phoneSessionRef.current;
+        if (!session) {
+          throw new Error('Please request a code before verifying.');
+        }
+        firebaseIdToken = await session.confirm(otp); // real Firebase ID token
+      } else {
+        void otp; // cosmetic in dev; consumed by the real Firebase SDK in prod
+        firebaseIdToken = `dev:${phone}`;
+      }
 
       const res = await phoneVerify(firebaseIdToken);
+      phoneSessionRef.current = null; // consume the session on success
       saveAuth({
         accessToken: res.accessToken,
         refreshToken: res.refreshToken,
@@ -93,7 +140,7 @@ export default function AuthProvider({
       setUser(res.user);
       return res.user;
     },
-    [],
+    [firebaseEnabled],
   );
 
   const logout = useCallback(async (): Promise<void> => {
@@ -124,11 +171,13 @@ export default function AuthProvider({
     () => ({
       user,
       isAuthenticated: user !== null,
+      firebaseEnabled,
+      startPhoneLogin,
       loginWithPhone,
       logout,
       refreshUser,
     }),
-    [user, loginWithPhone, logout, refreshUser],
+    [user, firebaseEnabled, startPhoneLogin, loginWithPhone, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
