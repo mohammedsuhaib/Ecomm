@@ -50,6 +50,9 @@ class ProductEntity {
     @Column(nullable = false)
     private boolean available;
 
+    @Column(nullable = false)
+    private boolean featured;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -92,6 +95,10 @@ class ProductEntity {
 
     boolean isAvailable() {
         return available;
+    }
+
+    boolean isFeatured() {
+        return featured;
     }
 
     Instant getCreatedAt() {

@@ -39,7 +39,7 @@ class OrderUserIntegrationTest extends AbstractIntegrationTest {
     AuthService authService;
 
     private ProductVariantDto pricyVariant() {
-        for (ProductDto p : catalogService.listProducts(null, PageRequest.of(0, 100)).content()) {
+        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content()) {
             for (ProductVariantDto v : p.variants()) {
                 if (v.available() && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
                     return v;

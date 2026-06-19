@@ -15,5 +15,6 @@ public record ProductDto(
         boolean vegMarker,
         String imageUrl,
         boolean available,
+        boolean featured,
         List<ProductVariantDto> variants) {
 }

@@ -37,21 +37,30 @@ class CatalogController {
     }
 
     @GetMapping("/products")
-    @Operation(summary = "List products, optionally filtered by category (paginated).")
+    @Operation(summary = "List products, optionally filtered by category and/or featured, "
+            + "optionally sorted (paginated).")
     PagedResponse<ProductDto> products(
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return catalogService.listProducts(categoryId, pageable(page, size));
+        return catalogService.listProducts(
+                categoryId,
+                Boolean.TRUE.equals(featured),
+                ProductSort.parse(sort).orElse(null),
+                pageable(page, size));
     }
 
     @GetMapping("/products/search")
-    @Operation(summary = "Full-text + trigram search over product name/description (paginated).")
+    @Operation(summary = "Full-text + trigram search over product name/description, "
+            + "optionally sorted (paginated).")
     PagedResponse<ProductDto> search(
             @RequestParam(name = "q", defaultValue = "") String q,
+            @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return catalogService.search(q, pageable(page, size));
+        return catalogService.search(q, ProductSort.parse(sort).orElse(null), pageable(page, size));
     }
 
     @GetMapping("/products/{idOrSlug}")

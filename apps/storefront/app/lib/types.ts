@@ -19,6 +19,7 @@ export interface Product {
   vegMarker: boolean; // true => veg (green dot), false => non-veg (red dot)
   imageUrl: string | null;
   available: boolean;
+  featured?: boolean; // true => surfaced in "Popular picks" (catalog ?featured=true)
   variants: ProductVariant[];
 }
 

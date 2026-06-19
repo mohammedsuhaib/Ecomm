@@ -7,30 +7,10 @@ import { getMyOrders, reorder } from '@/app/lib/api';
 import { saveCartId } from '@/app/lib/cart';
 import { formatRupees } from '@/app/lib/format';
 import { useCart } from '@/app/components/CartProvider';
+import LiveOrderStamp from './LiveOrderStamp';
 import type { Order } from '@/app/lib/types';
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  PLACED: 'Order placed',
-  CONFIRMED: 'Confirmed',
-  PACKING: 'Being packed',
-  OUT_FOR_DELIVERY: 'Out for delivery',
-  DELIVERED: 'Delivered',
-  CANCELLED: 'Cancelled',
-};
-
-/** Recent order history with a per-order "Reorder" action. */
+/** Recent order history with live status stamps + a per-order "Reorder" action. */
 export default function OrderHistory() {
   const router = useRouter();
   const { refresh } = useCart();
@@ -85,9 +65,8 @@ export default function OrderHistory() {
           <li key={o.id} className="order-history-row">
             <div className="order-history-info">
               <span className="order-history-id">Order #{o.id}</span>
-              <span className="muted">{formatTime(o.placedAt)}</span>
+              <LiveOrderStamp order={o} />
               <span className="muted">
-                {STATUS_LABELS[o.status] ?? o.status} ·{' '}
                 {o.items.length} item{o.items.length === 1 ? '' : 's'} ·{' '}
                 {formatRupees(o.total)}
               </span>

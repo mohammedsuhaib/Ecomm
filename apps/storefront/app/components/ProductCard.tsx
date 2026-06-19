@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Product } from '@/app/lib/types';
 import VegMarker from './VegMarker';
 import PriceTag from './PriceTag';
+import QuickAddButton from './QuickAddButton';
 
 /**
  * Compact product tile for grids. Links to the detail page and previews the
@@ -28,6 +29,10 @@ export default function ProductCard({ product }: { product: Product }) {
         ) : (
           <span aria-hidden>🛒</span>
         )}
+        {/* Inline quick add — overlays the thumb; stops navigation on tap. */}
+        <div className="quick-add-slot">
+          <QuickAddButton product={product} />
+        </div>
       </div>
       <div className="body">
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

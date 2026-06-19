@@ -199,14 +199,39 @@ export function getCategories(opts?: FetchOpts): Promise<Category[]> {
   return apiFetch<Category[]>('/categories', undefined, opts);
 }
 
-/** GET /products?categoryId=&page=&size= — paged products, optionally filtered. */
+/** Catalogue sort options accepted by /products and /products/search. */
+export type ProductSort = 'name' | 'price_asc' | 'price_desc' | 'discount';
+
+/** Optional product-list filters layered on top of paging. */
+export interface ProductListOpts {
+  /** When true, request only featured ("Popular picks") products. */
+  featured?: boolean;
+  /** Server-side sort order; absent => backend default order. */
+  sort?: ProductSort;
+}
+
+/**
+ * GET /products?categoryId=&page=&size=&featured=&sort= — paged products,
+ * optionally filtered by category, restricted to featured items, and/or sorted.
+ */
 export function getProducts(
   categoryId?: string,
   page = 0,
   size = 24,
+  listOpts: ProductListOpts = {},
   opts?: FetchOpts,
 ): Promise<Page<Product>> {
-  return apiFetch<Page<Product>>('/products', { categoryId, page, size }, opts);
+  return apiFetch<Page<Product>>(
+    '/products',
+    {
+      categoryId,
+      page,
+      size,
+      featured: listOpts.featured ? 'true' : undefined,
+      sort: listOpts.sort,
+    },
+    opts,
+  );
 }
 
 /**
@@ -229,14 +254,19 @@ export async function getProduct(
   }
 }
 
-/** GET /products/search?q=&page=&size= — full-text search results. */
+/** GET /products/search?q=&page=&size=&sort= — full-text search results. */
 export function searchProducts(
   q: string,
   page = 0,
   size = 24,
+  listOpts: Pick<ProductListOpts, 'sort'> = {},
   opts?: FetchOpts,
 ): Promise<Page<Product>> {
-  return apiFetch<Page<Product>>('/products/search', { q, page, size }, opts);
+  return apiFetch<Page<Product>>(
+    '/products/search',
+    { q, page, size, sort: listOpts.sort },
+    opts,
+  );
 }
 
 // ---- Cart (M3, browser-side) --------------------------------------------

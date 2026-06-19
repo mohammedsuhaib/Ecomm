@@ -30,7 +30,7 @@ class CartMergeIntegrationTest extends AbstractIntegrationTest {
     }
 
     private ProductVariantDto anyVariant() {
-        return catalogService.listProducts(null, PageRequest.of(0, 1)).content().get(0).variants().get(0);
+        return catalogService.listProducts(null, false, null, PageRequest.of(0, 1)).content().get(0).variants().get(0);
     }
 
     @Test

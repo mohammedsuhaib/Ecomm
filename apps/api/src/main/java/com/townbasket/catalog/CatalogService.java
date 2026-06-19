@@ -16,12 +16,24 @@ public interface CatalogService {
 
     List<CategoryDto> listCategories();
 
-    PagedResponse<ProductDto> listProducts(Long categoryId, Pageable pageable);
+    /**
+     * List products, optionally filtered by category and/or only featured items,
+     * with an optional {@link ProductSort} (sorts the full filtered set, then pages).
+     *
+     * @param categoryId optional category filter ({@code null} = all categories)
+     * @param featured   when {@code true}, return only featured products
+     * @param sort       optional ordering; {@code null} = default (insertion) order
+     */
+    PagedResponse<ProductDto> listProducts(Long categoryId, boolean featured, ProductSort sort, Pageable pageable);
 
     /** Look up a product by numeric id or by slug. */
     Optional<ProductDto> findProduct(String idOrSlug);
 
-    PagedResponse<ProductDto> search(String query, Pageable pageable);
+    /**
+     * Full-text + trigram search, with an optional {@link ProductSort} (sorts the
+     * full filtered set, then pages). {@code null} sort preserves relevance order.
+     */
+    PagedResponse<ProductDto> search(String query, ProductSort sort, Pageable pageable);
 
     /**
      * Resolve a single variant (product name, label, selling price, availability)

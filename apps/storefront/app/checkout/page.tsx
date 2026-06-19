@@ -14,6 +14,7 @@ import { formatRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
+import LocationPicker from '@/app/components/LocationPicker';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
 export default function CheckoutPage() {
@@ -271,31 +272,20 @@ export default function CheckoutPage() {
               required
             />
           </div>
-          <div className="checkout-coords">
-            <div className="field">
-              <label htmlFor="lat">Latitude</label>
-              <input
-                id="lat"
-                inputMode="decimal"
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="lng">Longitude</label>
-              <input
-                id="lng"
-                inputMode="decimal"
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                required
-              />
-            </div>
+          <div className="field">
+            <label>Delivery location</label>
+            <LocationPicker
+              lat={lat}
+              lng={lng}
+              onChange={(la, ln) => {
+                setLat(String(la));
+                setLng(String(ln));
+              }}
+            />
           </div>
           <p className="muted" style={{ fontSize: '0.8rem' }}>
-            Prefilled from your delivery location. We re-check that you’re within
-            range before placing the order.
+            Drop a pin on the map (or use your current location). We re-check
+            that you’re within range before placing the order.
           </p>
         </fieldset>
 

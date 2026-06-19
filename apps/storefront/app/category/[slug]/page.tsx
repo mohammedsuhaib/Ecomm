@@ -2,13 +2,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getCategories, getProducts } from '@/app/lib/api';
 import ProductCard from '@/app/components/ProductCard';
+import SortControl from '@/app/components/SortControl';
+import { parseSort } from '@/app/lib/sort';
 import type { Category } from '@/app/lib/types';
 
 export const revalidate = 60;
 
 interface Params {
   params: { slug: string };
-  searchParams: { page?: string };
+  searchParams: { page?: string; sort?: string };
 }
 
 export async function generateMetadata({ params }: Params) {
@@ -21,13 +23,15 @@ export async function generateMetadata({ params }: Params) {
 
 export default async function CategoryPage({ params, searchParams }: Params) {
   const page = Math.max(0, Number.parseInt(searchParams.page ?? '0', 10) || 0);
+  const sort = parseSort(searchParams.sort);
+  const sortQs = sort ? `&sort=${sort}` : '';
 
   // Resolve slug -> category id (the products endpoint filters by id).
   const categories = await getCategories().catch(() => [] as Category[]);
   const category = categories.find((c) => c.slug === params.slug);
   if (!category) notFound();
 
-  const productsPage = await getProducts(category.id, page, 24).catch(
+  const productsPage = await getProducts(category.id, page, 24, { sort }).catch(
     () => null,
   );
   const products = productsPage?.content ?? [];
@@ -40,7 +44,10 @@ export default async function CategoryPage({ params, searchParams }: Params) {
       <nav className="breadcrumb">
         <Link href="/">Home</Link> / <span>{category.name}</span>
       </nav>
-      <h1 className="section-title">{category.name}</h1>
+      <div className="listing-head">
+        <h1 className="section-title">{category.name}</h1>
+        <SortControl basePath={`/category/${category.slug}`} sort={sort} />
+      </div>
 
       {products.length > 0 ? (
         <>
@@ -60,7 +67,7 @@ export default async function CategoryPage({ params, searchParams }: Params) {
             {page > 0 ? (
               <Link
                 className="btn btn-outline"
-                href={`/category/${category.slug}?page=${page - 1}`}
+                href={`/category/${category.slug}?page=${page - 1}${sortQs}`}
               >
                 ← Previous
               </Link>
@@ -70,7 +77,7 @@ export default async function CategoryPage({ params, searchParams }: Params) {
             {hasNext && (
               <Link
                 className="btn btn-outline"
-                href={`/category/${category.slug}?page=${page + 1}`}
+                href={`/category/${category.slug}?page=${page + 1}${sortQs}`}
               >
                 Next →
               </Link>

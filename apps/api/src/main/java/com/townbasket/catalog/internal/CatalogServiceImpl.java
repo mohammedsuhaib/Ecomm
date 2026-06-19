@@ -3,14 +3,19 @@ package com.townbasket.catalog.internal;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.CategoryDto;
 import com.townbasket.catalog.ProductDto;
+import com.townbasket.catalog.ProductSort;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.catalog.VariantView;
 import com.townbasket.shared.PagedResponse;
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +34,19 @@ class CatalogServiceImpl implements CatalogService {
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
 
+    /**
+     * Upper bound on how many matching products the in-service sort path loads.
+     * The {@code ?sort=} / {@code ?q=&sort=} paths sort + paginate in memory
+     * (price/discount span variants, so a single SQL ORDER BY is awkward); this
+     * cap stops a public sorted request from pulling the WHOLE catalog into
+     * memory (and triggering a lazy-variant N+1 per row). Sorting therefore
+     * considers at most the first {@code MAX_SORTABLE} matches — ample for this
+     * single-store catalog. If the catalog ever outgrows it, push the sort into
+     * SQL (e.g. a denormalised min_selling_price / max_discount column) rather
+     * than raising this number.
+     */
+    private static final int MAX_SORTABLE = 1000;
+
     CatalogServiceImpl(CategoryRepository categoryRepository,
                        ProductRepository productRepository,
                        ProductVariantRepository variantRepository) {
@@ -45,11 +63,32 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     @Override
-    public PagedResponse<ProductDto> listProducts(Long categoryId, Pageable pageable) {
-        Page<ProductEntity> page = (categoryId != null)
-                ? productRepository.findByCategoryId(categoryId, pageable)
-                : productRepository.findAll(pageable);
+    public PagedResponse<ProductDto> listProducts(Long categoryId, boolean featured, ProductSort sort, Pageable pageable) {
+        if (sort != null) {
+            // Sort the filtered set, then page in memory. price/discount sorts
+            // span variants, so a single SQL ORDER BY is awkward. The fetch is
+            // CAPPED at MAX_SORTABLE so a public ?sort= can't load the whole
+            // catalog (memory + lazy-variant N+1).
+            List<ProductEntity> all = findAllFiltered(categoryId, featured);
+            return pageInMemory(sortEntities(all, sort), pageable);
+        }
+        Page<ProductEntity> page = pagedFiltered(categoryId, featured, pageable);
         return PagedResponse.of(page, CatalogServiceImpl::toProductDto);
+    }
+
+    private Page<ProductEntity> pagedFiltered(Long categoryId, boolean featured, Pageable pageable) {
+        if (categoryId != null) {
+            return featured
+                    ? productRepository.findByCategoryIdAndFeaturedTrue(categoryId, pageable)
+                    : productRepository.findByCategoryId(categoryId, pageable);
+        }
+        return featured
+                ? productRepository.findByFeaturedTrue(pageable)
+                : productRepository.findAll(pageable);
+    }
+
+    private List<ProductEntity> findAllFiltered(Long categoryId, boolean featured) {
+        return pagedFiltered(categoryId, featured, PageRequest.of(0, MAX_SORTABLE, Sort.by("id"))).getContent();
     }
 
     @Override
@@ -61,12 +100,76 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     @Override
-    public PagedResponse<ProductDto> search(String query, Pageable pageable) {
+    public PagedResponse<ProductDto> search(String query, ProductSort sort, Pageable pageable) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) {
             return new PagedResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0);
         }
+        if (sort != null) {
+            // Re-rank the relevance-ordered match set, then page in memory.
+            // Capped at MAX_SORTABLE (see field doc) to bound a public sorted search.
+            List<ProductEntity> all = productRepository.search(q, PageRequest.of(0, MAX_SORTABLE)).getContent();
+            return pageInMemory(sortEntities(all, sort), pageable);
+        }
         return PagedResponse.of(productRepository.search(q, pageable), CatalogServiceImpl::toProductDto);
+    }
+
+    /** Apply the requested {@link ProductSort} to the full filtered list. */
+    private static List<ProductEntity> sortEntities(List<ProductEntity> products, ProductSort sort) {
+        Comparator<ProductEntity> comparator = switch (sort) {
+            case NAME -> Comparator.comparing(p -> p.getName() == null ? "" : p.getName(),
+                    String.CASE_INSENSITIVE_ORDER);
+            // Ascending by the product's LOWEST available variant selling price.
+            case PRICE_ASC -> Comparator.comparing(CatalogServiceImpl::lowestAvailablePrice);
+            // Descending by that same lowest available variant selling price.
+            case PRICE_DESC -> Comparator.comparing(CatalogServiceImpl::lowestAvailablePrice).reversed();
+            // Descending by the product's MAX variant discount (mrp - sellingPrice).
+            case DISCOUNT -> Comparator.comparing(CatalogServiceImpl::maxDiscount).reversed();
+        };
+        // Stable tie-break on id so paging is deterministic.
+        return products.stream()
+                .sorted(comparator.thenComparing(ProductEntity::getId))
+                .toList();
+    }
+
+    /**
+     * Lowest selling price across a product's AVAILABLE variants. Products with no
+     * available variant sort last for {@code price_asc} (treated as +∞).
+     */
+    private static BigDecimal lowestAvailablePrice(ProductEntity p) {
+        return p.getVariants().stream()
+                .filter(ProductVariantEntity::isAvailable)
+                .map(ProductVariantEntity::getSellingPrice)
+                .min(Comparator.naturalOrder())
+                .orElse(BigDecimal.valueOf(Long.MAX_VALUE));
+    }
+
+    /**
+     * Maximum discount ({@code mrp - sellingPrice}) across a product's variants;
+     * a null mrp counts as zero discount. No variants => zero discount.
+     */
+    private static BigDecimal maxDiscount(ProductEntity p) {
+        return p.getVariants().stream()
+                .map(v -> {
+                    BigDecimal mrp = v.getMrp();
+                    if (mrp == null) {
+                        return BigDecimal.ZERO;
+                    }
+                    BigDecimal discount = mrp.subtract(v.getSellingPrice());
+                    return discount.signum() < 0 ? BigDecimal.ZERO : discount;
+                })
+                .max(Comparator.naturalOrder())
+                .orElse(BigDecimal.ZERO);
+    }
+
+    /** Slice an already-sorted list into the requested page and wrap as a {@link PagedResponse}. */
+    private static PagedResponse<ProductDto> pageInMemory(List<ProductEntity> sorted, Pageable pageable) {
+        int total = sorted.size();
+        int size = pageable.getPageSize();
+        int from = Math.min((int) pageable.getOffset(), total);
+        int to = Math.min(from + size, total);
+        Page<ProductEntity> page = new PageImpl<>(sorted.subList(from, to), pageable, total);
+        return PagedResponse.of(page, CatalogServiceImpl::toProductDto);
     }
 
     @Override
@@ -122,6 +225,7 @@ class CatalogServiceImpl implements CatalogService {
                 e.isVegMarker(),
                 e.getImageUrl(),
                 e.isAvailable(),
+                e.isFeatured(),
                 variants);
     }
 

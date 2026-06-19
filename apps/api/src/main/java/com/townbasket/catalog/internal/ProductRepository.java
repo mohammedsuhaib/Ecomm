@@ -12,6 +12,10 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     Page<ProductEntity> findByCategoryId(Long categoryId, Pageable pageable);
 
+    Page<ProductEntity> findByFeaturedTrue(Pageable pageable);
+
+    Page<ProductEntity> findByCategoryIdAndFeaturedTrue(Long categoryId, Pageable pageable);
+
     Optional<ProductEntity> findBySlug(String slug);
 
     /**

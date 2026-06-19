@@ -40,9 +40,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     InventoryService inventoryService;
 
-    /** A variant whose selling price * qty clears the ₹499 minimum. */
+    /** A variant whose selling price * qty clears the ₹299 minimum. */
     private ProductVariantDto pickPricyVariant() {
-        for (ProductDto p : catalogService.listProducts(null, PageRequest.of(0, 100)).content()) {
+        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content()) {
             for (ProductVariantDto v : p.variants()) {
                 if (v.available() && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
                     return v;
@@ -113,8 +113,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void belowMinimumOrderValueIsRejected() {
-        // Cheapest single unit is well below ₹499.
-        ProductVariantDto cheap = catalogService.listProducts(null, PageRequest.of(0, 100)).content().stream()
+        // Cheapest single unit (≤ ₹40) is well below the ₹299 minimum.
+        ProductVariantDto cheap = catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content().stream()
                 .flatMap(p -> p.variants().stream())
                 .filter(v -> v.sellingPrice().compareTo(BigDecimal.valueOf(40)) <= 0)
                 .findFirst().orElseThrow();

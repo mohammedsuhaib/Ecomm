@@ -9,6 +9,7 @@ import {
   updateAddress,
 } from '@/app/lib/api';
 import { loadServiceability } from '@/app/lib/serviceability';
+import LocationPicker from '@/app/components/LocationPicker';
 import type { AddressInput, SavedAddress } from '@/app/lib/types';
 
 interface FormState {
@@ -200,27 +201,19 @@ export default function AddressManager() {
               required
             />
           </div>
-          <div className="checkout-coords">
-            <div className="field">
-              <label htmlFor="addr-lat">Latitude</label>
-              <input
-                id="addr-lat"
-                inputMode="decimal"
-                value={form.lat}
-                onChange={(e) => setForm({ ...form, lat: e.target.value })}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="addr-lng">Longitude</label>
-              <input
-                id="addr-lng"
-                inputMode="decimal"
-                value={form.lng}
-                onChange={(e) => setForm({ ...form, lng: e.target.value })}
-                required
-              />
-            </div>
+          <div className="field">
+            <label>Location</label>
+            <LocationPicker
+              lat={form.lat}
+              lng={form.lng}
+              onChange={(la, ln) =>
+                setForm((prev) => ({
+                  ...prev,
+                  lat: String(la),
+                  lng: String(ln),
+                }))
+              }
+            />
           </div>
           <label className="radio-row" style={{ alignItems: 'center' }}>
             <input
