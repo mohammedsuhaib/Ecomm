@@ -155,6 +155,10 @@ export default function OrderPage({ params }: { params: { id: string } }) {
 
   const cancelled = order.status === 'CANCELLED';
   const headline = STATUS_HEADLINE[order.status] ?? STATUS_HEADLINE.PLACED;
+  // The delivery code is only useful up to handover — hide it once the order is
+  // delivered (the code is spent) or cancelled.
+  const showDeliveryCode =
+    order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
   const currentIndex = STATUS_FLOW.indexOf(order.status);
   // Map each status to the time it was reached, from the timeline.
   const reachedAt = new Map(order.timeline.map((t) => [t.toStatus, t.at]));
@@ -171,7 +175,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         </p>
       </div>
 
-      {!cancelled && (
+      {showDeliveryCode && (
         <div className="otp-card">
           <span className="otp-label">Delivery code</span>
           <span className="otp-code">{order.deliveryOtp}</span>
