@@ -1,0 +1,28 @@
+<svg width="720" height="220" viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Town Basket logo">
+  <!-- Horizontal lockup: basket mark + wordmark, for app headers / site -->
+  <!-- mark -->
+  <g transform="translate(20,30)">
+    <!-- sprout -->
+    <path d="M80 36 C 80 14, 96 0, 118 0 C 118 22, 104 36, 80 36 Z" fill="#9CCC65"/>
+    <path d="M80 36 C 80 16, 64 4, 44 6 C 46 28, 60 38, 80 36 Z" fill="#C5E1A5"/>
+    <!-- handle -->
+    <path d="M28 70 C 36 26, 124 26, 132 70" fill="none" stroke="#1B7A43" stroke-width="11" stroke-linecap="round"/>
+    <!-- rim -->
+    <rect x="14" y="64" width="132" height="18" rx="9" fill="#1B7A43"/>
+    <!-- body -->
+    <path d="M24 86 L136 86 L122 146 C 120 154, 114 159, 106 159 L54 159 C 46 159, 40 154, 38 146 Z" fill="#2EA561"/>
+    <!-- weave -->
+    <g stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.9">
+      <line x1="58" y1="90" x2="55" y2="156"/>
+      <line x1="80" y1="90" x2="80" y2="157"/>
+      <line x1="102" y1="90" x2="105" y2="156"/>
+      <line x1="32" y1="108" x2="128" y2="108"/>
+      <line x1="36" y1="132" x2="124" y2="132"/>
+    </g>
+  </g>
+  <!-- wordmark -->
+  <text x="200" y="128" font-family="Poppins, 'Trebuchet MS', Verdana, sans-serif" font-size="76" letter-spacing="-1">
+    <tspan font-weight="400" fill="#1B7A43">Town</tspan><tspan font-weight="700" fill="#2EA561"> Basket</tspan>
+  </text>
+  <text x="202" y="170" font-family="Poppins, 'Trebuchet MS', Verdana, sans-serif" font-size="22" font-weight="500" letter-spacing="6" fill="#7A8B7E">GROCERIES · DELIVERED</text>
+</svg>
