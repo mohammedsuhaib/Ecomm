@@ -10,12 +10,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -46,6 +51,8 @@ class SecurityIntegrationTest {
     TestRestTemplate rest;
     @Autowired
     AuthService authService;
+    @LocalServerPort
+    int port;
 
     @Test
     void publicCatalogEndpointIsReachableWithoutToken() {
@@ -85,19 +92,39 @@ class SecurityIntegrationTest {
 
     @Test
     void placingAnOrderRequiresAuthentication() {
-        // No token -> 401 (no guest checkout). An empty-body POST is enough — the
-        // security filter rejects before the controller; a no-body POST also avoids
-        // the HttpURLConnection "cannot retry on 401" quirk a streamed body would trip.
-        ResponseEntity<String> anon = rest.exchange(
-                "/api/v1/orders", HttpMethod.POST, new HttpEntity<>(new HttpHeaders()), String.class);
-        assertThat(anon.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        // Use a RestTemplate with output streaming DISABLED: the default JDK
+        // HttpURLConnection throws "cannot retry ... in streaming mode" on a 401
+        // response to a streamed POST. With streaming off the 401 surfaces normally
+        // (as HttpClientErrorException, since a plain RestTemplate throws on 4xx).
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setOutputStreaming(false);
+        RestTemplate http = new RestTemplate(factory);
+        String url = "http://localhost:" + port + "/api/v1/orders";
 
-        // With a CUSTOMER token the request passes the auth gate (then fails body
-        // validation with a 4xx, but NOT 401).
+        // No token -> 401 (no guest checkout).
+        assertThat(postStatus(http, url, null)).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // With a CUSTOMER token the request clears the auth gate (then a 4xx body
+        // validation error, but NOT 401).
         AuthResponse customer = authService.phoneVerify(new PhoneVerifyRequest("dev:9888800002"));
-        ResponseEntity<String> authed = rest.exchange(
-                "/api/v1/orders", HttpMethod.POST, bearer(customer.accessToken()), String.class);
-        assertThat(authed.getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(postStatus(http, url, customer.accessToken()))
+                .isNotEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    /** POST an empty JSON body and return the HTTP status (4xx, which RestTemplate throws, included). */
+    private static HttpStatus postStatus(RestTemplate http, String url, String bearerToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        if (bearerToken != null) {
+            headers.setBearerAuth(bearerToken);
+        }
+        try {
+            return HttpStatus.valueOf(
+                    http.postForEntity(url, new HttpEntity<>("{}", headers), String.class)
+                            .getStatusCode().value());
+        } catch (HttpClientErrorException e) {
+            return HttpStatus.valueOf(e.getStatusCode().value());
+        }
     }
 
     private static HttpEntity<Void> bearer(String token) {
