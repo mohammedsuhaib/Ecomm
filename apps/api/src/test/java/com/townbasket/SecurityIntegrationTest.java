@@ -83,6 +83,23 @@ class SecurityIntegrationTest {
         assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
+    @Test
+    void placingAnOrderRequiresAuthentication() {
+        // No token -> 401 (no guest checkout). An empty-body POST is enough — the
+        // security filter rejects before the controller; a no-body POST also avoids
+        // the HttpURLConnection "cannot retry on 401" quirk a streamed body would trip.
+        ResponseEntity<String> anon = rest.exchange(
+                "/api/v1/orders", HttpMethod.POST, new HttpEntity<>(new HttpHeaders()), String.class);
+        assertThat(anon.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // With a CUSTOMER token the request passes the auth gate (then fails body
+        // validation with a 4xx, but NOT 401).
+        AuthResponse customer = authService.phoneVerify(new PhoneVerifyRequest("dev:9888800002"));
+        ResponseEntity<String> authed = rest.exchange(
+                "/api/v1/orders", HttpMethod.POST, bearer(customer.accessToken()), String.class);
+        assertThat(authed.getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     private static HttpEntity<Void> bearer(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);

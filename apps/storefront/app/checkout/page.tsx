@@ -21,6 +21,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { cart, refresh } = useCart();
   const { user, isAuthenticated } = useAuth();
+  // Auth hydrates from localStorage after mount; wait a tick before gating so a
+  // logged-in customer isn't bounced. Placing an order requires login.
+  const [checked, setChecked] = useState(false);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -52,6 +55,16 @@ export default function CheckoutPage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Placing an order requires a logged-in (OTP-verified) account — no guest
+  // checkout. Once hydration settles, send guests to sign in and bring them back
+  // here afterward (their cart merges into the account on login).
+  useEffect(() => setChecked(true), []);
+  useEffect(() => {
+    if (checked && !isAuthenticated) {
+      router.replace('/account/login?next=/checkout');
+    }
+  }, [checked, isAuthenticated, router]);
 
   useEffect(() => {
     getStore()
@@ -176,6 +189,21 @@ export default function CheckoutPage() {
       }
       setSubmitting(false);
     }
+  }
+
+  // Gate: login required to check out (no guest checkout).
+  if (!checked) {
+    return <p className="empty-state">Loading…</p>;
+  }
+  if (!isAuthenticated) {
+    return (
+      <div className="empty-state">
+        <p>Please sign in to place your order.</p>
+        <Link href="/account/login?next=/checkout" className="btn">
+          Sign in to continue
+        </Link>
+      </div>
+    );
   }
 
   if (items.length === 0) {

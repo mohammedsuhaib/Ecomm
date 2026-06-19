@@ -25,11 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
  * order fetch (confirmation + tracking), the caller's order history and reorder.
  * Returns {@link OrderDto} / {@link CartDto} only.
  *
- * <p>{@code POST /orders} is PUBLIC but ties the order to the caller when a
- * valid Bearer token is present; {@code /orders/mine} and {@code /orders/&#42;/reorder}
- * are AUTHENTICATED (enforced by the security config). The user id is read from
- * the {@code SecurityContext} principal (a plain {@code Long}); orders does not
- * depend on the identity module for this.
+ * <p>{@code POST /orders} is AUTHENTICATED (login required — no guest checkout),
+ * as are {@code /orders/mine} and {@code /orders/&#42;/reorder}; {@code GET /orders/{id}}
+ * stays public for confirmation + tracking. The user id is read from the
+ * {@code SecurityContext} principal (a plain {@code Long}); orders does not depend
+ * on the identity module for this.
  */
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -46,11 +46,13 @@ class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Place an order from a cart (idempotent; ties to the user if a token is present).")
+    @Operation(summary = "Place an order from a cart (idempotent; AUTHENTICATED — login required, ties to the caller).")
     OrderDto placeOrder(
             @RequestBody PlaceOrderRequest request,
             @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey) {
-        return orderService.placeOrder(request, idempotencyKey, currentUserIdOrNull());
+        // Login required (no guest checkout) — the security config rejects anonymous
+        // POSTs with 401, so a user id is always present here.
+        return orderService.placeOrder(request, idempotencyKey, requireUserId());
     }
 
     @GetMapping("/mine")

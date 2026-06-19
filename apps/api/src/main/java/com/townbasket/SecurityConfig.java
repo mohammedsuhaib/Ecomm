@@ -29,9 +29,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * <ul>
  *   <li>{@code /api/v1/admin/**} → STORE_STAFF or ADMIN;</li>
  *   <li>{@code /me}, {@code /me/addresses/**}, {@code /orders/mine},
+ *       {@code POST /orders} (placing an order — login required, no guest checkout),
  *       {@code POST /orders/&#42;/reorder}, {@code POST /carts/&#42;/merge} → authenticated;</li>
- *   <li>everything else (catalog, serviceability, public cart/orders, auth,
- *       swagger, actuator health/info) → permitAll.</li>
+ *   <li>everything else (catalog, serviceability, cart, order tracking
+ *       {@code GET /orders/&#42;} + stream, auth, swagger, actuator health/info) → permitAll.</li>
  * </ul>
  */
 @Configuration
@@ -68,6 +69,9 @@ class SecurityConfig {
                         // public catalog/cart/orders rules so the more specific paths win.
                         .requestMatchers("/api/v1/me", "/api/v1/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/mine").authenticated()
+                        // Placing an order requires a logged-in (OTP-verified) account —
+                        // no guest checkout. GET /orders/{id} + /stream stay public (tracking).
+                        .requestMatchers(HttpMethod.POST, "/api/v1/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/reorder").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/carts/*/merge").authenticated()
 
