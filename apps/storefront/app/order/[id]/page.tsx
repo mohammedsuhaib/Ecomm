@@ -25,6 +25,17 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   CANCELLED: 'Cancelled',
 };
 
+// Big headline (emoji + title) shown at the top — reflects the LIVE status, not a
+// fixed "Order placed!".
+const STATUS_HEADLINE: Record<OrderStatus, { emoji: string; title: string }> = {
+  PLACED: { emoji: '✅', title: 'Order placed!' },
+  CONFIRMED: { emoji: '✅', title: 'Order confirmed!' },
+  PACKING: { emoji: '📦', title: 'Being packed' },
+  OUT_FOR_DELIVERY: { emoji: '🛵', title: 'Out for delivery' },
+  DELIVERED: { emoji: '🎉', title: 'Delivered!' },
+  CANCELLED: { emoji: '❌', title: 'Order cancelled' },
+};
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
@@ -143,6 +154,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   }
 
   const cancelled = order.status === 'CANCELLED';
+  const headline = STATUS_HEADLINE[order.status] ?? STATUS_HEADLINE.PLACED;
   const currentIndex = STATUS_FLOW.indexOf(order.status);
   // Map each status to the time it was reached, from the timeline.
   const reachedAt = new Map(order.timeline.map((t) => [t.toStatus, t.at]));
@@ -151,9 +163,9 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     <>
       <div className="order-confirm">
         <div className="big-emoji" aria-hidden>
-          {cancelled ? '❌' : '✅'}
+          {headline.emoji}
         </div>
-        <h1>{cancelled ? 'Order cancelled' : 'Order placed!'}</h1>
+        <h1>{headline.title}</h1>
         <p className="muted">
           Order #{order.id} · {formatTime(order.placedAt)}
         </p>
