@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Town Basket emblem">
+  <!-- Concept: round seal/badge for packaging, stickers, stamps. -->
+  <circle cx="256" cy="256" r="248" fill="#FFF8E7"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#1B7A43" stroke-width="10"/>
+  <circle cx="256" cy="256" r="210" fill="none" stroke="#2EA561" stroke-width="4"/>
+
+  <!-- curved top label -->
+  <defs>
+    <path id="topArc" d="M 76 256 A 180 180 0 0 1 436 256"/>
+  </defs>
+  <text font-family="Poppins, 'Trebuchet MS', Verdana, sans-serif" font-size="46" font-weight="700" letter-spacing="6" fill="#1B7A43">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">TOWN BASKET</textPath>
+  </text>
+
+  <!-- centre basket -->
+  <g transform="translate(0,18)">
+    <path d="M176 250 C 188 188, 324 188, 336 250" fill="none" stroke="#1B7A43" stroke-width="16" stroke-linecap="round"/>
+    <rect x="150" y="244" width="212" height="24" rx="12" fill="#1B7A43"/>
+    <path d="M168 274 L344 274 L324 356 C 322 368, 312 376, 300 376 L212 376 C 200 376, 190 368, 188 356 Z" fill="#2EA561"/>
+    <g stroke="#FFF8E7" stroke-width="7" stroke-linecap="round">
+      <line x1="216" y1="280" x2="212" y2="372"/>
+      <line x1="256" y1="280" x2="256" y2="374"/>
+      <line x1="296" y1="280" x2="300" y2="372"/>
+      <line x1="178" y1="306" x2="334" y2="306"/>
+      <line x1="184" y1="338" x2="328" y2="338"/>
+    </g>
+    <!-- sprout -->
+    <path d="M256 196 C 256 170, 276 154, 300 156 C 300 182, 280 198, 256 196 Z" fill="#9CCC65"/>
+  </g>
+
+  <!-- bottom label + flanking dots -->
+  <text x="256" y="430" text-anchor="middle" font-family="Poppins, 'Trebuchet MS', Verdana, sans-serif" font-size="30" font-weight="600" letter-spacing="4" fill="#1B7A43">MYSURU</text>
+  <circle cx="150" cy="420" r="6" fill="#2EA561"/>
+  <circle cx="362" cy="420" r="6" fill="#2EA561"/>
+</svg>
