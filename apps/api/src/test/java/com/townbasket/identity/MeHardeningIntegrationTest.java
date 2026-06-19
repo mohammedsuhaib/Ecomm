@@ -147,23 +147,28 @@ class MeHardeningIntegrationTest {
     @Test
     void authEndpointReturns429AfterThreshold() {
         // Default capacity is 10 / 60s per IP per endpoint group. The TestRestTemplate
-        // calls share one client IP, so the 11th call to /auth/refresh is rejected.
-        // /auth/refresh is used (not phone/verify) so this test owns its own group
-        // and isn't perturbed by service-level phone verifications elsewhere.
+        // calls share one client IP, so the 11th call to the same auth endpoint is
+        // rejected with 429. We drive the limiter with a VALID dev phone token so the
+        // under-limit calls return 200, NOT 401: TestRestTemplate's HttpURLConnection
+        // client throws HttpRetryException ("cannot retry due to server authentication,
+        // in streaming mode") on a 401 response to a streamed POST body. A 429 is
+        // returned normally. Other tests mint tokens via the AuthService (service
+        // calls, never over HTTP), so this /auth/phone/verify bucket is the test's alone
+        // (and pollution could only make the 429 arrive sooner, never not at all).
         HttpStatus last = null;
         boolean saw429 = false;
         for (int i = 0; i < 11; i++) {
             ResponseEntity<String> res = rest.exchange(
-                    "/api/v1/auth/refresh", HttpMethod.POST,
-                    json(new RefreshRequest("definitely-not-a-real-token")), String.class);
+                    "/api/v1/auth/phone/verify", HttpMethod.POST,
+                    json(new PhoneVerifyRequest("dev:9777709999")), String.class);
             last = HttpStatus.valueOf(res.getStatusCode().value());
             if (last == HttpStatus.TOO_MANY_REQUESTS) {
                 saw429 = true;
                 assertThat(res.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isNotBlank();
                 break;
             }
-            // Before the limit, an invalid refresh token is a 401 (InvalidCredentials).
-            assertThat(last).isEqualTo(HttpStatus.UNAUTHORIZED);
+            // Under the limit, a valid dev token returns 200 (OK).
+            assertThat(last).isEqualTo(HttpStatus.OK);
         }
         assertThat(saw429).as("expected a 429 within the first 11 requests").isTrue();
     }
