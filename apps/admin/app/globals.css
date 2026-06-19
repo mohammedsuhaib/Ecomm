@@ -1,16 +1,18 @@
 /* Town Basket admin — mobile/tablet-first, brand-consistent with storefront. */
 
 :root {
-  --green: #2e7d32;
-  --green-dark: #1b5e20;
-  --green-light: #e8f5e9;
-  --text: #1f2a24;
-  --muted: #5a6b62;
-  --bg: #f4f7f5;
-  --surface: #ffffff;
-  --border: #e0e6e2;
+  --green: #f9a825;        /* marigold — primary brand */
+  --green-dark: #b45309;   /* deep amber — text, links, hover, dark fills */
+  --green-light: #fff3d6;  /* light marigold tint */
+  --on-primary: #3a2a14;   /* dark ink for text on light primary */
+  --accent: #c2185b;       /* festive pink accent */
+  --text: #3a2a14;
+  --muted: #8a7a55;
+  --bg: #fff8ec;
+  --surface: #fffdf7;
+  --border: #ece0c8;
   --danger: #c62828;
-  --amber: #d9a300;
+  --amber: #ef6c00;        /* burnt orange — distinct from marigold primary */
   --blue: #1565c0;
   --radius: 12px;
   --max: 1100px;
@@ -38,7 +40,7 @@ a {
 /* ---- Header ---- */
 .admin-header {
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
   position: sticky;
   top: 0;
@@ -112,10 +114,11 @@ a {
   font-weight: 600;
   cursor: pointer;
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
 }
 .btn:hover {
   background: var(--green-dark);
+  color: #fff;
 }
 .btn:disabled {
   background: var(--border);
@@ -241,7 +244,7 @@ a {
 }
 .queue-tab.active {
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
   border-color: var(--green);
 }
 .live-dot {

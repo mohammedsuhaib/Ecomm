@@ -1,14 +1,20 @@
 /* Town Basket storefront — mobile-first, brand-consistent with holding-site. */
 
 :root {
-  --green: #2e7d32;
-  --green-dark: #1b5e20;
-  --green-light: #e8f5e9;
-  --text: #1f2a24;
-  --muted: #5a6b62;
-  --bg: #ffffff;
-  --surface: #f6f9f7;
-  --border: #e0e6e2;
+  /* Brand: Marigold (palette 16). The --green* names are kept for compatibility
+     but now carry the marigold ramp. The primary is LIGHT, so text on primary
+     surfaces is dark (--on-primary). */
+  --green: #f9a825;        /* marigold — primary brand */
+  --green-dark: #b45309;   /* deep amber — text, links, hover, dark fills */
+  --green-light: #fff3d6;  /* light marigold tint — chips, thumbs, notices */
+  --on-primary: #3a2a14;   /* dark ink for text/icons on the light primary */
+  --accent: #c2185b;       /* festive pink accent */
+  --accent-dark: #9d1450;
+  --text: #3a2a14;
+  --muted: #8a7a55;
+  --bg: #fff8ec;
+  --surface: #fffdf7;
+  --border: #ece0c8;
   --danger: #c62828;
   --max: 960px;
   --radius: 12px;
@@ -52,7 +58,7 @@ a:hover {
   top: 0;
   z-index: 20;
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 .site-header .header-inner {
@@ -70,7 +76,7 @@ a:hover {
   gap: 0.55rem;
   font-weight: 700;
   font-size: 1.2rem;
-  color: #fff;
+  color: var(--on-primary);
   white-space: nowrap;
 }
 .brand .logo {
@@ -87,8 +93,8 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(58, 42, 20, 0.1);
+  color: var(--on-primary);
   border: none;
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
@@ -96,7 +102,7 @@ a:hover {
   cursor: pointer;
 }
 .location-pill:hover {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(58, 42, 20, 0.18);
 }
 .header-search {
   flex: 1 1 220px;
@@ -284,10 +290,11 @@ a:hover {
   font-weight: 600;
   cursor: pointer;
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
 }
 .btn:hover {
   background: var(--green-dark);
+  color: #fff;
 }
 .btn:disabled {
   background: var(--border);
@@ -482,15 +489,15 @@ a:hover {
   align-items: center;
   gap: 0.35rem;
   position: relative;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(58, 42, 20, 0.1);
+  color: var(--on-primary);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.85rem;
 }
 .cart-pill:hover {
-  background: rgba(255, 255, 255, 0.26);
-  color: #fff;
+  background: rgba(58, 42, 20, 0.18);
+  color: var(--on-primary);
 }
 .cart-pill .cart-label {
   display: none;
@@ -758,8 +765,8 @@ a:hover {
   flex: none;
 }
 .status-step.done .status-marker {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--green-dark);
+  border-color: var(--green-dark);
 }
 .status-step.current .status-name {
   font-weight: 700;
@@ -798,16 +805,16 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
+  background: rgba(58, 42, 20, 0.1);
+  color: var(--on-primary);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.85rem;
   max-width: 9rem;
 }
 .account-pill:hover {
-  background: rgba(255, 255, 255, 0.26);
-  color: #fff;
+  background: rgba(58, 42, 20, 0.18);
+  color: var(--on-primary);
 }
 .account-pill .account-label {
   display: none;
