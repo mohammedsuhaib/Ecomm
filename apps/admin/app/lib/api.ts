@@ -254,6 +254,27 @@ export async function logout(refreshToken: string): Promise<void> {
   await authPost<null>('/auth/logout', { refreshToken });
 }
 
+// ---- Account (M4 hardening: staff password change) -------------------------
+
+/**
+ * POST /me/password — change the signed-in staffer's password (contract §3).
+ * Sends the Bearer token via the authed `apiMutate`; the backend BCrypt-verifies
+ * `currentPassword` and stores `newPassword`. Resolves on 204 (no content); the
+ * session's existing tokens stay valid, so there is no re-login.
+ *
+ * Error mapping is left to the caller (422 → wrong/unsupported account, 400 →
+ * weak new password) so the UI can surface friendly messages.
+ */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await apiMutate<null>('POST', '/me/password', {
+    currentPassword,
+    newPassword,
+  });
+}
+
 // ---- Admin endpoint functions ----------------------------------------------
 
 /** GET /admin/orders?status=&page=&size= — paged order queue. */

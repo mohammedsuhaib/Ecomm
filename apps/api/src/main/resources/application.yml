@@ -98,6 +98,11 @@ townbasket:
       secret: ${JWT_SECRET:dev-only-insecure-jwt-secret-change-me-32bytes+}
       access-ttl: PT15M   # access token lifetime (15 minutes)
       refresh-ttl: P30D   # refresh token lifetime (30 days)
+    ratelimit:
+      # Per-client-IP rate limit on the auth endpoints (phone/verify, staff/login,
+      # refresh; logout exempt) — in-memory fixed window, no Redis. Defaults below.
+      capacity: 10        # max requests per IP per endpoint group per window
+      window: PT60S       # the fixed window length (60 seconds)
   identity:
     firebase:
       # project-id is intentionally LEFT UNSET here. While unset, the FAKE phone

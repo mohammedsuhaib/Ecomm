@@ -39,6 +39,22 @@ class MeController {
         return authService.currentUser(currentUserId());
     }
 
+    @PutMapping
+    @Operation(summary = "Update the current user's display name (1..80 chars; 400 otherwise).")
+    UserDto updateProfile(@RequestBody UpdateProfileRequest request) {
+        return authService.updateProfile(currentUserId(), request == null ? null : request.name());
+    }
+
+    @PostMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Change the current user's password (staff/admin only).")
+    void changePassword(@RequestBody ChangePasswordRequest request) {
+        authService.changePassword(
+                currentUserId(),
+                request == null ? null : request.currentPassword(),
+                request == null ? null : request.newPassword());
+    }
+
     @GetMapping("/addresses")
     @Operation(summary = "List the user's saved addresses (default first, then newest).")
     List<SavedAddressDto> listAddresses() {

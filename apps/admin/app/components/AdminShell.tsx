@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
+import ChangePassword from './ChangePassword';
 import LoginGate from './LoginGate';
 
 /**
@@ -52,7 +53,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="admin-main">
-        <LoginGate>{children}</LoginGate>
+        <LoginGate>
+          <ChangePassword />
+          {children}
+        </LoginGate>
       </main>
     </>
   );

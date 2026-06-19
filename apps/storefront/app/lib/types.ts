@@ -147,6 +147,11 @@ export interface UserDto {
   email: string | null;
 }
 
+/** PUT /me body — update the caller's display name (trimmed length 1..80). */
+export interface UpdateProfileRequest {
+  name: string;
+}
+
 /** Issued by POST /auth/phone/verify (login/signup). */
 export interface AuthResponse {
   accessToken: string;

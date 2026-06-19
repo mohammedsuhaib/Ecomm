@@ -23,6 +23,7 @@ import type {
   ServiceabilityResult,
   Store,
   TokenPair,
+  UpdateProfileRequest,
   UserDto,
 } from './types';
 import {
@@ -452,6 +453,15 @@ async function authRequest<T>(run: () => Promise<T>): Promise<T> {
 /** GET /me — current user profile. */
 export function getMe(): Promise<UserDto> {
   return authGet<UserDto>('/me');
+}
+
+/**
+ * PUT /me — update the caller's display name. The backend trims and validates
+ * length 1..80 (400 otherwise) and returns the refreshed UserDto.
+ */
+export function updateProfile(name: string): Promise<UserDto> {
+  const body: UpdateProfileRequest = { name };
+  return authMutate<UserDto>('PUT', '/me', body);
 }
 
 /** GET /me/addresses — saved addresses (default first, then newest). */

@@ -97,6 +97,14 @@ class UserEntity {
         return name;
     }
 
+    void setName(String name) {
+        this.name = name;
+    }
+
+    void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
     String getFirebaseUid() {
         return firebaseUid;
     }

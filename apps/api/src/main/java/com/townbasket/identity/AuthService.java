@@ -41,6 +41,29 @@ public interface AuthService {
     /** The current user's profile. */
     UserDto currentUser(Long userId);
 
+    /**
+     * Update the caller's display name. {@code name} is trimmed and must be
+     * 1..80 characters; persists with {@code saveAndFlush} and returns the
+     * refreshed profile.
+     *
+     * @throws IllegalArgumentException if {@code name} is blank or longer than 80
+     *     characters after trimming (mapped to 400)
+     */
+    UserDto updateProfile(Long userId, String name);
+
+    /**
+     * Change the caller's password. Only accounts that HAVE a password
+     * (STORE_STAFF / ADMIN) are eligible; the {@code current} password is
+     * BCrypt-verified and the {@code next} password is encoded and stored with
+     * {@code saveAndFlush}.
+     *
+     * @throws com.townbasket.shared.BusinessRuleException if the account has no
+     *     password (mapped to 422) or {@code current} is incorrect (422)
+     * @throws IllegalArgumentException if {@code next} is shorter than 8
+     *     characters or equal to {@code current} (mapped to 400)
+     */
+    void changePassword(Long userId, String current, String next);
+
     /** The user's saved addresses, default first then newest. */
     List<SavedAddressDto> listAddresses(Long userId);
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/components/AuthProvider';
 import AddressManager from './AddressManager';
 import OrderHistory from './OrderHistory';
+import ProfileEditor from './ProfileEditor';
 
 export default function AccountPage() {
   const router = useRouter();
@@ -61,13 +62,7 @@ export default function AccountPage() {
             {loggingOut ? 'Logging out…' : 'Log out'}
           </button>
         </div>
-        <div className="profile-card">
-          <p style={{ margin: 0 }}>
-            <strong>{user.name?.trim() || 'Customer'}</strong>
-          </p>
-          {user.phone && <p className="muted" style={{ margin: 0 }}>+91 {user.phone}</p>}
-          {user.email && <p className="muted" style={{ margin: 0 }}>{user.email}</p>}
-        </div>
+        <ProfileEditor user={user} />
       </section>
 
       <section className="account-section">

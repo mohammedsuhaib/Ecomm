@@ -12,6 +12,7 @@ import com.townbasket.identity.SavedAddressDto;
 import com.townbasket.identity.StaffLoginRequest;
 import com.townbasket.identity.TokenPair;
 import com.townbasket.identity.UserDto;
+import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.time.Instant;
 import java.util.List;
@@ -133,6 +134,40 @@ class AuthServiceImpl implements AuthService {
         return users.findById(userId)
                 .map(AuthServiceImpl::toUserDto)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+    }
+
+    @Override
+    public UserDto updateProfile(Long userId, String name) {
+        String trimmed = name == null ? null : name.trim();
+        if (trimmed == null || trimmed.isEmpty() || trimmed.length() > 80) {
+            throw new IllegalArgumentException("name is required and must be 1..80 characters");
+        }
+        UserEntity user = users.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        user.setName(trimmed);
+        user.touch();
+        return toUserDto(users.saveAndFlush(user));
+    }
+
+    @Override
+    public void changePassword(Long userId, String current, String next) {
+        UserEntity user = users.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        if (user.getPasswordHash() == null) {
+            throw new BusinessRuleException("Password change is not available for this account");
+        }
+        if (isBlank(current) || !passwordEncoder.matches(current, user.getPasswordHash())) {
+            throw new BusinessRuleException("Current password is incorrect");
+        }
+        if (next == null || next.length() < 8) {
+            throw new IllegalArgumentException("newPassword must be at least 8 characters");
+        }
+        if (passwordEncoder.matches(next, user.getPasswordHash())) {
+            throw new IllegalArgumentException("newPassword must be different from the current password");
+        }
+        user.setPasswordHash(passwordEncoder.encode(next));
+        user.touch();
+        users.saveAndFlush(user);
     }
 
     @Override

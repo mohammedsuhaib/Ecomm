@@ -892,6 +892,30 @@ a:hover {
   cursor: not-allowed;
 }
 
+/* Inline profile-name editor (M4: edit display name) */
+.profile-card .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.profile-card .field label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.profile-card .field input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.profile-card .field input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.profile-card .notice {
+  margin: 0;
+}
+
 /* Address list */
 .address-list,
 .order-history {
