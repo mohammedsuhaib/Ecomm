@@ -51,7 +51,7 @@ class OrderUserIntegrationTest extends AbstractIntegrationTest {
 
     private PlaceOrderRequest request(UUID cartId) {
         return new PlaceOrderRequest(cartId, "Asha Rao", "9999900000",
-                new AddressDto("12 MG Road", STORE_LAT, STORE_LNG), PaymentMethod.COD, null);
+                new AddressDto("12 MG Road", STORE_LAT, STORE_LNG), PaymentMethod.COD, null, null);
     }
 
     private UUID cartWith(ProductVariantDto v, int qty) {

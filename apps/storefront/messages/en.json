@@ -137,7 +137,11 @@
     "proceedToCheckout": "Proceed to checkout",
     "limitedStock": "Only limited stock available for {product}.",
     "couldNotUpdate": "Could not update your cart. Please try again.",
-    "ariaQuantity": "Quantity of {product}"
+    "ariaQuantity": "Quantity of {product}",
+    "noLongerAvailableRemove": "No longer available — remove to continue",
+    "onlyNLeft": "Only {count} left — reduce quantity to continue",
+    "someNoLongerAvailable": "Some items are no longer available. Remove them to continue.",
+    "someShortage": "Some items don’t have enough stock for the quantity you chose. Reduce the quantity to continue."
   },
   "checkout": {
     "title": "Checkout",
@@ -163,12 +167,14 @@
     "signInContinue": "Sign in to continue",
     "emptyCart": "Your cart is empty.",
     "notServiceable": "Sorry, {store} doesn’t deliver to this address yet (outside the delivery range). Please choose a different location.",
-    "errorStock": "Some items just went out of stock. Please review your cart and try again.",
-    "errorInvalid": "We couldn’t place this order — your cart may be below the minimum or an item is unavailable. Please review and retry.",
+    "errorStock": "Some items just sold out or stock changed. Please review your cart and try again.",
+    "errorInvalid": "We couldn’t place this order — the store may be closed, an item may be unavailable, the total may have changed, or you’re below the minimum. Please review your cart and retry.",
     "errorGeneric": "Something went wrong placing your order. Please try again.",
     "minOrderNotice": "Minimum order is {min}. Add {needed} more to checkout.",
     "someOutOfStockEdit": "Some items are out of stock. Please <link>edit your cart</link> first.",
-    "subtotal": "Subtotal"
+    "subtotal": "Subtotal",
+    "someNoLongerAvailableEdit": "Some items are no longer available. Please <link>edit your cart</link> first.",
+    "someShortageEdit": "Some items don’t have enough stock for the quantity you chose. Please <link>edit your cart</link> first."
   },
   "login": {
     "signIn": "Sign in",
@@ -273,7 +279,15 @@
     "deliveringTo": "Delivering to",
     "notFound": "We couldn’t find this order.",
     "couldNotLoad": "Could not load your order. Please try again.",
-    "loadingOrder": "Loading your order…"
+    "loadingOrder": "Loading your order…",
+    "deliveryCodeHintOnTheWay": "Your order is on the way. Share this code with the delivery person at handover.",
+    "connLive": "live",
+    "connUpdating": "updating",
+    "connConnecting": "connecting",
+    "connLiveTitle": "Live updates",
+    "connPollingTitle": "Updating every few seconds",
+    "connConnectingTitle": "Connecting…",
+    "lastUpdated": "updated {time}"
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

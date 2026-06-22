@@ -50,6 +50,22 @@ export function useCart(): CartContextValue {
   return ctx;
 }
 
+// Recompute a cart locally after setting one variant's quantity, so the UI can
+// update instantly (optimistically) before the server round-trip returns. A
+// qty <= 0 drops the line. Line/sub totals are derived from the known unitPrice.
+function withVariantQty(cart: Cart, variantId: string, qty: number): Cart {
+  const items = cart.items
+    .map((i) =>
+      i.variantId === variantId
+        ? { ...i, qty, lineTotal: Math.round(i.unitPrice * qty * 100) / 100 }
+        : i,
+    )
+    .filter((i) => i.qty > 0);
+  const subtotal = items.reduce((sum, i) => sum + i.lineTotal, 0);
+  const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
+  return { ...cart, items, subtotal: Math.round(subtotal * 100) / 100, itemCount };
+}
+
 export default function CartProvider({
   children,
 }: {
@@ -93,33 +109,60 @@ export default function CartProvider({
   const addItem = useCallback(
     async (variantId: string, qty: number): Promise<Cart> => {
       const id = await ensureCartId();
-      const updated = await addCartItem(id, variantId, qty);
-      setCart(updated);
-      return updated;
+      // Optimistic increment when the line already exists (the common stepper
+      // case); a brand-new line has no known price, so wait for the server.
+      const prev = cart;
+      const existing = prev?.items.find((i) => i.variantId === variantId);
+      if (prev && existing) {
+        setCart(withVariantQty(prev, variantId, existing.qty + qty));
+      }
+      try {
+        const updated = await addCartItem(id, variantId, qty);
+        setCart(updated);
+        return updated;
+      } catch (err) {
+        if (prev) setCart(prev); // roll back the optimistic change
+        throw err;
+      }
     },
-    [ensureCartId],
+    [ensureCartId, cart],
   );
 
   const setQty = useCallback(
     async (itemId: string, qty: number): Promise<Cart> => {
       const id = loadCartId();
       if (!id) throw new Error('No cart');
-      const updated = await updateCartItem(id, itemId, qty);
-      setCart(updated);
-      return updated;
+      const prev = cart;
+      const line = prev?.items.find((i) => i.itemId === itemId);
+      if (prev && line) setCart(withVariantQty(prev, line.variantId, qty));
+      try {
+        const updated = await updateCartItem(id, itemId, qty);
+        setCart(updated);
+        return updated;
+      } catch (err) {
+        if (prev) setCart(prev);
+        throw err;
+      }
     },
-    [],
+    [cart],
   );
 
   const decrementVariant = useCallback(
     async (variantId: string): Promise<Cart> => {
       const id = loadCartId();
       if (!id) throw new Error('No cart');
-      const line = cart?.items.find((i) => i.variantId === variantId);
+      const prev = cart;
+      const line = prev?.items.find((i) => i.variantId === variantId);
       if (!line) throw new Error('Variant not in cart');
-      const updated = await updateCartItem(id, line.itemId, line.qty - 1);
-      setCart(updated);
-      return updated;
+      setCart(withVariantQty(prev!, variantId, line.qty - 1));
+      try {
+        const updated = await updateCartItem(id, line.itemId, line.qty - 1);
+        setCart(updated);
+        return updated;
+      } catch (err) {
+        if (prev) setCart(prev);
+        throw err;
+      }
     },
     [cart],
   );

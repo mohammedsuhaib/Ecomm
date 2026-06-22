@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { ApiError, getStore } from '@/app/lib/api';
-import { formatRupees } from '@/app/lib/format';
+import { formatRupees, subtractRupees } from '@/app/lib/format';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 
@@ -48,9 +48,14 @@ export default function CartPage() {
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal ?? 0;
   const hasUnavailable = items.some((i) => !i.available);
+  const hasShortage = items.some((i) => i.available && i.availableStock < i.qty);
   const belowMin = minOrderValue != null && subtotal < minOrderValue;
   const canCheckout =
-    items.length > 0 && !belowMin && !hasUnavailable && !busyItem;
+    items.length > 0 &&
+    !belowMin &&
+    !hasUnavailable &&
+    !hasShortage &&
+    !busyItem;
 
   return (
     <>
@@ -84,11 +89,17 @@ export default function CartPage() {
                   <span className="muted">
                     {t('each', { price: formatRupees(item.unitPrice) })}
                   </span>
-                  {!item.available && (
+                  {!item.available ? (
                     <span className="unavailable-tag">
-                      {t('outOfStockRemove')}
+                      {t('noLongerAvailableRemove')}
                     </span>
-                  )}
+                  ) : item.availableStock < item.qty ? (
+                    <span className="unavailable-tag">
+                      {item.availableStock > 0
+                        ? t('onlyNLeft', { count: item.availableStock })
+                        : t('outOfStockRemove')}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="cart-row-actions">
                   <div className="qty-stepper" aria-label={t('ariaQuantity', { product: item.productName })}>
@@ -136,13 +147,18 @@ export default function CartPage() {
               <p className="notice warn">
                 {t('minOrderNotice', {
                   min: formatRupees(minOrderValue),
-                  needed: formatRupees(minOrderValue - subtotal),
+                  needed: formatRupees(subtractRupees(minOrderValue, subtotal)),
                 })}
               </p>
             )}
             {hasUnavailable && (
               <p className="notice error">
-                {t('someOutOfStock')}
+                {t('someNoLongerAvailable')}
+              </p>
+            )}
+            {hasShortage && !hasUnavailable && (
+              <p className="notice error">
+                {t('someShortage')}
               </p>
             )}
 

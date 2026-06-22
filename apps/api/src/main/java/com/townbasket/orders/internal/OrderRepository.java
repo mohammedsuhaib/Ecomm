@@ -1,6 +1,7 @@
 package com.townbasket.orders.internal;
 
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface OrderRepository extends JpaRepository<OrderEntity, Long> {
 
     Optional<OrderEntity> findByIdempotencyKey(String idempotencyKey);
+
+    Optional<OrderEntity> findByPublicToken(UUID publicToken);
 
     Page<OrderEntity> findAllByOrderByPlacedAtDescIdDesc(Pageable pageable);
 

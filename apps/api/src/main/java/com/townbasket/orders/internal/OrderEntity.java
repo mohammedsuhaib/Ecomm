@@ -36,6 +36,9 @@ class OrderEntity {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "public_token", nullable = false, updatable = false)
+    private UUID publicToken;
+
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
@@ -96,6 +99,7 @@ class OrderEntity {
                 BigDecimal subtotal, BigDecimal total, String deliveryOtp, String idempotencyKey) {
         this.cartId = cartId;
         this.userId = userId;
+        this.publicToken = UUID.randomUUID();
         this.storeId = storeId;
         this.customerName = customerName;
         this.phone = phone;
@@ -122,6 +126,10 @@ class OrderEntity {
 
     Long getUserId() {
         return userId;
+    }
+
+    UUID getPublicToken() {
+        return publicToken;
     }
 
     Long getStoreId() {

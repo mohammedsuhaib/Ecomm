@@ -11,7 +11,7 @@ import {
   listAddresses,
   placeOrder,
 } from '@/app/lib/api';
-import { formatRupees } from '@/app/lib/format';
+import { formatRupees, subtractRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
@@ -122,6 +122,8 @@ export default function CheckoutPage() {
   const subtotal = cart?.subtotal ?? 0;
   const belowMin = minOrderValue != null && subtotal < minOrderValue;
   const hasUnavailable = items.some((i) => !i.available);
+  // Surface a stock shortage before the final tap, not only at reservation time.
+  const hasShortage = items.some((i) => i.available && i.availableStock < i.qty);
 
   const phoneValid = useMemo(() => /^[0-9]{10}$/.test(phone.trim()), [phone]);
   const latNum = Number.parseFloat(lat);
@@ -138,6 +140,7 @@ export default function CheckoutPage() {
     items.length > 0 &&
     !belowMin &&
     !hasUnavailable &&
+    !hasShortage &&
     name.trim().length > 1 &&
     phoneValid &&
     line.trim().length > 3 &&
@@ -166,18 +169,26 @@ export default function CheckoutPage() {
           phone: phone.trim(),
           address: { line: line.trim(), lat: latNum, lng: lngNum },
           paymentMethod,
+          expectedTotal: subtotal,
         },
         idempotencyKey.current,
       );
 
-      // The order page clears the local cart once it loads successfully.
-      router.push(`/order/${order.id}`);
+      // Track by the unguessable token (never the sequential id). The order page
+      // clears the local cart once it loads successfully.
+      router.push(`/order/${order.trackingToken}`);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
+          // Stock conflict: an item sold out (or its quantity is no longer
+          // available) since the cart was loaded. Refresh so the cart reflects it.
           setError(t('errorStock'));
+          await refresh();
         } else if (err.status === 422 || err.status === 400) {
+          // Business rule: below minimum, item unavailable, store closed, or the
+          // total changed since you confirmed it. Refresh so the cart reflects it.
           setError(t('errorInvalid'));
+          await refresh();
         } else {
           setError(t('errorGeneric'));
         }
@@ -354,13 +365,20 @@ export default function CheckoutPage() {
             <p className="notice warn">
               {t('minOrderNotice', {
                 min: formatRupees(minOrderValue),
-                needed: formatRupees(minOrderValue - subtotal),
+                needed: formatRupees(subtractRupees(minOrderValue, subtotal)),
               })}
             </p>
           )}
           {hasUnavailable && (
             <p className="notice error">
-              {t.rich('someOutOfStockEdit', {
+              {t.rich('someNoLongerAvailableEdit', {
+                link: (chunks) => <Link href="/cart">{chunks}</Link>,
+              })}
+            </p>
+          )}
+          {hasShortage && !hasUnavailable && (
+            <p className="notice error">
+              {t.rich('someShortageEdit', {
                 link: (chunks) => <Link href="/cart">{chunks}</Link>,
               })}
             </p>

@@ -6,6 +6,7 @@ import com.townbasket.cart.CartNotFoundException;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.VariantView;
+import com.townbasket.inventory.InventoryService;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,12 @@ class CartServiceImpl implements CartService {
 
     private final CartRepository carts;
     private final CatalogService catalog;
+    private final InventoryService inventory;
 
-    CartServiceImpl(CartRepository carts, CatalogService catalog) {
+    CartServiceImpl(CartRepository carts, CatalogService catalog, InventoryService inventory) {
         this.carts = carts;
         this.catalog = catalog;
+        this.inventory = inventory;
     }
 
     @Override
@@ -151,6 +154,7 @@ class CartServiceImpl implements CartService {
             BigDecimal unitPrice = v != null ? v.unitPrice() : BigDecimal.ZERO;
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQty()));
             boolean available = v != null && v.available() && unitPrice.signum() >= 0;
+            int availableStock = available ? inventory.availability(item.getVariantId()) : 0;
             items.add(new CartItemDto(
                     item.getId(),
                     item.getVariantId(),
@@ -160,10 +164,11 @@ class CartServiceImpl implements CartService {
                     unitPrice,
                     item.getQty(),
                     lineTotal,
-                    available));
+                    available,
+                    availableStock));
             subtotal = subtotal.add(lineTotal);
             itemCount += item.getQty();
         }
-        return new CartDto(cart.getId(), items, subtotal, itemCount);
+        return new CartDto(cart.getId(), items, subtotal, itemCount, cart.isCheckedOut());
     }
 }

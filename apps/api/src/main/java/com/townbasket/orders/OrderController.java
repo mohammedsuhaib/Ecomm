@@ -4,6 +4,7 @@ import com.townbasket.cart.CartDto;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -63,10 +64,10 @@ class OrderController {
         return orderService.listUserOrders(requireUserId(), pageable(page, size));
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Fetch an order by id (confirmation + live tracking).")
-    ResponseEntity<OrderDto> getOrder(@PathVariable Long id) {
-        return orderService.getOrder(id)
+    @GetMapping("/track/{token}")
+    @Operation(summary = "Fetch an order by its unguessable tracking token (confirmation + live tracking).")
+    ResponseEntity<OrderDto> trackOrder(@PathVariable UUID token) {
+        return orderService.getOrderByToken(token)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

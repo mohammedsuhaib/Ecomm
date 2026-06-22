@@ -3,6 +3,7 @@ package com.townbasket.orders;
 import com.townbasket.cart.CartDto;
 import com.townbasket.shared.PagedResponse;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 
 /**
@@ -30,8 +31,13 @@ public interface OrderService {
      */
     OrderDto placeOrder(PlaceOrderRequest request, String idempotencyKey, Long userId);
 
-    /** Fetch an order by id (confirmation + tracking). */
-    Optional<OrderDto> getOrder(Long orderId);
+    /**
+     * Customer-facing fetch by unguessable tracking token (confirmation +
+     * tracking). The numeric id is never accepted here, so order details cannot
+     * be harvested by enumerating sequential ids. The delivery OTP is included
+     * only while the order is OUT_FOR_DELIVERY.
+     */
+    Optional<OrderDto> getOrderByToken(UUID trackingToken);
 
     /** A customer's own orders, newest first (AUTHENTICATED). */
     PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable);
