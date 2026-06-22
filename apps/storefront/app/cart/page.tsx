@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ApiError, getStore } from '@/app/lib/api';
-import { formatRupees } from '@/app/lib/format';
+import { formatRupees, subtractRupees } from '@/app/lib/format';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 
@@ -45,9 +45,14 @@ export default function CartPage() {
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal ?? 0;
   const hasUnavailable = items.some((i) => !i.available);
+  const hasShortage = items.some((i) => i.available && i.availableStock < i.qty);
   const belowMin = minOrderValue != null && subtotal < minOrderValue;
   const canCheckout =
-    items.length > 0 && !belowMin && !hasUnavailable && !busyItem;
+    items.length > 0 &&
+    !belowMin &&
+    !hasUnavailable &&
+    !hasShortage &&
+    !busyItem;
 
   return (
     <>
@@ -81,11 +86,17 @@ export default function CartPage() {
                   <span className="muted">
                     {formatRupees(item.unitPrice)} each
                   </span>
-                  {!item.available && (
+                  {!item.available ? (
                     <span className="unavailable-tag">
-                      Out of stock — remove to continue
+                      No longer available — remove to continue
                     </span>
-                  )}
+                  ) : item.availableStock < item.qty ? (
+                    <span className="unavailable-tag">
+                      {item.availableStock > 0
+                        ? `Only ${item.availableStock} left — reduce quantity to continue`
+                        : 'Out of stock — remove to continue'}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="cart-row-actions">
                   <div className="qty-stepper" aria-label={`Quantity of ${item.productName}`}>
@@ -132,12 +143,18 @@ export default function CartPage() {
             {belowMin && minOrderValue != null && (
               <p className="notice warn">
                 Minimum order is {formatRupees(minOrderValue)}. Add{' '}
-                {formatRupees(minOrderValue - subtotal)} more to checkout.
+                {formatRupees(subtractRupees(minOrderValue, subtotal))} more to checkout.
               </p>
             )}
             {hasUnavailable && (
               <p className="notice error">
-                Some items are out of stock. Remove them to continue.
+                Some items are no longer available. Remove them to continue.
+              </p>
+            )}
+            {hasShortage && !hasUnavailable && (
+              <p className="notice error">
+                Some items don’t have enough stock for the quantity you chose.
+                Reduce the quantity to continue.
               </p>
             )}
 

@@ -1,5 +1,6 @@
 package com.townbasket;
 
+import com.townbasket.inventory.InsufficientStockException;
 import com.townbasket.shared.ApiError;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
@@ -36,8 +37,20 @@ class GlobalExceptionHandler {
     }
 
     /**
+     * Insufficient stock is a transient <em>conflict</em> (the requested quantity
+     * is no longer available right now) -> 409. Mapped ahead of the more general
+     * {@link BusinessRuleException} so the storefront can show a precise
+     * "out of stock / reduce quantity" message rather than the generic 422 copy.
+     */
+    @ExceptionHandler(InsufficientStockException.class)
+    ResponseEntity<ApiError> handleConflictStock(InsufficientStockException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    /**
      * Business-rule violations on a well-formed request (min order value, out of
-     * delivery radius, insufficient stock, illegal order transition) -> 422.
+     * delivery radius, item no longer available, store closed, price changed,
+     * illegal order transition) -> 422.
      */
     @ExceptionHandler(BusinessRuleException.class)
     ResponseEntity<ApiError> handleUnprocessable(BusinessRuleException ex, HttpServletRequest request) {

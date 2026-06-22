@@ -37,18 +37,25 @@ function formatTime(iso: string): string {
 }
 
 export default function OrderPage({ params }: { params: { id: string } }) {
-  const orderId = params.id;
+  // The route param is the unguessable tracking token, not the numeric id.
+  const trackingToken = params.id;
   const { reset } = useCart();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
+  // 'connecting' until the first successful read; then 'live' (SSE open) or
+  // 'polling' (SSE unavailable but we're still refreshing every few seconds).
+  const [conn, setConn] = useState<'connecting' | 'live' | 'polling'>('connecting');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   // Once we've successfully loaded the order, clear the local cart exactly once.
   const cartCleared = useRef(false);
+  // The numeric id (from the fetched order) keys the SSE stream.
+  const streamId = order?.id ?? null;
 
   const applyOrder = useCallback(
     (next: Order) => {
       setOrder(next);
+      setLastUpdated(Date.now());
       if (!cartCleared.current) {
         cartCleared.current = true;
         reset();
@@ -60,7 +67,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   // Initial load.
   useEffect(() => {
     let cancelled = false;
-    getOrder(orderId)
+    getOrder(trackingToken)
       .then((o) => {
         if (!cancelled) applyOrder(o);
       })
@@ -75,18 +82,21 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [orderId, applyOrder]);
+  }, [trackingToken, applyOrder]);
 
-  // Live updates: subscribe to the order SSE stream; fall back to polling if
-  // EventSource is unavailable or errors out (ARCHITECTURE §3.8).
+  // Live updates: subscribe to the order SSE stream (keyed by the resolved
+  // numeric id); fall back to polling by token if EventSource is unavailable or
+  // errors out (ARCHITECTURE §3.8). Runs once the order id is known.
   useEffect(() => {
+    if (streamId == null) return;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let es: EventSource | null = null;
 
     const startPolling = () => {
       if (pollTimer) return;
+      setConn((c) => (c === 'live' ? c : 'polling'));
       pollTimer = setInterval(() => {
-        getOrder(orderId)
+        getOrder(trackingToken)
           .then(applyOrder)
           .catch(() => {
             /* transient; keep polling */
@@ -96,16 +106,17 @@ export default function OrderPage({ params }: { params: { id: string } }) {
 
     if (typeof EventSource !== 'undefined') {
       try {
-        es = new EventSource(orderStreamUrl(orderId));
-        es.onopen = () => setLive(true);
+        es = new EventSource(orderStreamUrl(String(streamId)));
+        es.onopen = () => setConn('live');
         es.onmessage = () => {
           // Refetch on any event so we always render the canonical order
           // (the event payload carries at least the new status).
-          getOrder(orderId).then(applyOrder).catch(() => {});
+          getOrder(trackingToken).then(applyOrder).catch(() => {});
         };
         es.onerror = () => {
-          // Browser auto-reconnects EventSource; meanwhile poll as a fallback.
-          setLive(false);
+          // Browser auto-reconnects EventSource; meanwhile poll as a fallback so
+          // the customer keeps getting updates even if SSE never opens.
+          setConn((c) => (c === 'live' ? 'polling' : c));
           startPolling();
         };
       } catch {
@@ -119,7 +130,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       if (es) es.close();
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [orderId, applyOrder]);
+  }, [streamId, trackingToken, applyOrder]);
 
   if (error) {
     return (
@@ -153,12 +164,13 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         </p>
       </div>
 
-      {!cancelled && (
+      {order.status === 'OUT_FOR_DELIVERY' && order.deliveryOtp && (
         <div className="otp-card">
           <span className="otp-label">Delivery code</span>
           <span className="otp-code">{order.deliveryOtp}</span>
           <span className="muted otp-hint">
-            Share this code with the delivery person at handover.
+            Your order is on the way. Share this code with the delivery person at
+            handover.
           </span>
         </div>
       )}
@@ -166,9 +178,23 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       <section>
         <h2 className="section-title">
           Order status{' '}
-          <span className={`live-dot ${live ? 'on' : ''}`} title={live ? 'Live' : 'Reconnecting'}>
-            {live ? '● live' : '○ live'}
+          <span
+            className={`live-dot ${conn === 'live' ? 'on' : ''}`}
+            title={
+              conn === 'live'
+                ? 'Live updates'
+                : conn === 'polling'
+                  ? 'Updating every few seconds'
+                  : 'Connecting…'
+            }
+          >
+            {conn === 'live' ? '● live' : conn === 'polling' ? '↻ updating' : '○ connecting'}
           </span>
+          {lastUpdated && (
+            <span className="muted" style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+              updated {formatTime(new Date(lastUpdated).toISOString())}
+            </span>
+          )}
         </h2>
 
         {cancelled ? (

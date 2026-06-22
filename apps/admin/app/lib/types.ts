@@ -41,7 +41,9 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   total: number;
-  deliveryOtp: string;
+  // Never sent on the admin surface — staff collect the code from the customer
+  // at handover and type it into the DELIVERED prompt.
+  deliveryOtp: string | null;
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
 }

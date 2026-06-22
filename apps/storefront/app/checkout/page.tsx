@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, checkServiceability, getStore, placeOrder } from '@/app/lib/api';
-import { formatRupees } from '@/app/lib/format';
+import { formatRupees, subtractRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import type { PaymentMethod } from '@/app/lib/types';
@@ -57,6 +57,8 @@ export default function CheckoutPage() {
   const subtotal = cart?.subtotal ?? 0;
   const belowMin = minOrderValue != null && subtotal < minOrderValue;
   const hasUnavailable = items.some((i) => !i.available);
+  // Surface a stock shortage before the final tap, not only at reservation time.
+  const hasShortage = items.some((i) => i.available && i.availableStock < i.qty);
 
   const phoneValid = useMemo(() => /^[0-9]{10}$/.test(phone.trim()), [phone]);
   const latNum = Number.parseFloat(lat);
@@ -73,6 +75,7 @@ export default function CheckoutPage() {
     items.length > 0 &&
     !belowMin &&
     !hasUnavailable &&
+    !hasShortage &&
     name.trim().length > 1 &&
     phoneValid &&
     line.trim().length > 3 &&
@@ -103,22 +106,30 @@ export default function CheckoutPage() {
           phone: phone.trim(),
           address: { line: line.trim(), lat: latNum, lng: lngNum },
           paymentMethod,
+          expectedTotal: subtotal,
         },
         idempotencyKey.current,
       );
 
-      // The order page clears the local cart once it loads successfully.
-      router.push(`/order/${order.id}`);
+      // Track by the unguessable token (never the sequential id). The order page
+      // clears the local cart once it loads successfully.
+      router.push(`/order/${order.trackingToken}`);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
+          // Stock conflict: an item sold out (or its quantity is no longer
+          // available) since the cart was loaded.
           setError(
-            'Some items just went out of stock. Please review your cart and try again.',
+            'Some items just sold out or stock changed. Please review your cart and try again.',
           );
+          await refresh();
         } else if (err.status === 422 || err.status === 400) {
+          // Business rule: below minimum, item unavailable, store closed, or the
+          // total changed since you confirmed it. Refresh so the cart reflects it.
           setError(
-            'We couldn’t place this order — your cart may be below the minimum or an item is unavailable. Please review and retry.',
+            'We couldn’t place this order — the store may be closed, an item may be unavailable, the total may have changed, or you’re below the minimum. Please review your cart and retry.',
           );
+          await refresh();
         } else {
           setError('Something went wrong placing your order. Please try again.');
         }
@@ -264,13 +275,19 @@ export default function CheckoutPage() {
           {belowMin && minOrderValue != null && (
             <p className="notice warn">
               Minimum order is {formatRupees(minOrderValue)}. Add{' '}
-              {formatRupees(minOrderValue - subtotal)} more to checkout.
+              {formatRupees(subtractRupees(minOrderValue, subtotal))} more to checkout.
             </p>
           )}
           {hasUnavailable && (
             <p className="notice error">
-              Some items are out of stock. Please{' '}
+              Some items are no longer available. Please{' '}
               <Link href="/cart">edit your cart</Link> first.
+            </p>
+          )}
+          {hasShortage && !hasUnavailable && (
+            <p className="notice error">
+              Some items don’t have enough stock for the quantity you chose.
+              Please <Link href="/cart">edit your cart</Link> first.
             </p>
           )}
           <button

@@ -61,11 +61,11 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         return new PlaceOrderRequest(
                 cartId, "Asha Rao", "9999900000",
                 new AddressDto("12 MG Road", STORE_LAT, STORE_LNG),
-                method, null);
+                method, null, null);
     }
 
     @Test
-    void codCheckoutReservesStockConfirmsAndExposesOtpButNotCostPrice() {
+    void codCheckoutReservesStockConfirmsAndHidesOtpAndCostPrice() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
 
@@ -75,7 +75,10 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         assertThat(order.status()).isEqualTo("CONFIRMED");
         assertThat(order.paymentMethod()).isEqualTo("COD");
         assertThat(order.paymentStatus()).isEqualTo("COD_PENDING");
-        assertThat(order.deliveryOtp()).hasSize(6);
+        // The customer gets an unguessable tracking token, NOT a guessable id...
+        assertThat(order.trackingToken()).isNotBlank();
+        // ...and the delivery OTP stays hidden until the order is OUT_FOR_DELIVERY.
+        assertThat(order.deliveryOtp()).isNull();
         assertThat(order.items()).allSatisfy(i -> assertThat(i.unitPrice()).isNotNull());
         // OrderItemDto has no cost-price accessor at all (compile-time guarantee).
         assertThat(order.timeline()).extracting(OrderTimelineEntryDto::toStatus)
@@ -131,7 +134,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         PlaceOrderRequest req = new PlaceOrderRequest(
                 cart.cartId(), "Asha Rao", "9999900000",
                 new AddressDto("Far away", 12.2958, 76.6394), // ~25 km
-                PaymentMethod.COD, null);
+                PaymentMethod.COD, null, null);
 
         assertThatThrownBy(() -> orderService.placeOrder(req, "radius-key-1"))
                 .isInstanceOf(BusinessRuleException.class);
@@ -148,12 +151,17 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
+        // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY).
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+                .orElseThrow().deliveryOtp();
+        assertThat(otp).hasSize(6);
+
         // Wrong OTP rejected.
         assertThatThrownBy(() -> orderService.transition(id, new TransitionRequest("DELIVERED", "000000", null)))
                 .isInstanceOf(BusinessRuleException.class);
 
         // Correct OTP delivers; COD becomes PAID.
-        OrderDto delivered = orderService.transition(id, new TransitionRequest("DELIVERED", order.deliveryOtp(), null));
+        OrderDto delivered = orderService.transition(id, new TransitionRequest("DELIVERED", otp, null));
         assertThat(delivered.status()).isEqualTo("DELIVERED");
         assertThat(delivered.paymentStatus()).isEqualTo("PAID");
 

@@ -2,6 +2,7 @@ package com.townbasket.orders;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -38,10 +39,10 @@ class OrderController {
         return orderService.placeOrder(request, idempotencyKey);
     }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Fetch an order by id (confirmation + live tracking).")
-    ResponseEntity<OrderDto> getOrder(@PathVariable Long id) {
-        return orderService.getOrder(id)
+    @GetMapping("/track/{token}")
+    @Operation(summary = "Fetch an order by its unguessable tracking token (confirmation + live tracking).")
+    ResponseEntity<OrderDto> trackOrder(@PathVariable UUID token) {
+        return orderService.getOrderByToken(token)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
