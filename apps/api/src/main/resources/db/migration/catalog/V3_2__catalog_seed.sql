@@ -143,6 +143,15 @@ SELECT id, 'Nestle Dahi (Curd)', 'nestle-dahi-curd',
 FROM catalog.categories WHERE slug = 'dairy'
 ON CONFLICT (slug) DO NOTHING;
 
+-- image_url is set here (most products leave it NULL for now). Served from the
+-- storefront's /public for local/dev; swap to the DO Spaces URL in production.
+INSERT INTO catalog.products (category_id, name, slug, description, veg_marker, image_url, available)
+SELECT id, 'Amul Dahi', 'amul-dahi',
+       'Toned milk dahi — creamy and tasty.', TRUE,
+       '/products/amul-dahi.jpg', TRUE
+FROM catalog.categories WHERE slug = 'dairy'
+ON CONFLICT (slug) DO NOTHING;
+
 INSERT INTO catalog.products (category_id, name, slug, description, veg_marker, available)
 SELECT id, 'Amul Cheese Slices', 'amul-cheese-slices',
        'Processed cheese slices.', TRUE, TRUE
@@ -277,6 +286,8 @@ FROM (VALUES
     ('amul-butter',                 '100 g',   58.00,  50.00,  60.00, 1),
     ('amul-butter',                 '500 g',  275.00, 245.00, 285.00, 2),
     ('nestle-dahi-curd',            '400 g',   42.00,  35.00,  48.00, 1),
+    ('amul-dahi',                   '200 g',   25.00,  20.00,  28.00, 1),
+    ('amul-dahi',                   '400 g',   45.00,  38.00,  50.00, 2),
     ('amul-cheese-slices',          '100 g',   90.00,  77.00, 100.00, 1),
     ('amul-cheese-slices',          '200 g',  165.00, 142.00, 185.00, 2),
     ('amul-paneer',                 '200 g',   95.00,  82.00, 105.00, 1),
