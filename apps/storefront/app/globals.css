@@ -213,6 +213,17 @@ a:hover {
   height: 100%;
   object-fit: cover;
 }
+/* Demo product image: emoji on a per-product tinted tile (ProductThumb fallback
+   when no image_url). Fills the .thumb / .hero-img box and inherits its font-size
+   so the same component scales for both the grid and the detail hero. */
+.thumb-emoji {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
 .product-card .body {
   padding: 0.6rem 0.7rem 0.8rem;
   display: flex;

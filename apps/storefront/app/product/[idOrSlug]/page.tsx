@@ -4,6 +4,7 @@ import { getProduct } from '@/app/lib/api';
 import VegMarker from '@/app/components/VegMarker';
 import PriceTag from '@/app/components/PriceTag';
 import AddToCartButton from '@/app/components/AddToCartButton';
+import ProductThumb from '@/app/components/ProductThumb';
 
 export const revalidate = 60;
 
@@ -32,12 +33,7 @@ export default async function ProductPage({ params }: Params) {
 
       <article className="product-detail">
         <div className="hero-img">
-          {product.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.imageUrl} alt={product.name} />
-          ) : (
-            <span aria-hidden>🛒</span>
-          )}
+          <ProductThumb product={product} />
         </div>
 
         <div>

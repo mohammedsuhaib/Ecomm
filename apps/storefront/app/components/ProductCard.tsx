@@ -3,6 +3,7 @@ import type { Product } from '@/app/lib/types';
 import VegMarker from './VegMarker';
 import PriceTag from './PriceTag';
 import QuickAddButton from './QuickAddButton';
+import ProductThumb from './ProductThumb';
 
 /**
  * Compact product tile for grids. Links to the detail page and previews the
@@ -23,12 +24,7 @@ export default function ProductCard({ product }: { product: Product }) {
       aria-label={product.name}
     >
       <div className="thumb">
-        {product.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={product.imageUrl} alt={product.name} loading="lazy" />
-        ) : (
-          <span aria-hidden>🛒</span>
-        )}
+        <ProductThumb product={product} />
         {/* Inline quick add — overlays the thumb; stops navigation on tap. */}
         <div className="quick-add-slot">
           <QuickAddButton product={product} />
