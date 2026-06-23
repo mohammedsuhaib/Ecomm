@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ApiError } from '@/app/lib/api';
 import type { Product } from '@/app/lib/types';
 import { useCart } from './CartProvider';
@@ -13,6 +14,8 @@ import { useCart } from './CartProvider';
  * link. Renders nothing when the product has no buyable variant.
  */
 export default function QuickAddButton({ product }: { product: Product }) {
+  const t = useTranslations('quickAdd');
+  const tc = useTranslations('common');
   const { addItem, decrementVariant, qtyOf } = useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -56,8 +59,8 @@ export default function QuickAddButton({ product }: { product: Product }) {
           stop(e);
           void run(() => addItem(variant.id, 1));
         }}
-        aria-label={`Add ${product.name} to cart`}
-        title={error ? 'Could not add — try again' : 'Add to cart'}
+        aria-label={t('ariaAdd', { product: product.name })}
+        title={error ? t('couldNotAdd') : t('addToCart')}
       >
         {busy ? '…' : '+'}
       </button>
@@ -68,7 +71,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
     <div
       className="quick-add-stepper"
       onClick={stop}
-      aria-label={`Quantity of ${product.name} in cart`}
+      aria-label={t('ariaQuantity', { product: product.name })}
     >
       <button
         type="button"
@@ -77,7 +80,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
           stop(e);
           void run(() => decrementVariant(variant.id));
         }}
-        aria-label="Decrease quantity"
+        aria-label={tc('decrease')}
       >
         −
       </button>
@@ -91,7 +94,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
           stop(e);
           void run(() => addItem(variant.id, 1));
         }}
-        aria-label="Increase quantity"
+        aria-label={tc('increase')}
       >
         +
       </button>

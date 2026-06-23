@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { SORT_OPTIONS } from '@/app/lib/sort';
 import type { ProductSort } from '@/app/lib/api';
 
@@ -22,6 +23,7 @@ export default function SortControl({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const t = useTranslations('sort');
 
   function onChange(value: string) {
     const next = new URLSearchParams(params.toString());
@@ -36,16 +38,16 @@ export default function SortControl({
 
   return (
     <label className="sort-control">
-      <span className="sort-control-label">Sort</span>
+      <span className="sort-control-label">{t('label')}</span>
       <select
         value={sort ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        aria-label="Sort products"
+        aria-label={t('ariaSort')}
       >
-        <option value="">Recommended</option>
+        <option value="">{t('recommended')}</option>
         {SORT_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {t(o.value)}
           </option>
         ))}
       </select>

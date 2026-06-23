@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/components/AuthProvider';
 import AddressManager from './AddressManager';
@@ -10,6 +11,8 @@ import ProfileEditor from './ProfileEditor';
 
 export default function AccountPage() {
   const router = useRouter();
+  const t = useTranslations('account');
+  const common = useTranslations('common');
   const { user, isAuthenticated, logout, refreshUser } = useAuth();
   // Auth hydrates from localStorage after mount, so wait one tick before
   // deciding to redirect — otherwise a logged-in user gets bounced to login.
@@ -39,19 +42,19 @@ export default function AccountPage() {
   }
 
   if (!checked || !isAuthenticated || !user) {
-    return <p className="empty-state">Loading your account…</p>;
+    return <p className="empty-state">{t('loadingAccount')}</p>;
   }
 
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">Home</Link> / <span>Account</span>
+        <Link href="/">{common('home')}</Link> / <span>{common('account')}</span>
       </nav>
 
       <section className="account-section">
         <div className="account-section-head">
           <h1 className="section-title" style={{ margin: 0 }}>
-            Your account
+            {t('yourAccount')}
           </h1>
           <button
             type="button"
@@ -59,14 +62,14 @@ export default function AccountPage() {
             onClick={onLogout}
             disabled={loggingOut}
           >
-            {loggingOut ? 'Logging out…' : 'Log out'}
+            {loggingOut ? t('loggingOut') : t('logOut')}
           </button>
         </div>
         <ProfileEditor user={user} />
       </section>
 
       <section className="account-section">
-        <h2 className="section-title">Recent orders</h2>
+        <h2 className="section-title">{t('recentOrders')}</h2>
         <OrderHistory />
       </section>
 

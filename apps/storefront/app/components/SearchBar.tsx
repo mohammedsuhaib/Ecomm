@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Search box. Navigates to /search?q=… (client navigation), where a server
@@ -12,6 +13,8 @@ export default function SearchBar() {
   const router = useRouter();
   const params = useSearchParams();
   const [q, setQ] = useState('');
+  const t = useTranslations('searchBar');
+  const tc = useTranslations('common');
 
   // Seed from URL when landing on /search?q=…
   useEffect(() => {
@@ -32,11 +35,11 @@ export default function SearchBar() {
         name="q"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search for groceries…"
-        aria-label="Search products"
+        placeholder={t('placeholder')}
+        aria-label={t('ariaInput')}
       />
-      <button type="submit" aria-label="Search">
-        Search
+      <button type="submit" aria-label={tc('search')}>
+        {tc('search')}
       </button>
     </form>
   );

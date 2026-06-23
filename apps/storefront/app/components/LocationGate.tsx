@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useTranslations } from 'next-intl';
 import { checkServiceability } from '@/app/lib/api';
 import { formatDistance } from '@/app/lib/format';
 import {
@@ -54,6 +55,7 @@ export default function LocationGate({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations('location');
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<ServiceabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -91,9 +93,7 @@ export default function LocationGate({
       // Let the header indicator refresh.
       window.dispatchEvent(new Event('tb:serviceability-changed'));
     } catch {
-      setError(
-        'We couldn’t check your location right now. Please try again, or enter coordinates manually.',
-      );
+      setError(t('errorCheck'));
       setPhase('prompt');
     }
   }, []);
@@ -110,7 +110,7 @@ export default function LocationGate({
       lng < -180 ||
       lng > 180
     ) {
-      setError('Please set your location on the map first.');
+      setError(t('errorSetFirst'));
       return;
     }
     runCheck(lat, lng);
@@ -142,12 +142,8 @@ export default function LocationGate({
       {(phase === 'prompt' || phase === 'checking') && (
         <div className="gate-overlay" role="dialog" aria-modal="true">
           <div className="gate-card">
-            <h2>🧺 Where should we deliver?</h2>
-            <p>
-              We deliver groceries within 5&nbsp;km of our store. Drop a pin on
-              the map (or use your current location) so we can check if you’re in
-              range.
-            </p>
+            <h2>{t('gateTitle')}</h2>
+            <p>{t('gateBody')}</p>
 
             {error && <p className="gate-error">{error}</p>}
 
@@ -168,14 +164,14 @@ export default function LocationGate({
                 onClick={checkPicked}
                 disabled={phase === 'checking'}
               >
-                {phase === 'checking' ? 'Checking…' : 'Check this location'}
+                {phase === 'checking' ? t('checking') : t('check')}
               </button>
               <button
                 type="button"
                 className="btn btn-outline btn-block"
                 onClick={browseAnyway}
               >
-                Just browse for now
+                {t('browse')}
               </button>
             </div>
           </div>
@@ -192,24 +188,27 @@ function NotServiceableScreen({
   result: ServiceabilityResult | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations('location');
   return (
     <div className="gate-overlay" role="dialog" aria-modal="true">
       <div className="gate-card not-serviceable">
         <div className="big-emoji" aria-hidden>
           🛵💨
         </div>
-        <h2>Sorry, we don’t deliver to your location yet</h2>
+        <h2>{t('nsTitle')}</h2>
         <p>
-          We currently deliver within 5&nbsp;km of our store
-          {result ? ` (${result.storeName})` : ''}.
+          {result
+            ? t('nsRangeWithStore', { store: result.storeName })
+            : t('nsRangeNoStore')}
           {result &&
-            ` You’re about ${formatDistance(result.distanceMeters)} away, just outside our ${formatDistance(
-              result.radiusMeters,
-            )} delivery range.`}
+            t('nsDistance', {
+              distance: formatDistance(result.distanceMeters),
+              radius: formatDistance(result.radiusMeters),
+            })}
         </p>
         <div className="gate-actions">
           <button type="button" className="btn btn-block" onClick={onRetry}>
-            Try a different location
+            {t('nsRetry')}
           </button>
         </div>
       </div>

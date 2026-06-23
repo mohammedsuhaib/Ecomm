@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getProduct } from '@/app/lib/api';
 import VegMarker from '@/app/components/VegMarker';
 import PriceTag from '@/app/components/PriceTag';
@@ -13,10 +14,11 @@ interface Params {
 }
 
 export async function generateMetadata({ params }: Params) {
+  const t = await getTranslations('metadata');
   const product = await getProduct(params.idOrSlug).catch(() => null);
-  if (!product) return { title: 'Product — Town Basket' };
+  if (!product) return { title: t('productFallback') };
   return {
-    title: `${product.name} — Town Basket`,
+    title: t('productTitle', { name: product.name }),
     description: product.description,
   };
 }
@@ -25,10 +27,13 @@ export default async function ProductPage({ params }: Params) {
   const product = await getProduct(params.idOrSlug);
   if (!product) notFound();
 
+  const t = await getTranslations('product');
+  const tc = await getTranslations('common');
+
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">Home</Link> / <span>{product.name}</span>
+        <Link href="/">{tc('home')}</Link> / <span>{product.name}</span>
       </nav>
 
       <article className="product-detail">
@@ -42,14 +47,14 @@ export default async function ProductPage({ params }: Params) {
             {product.name}
           </h1>
           {!product.available && (
-            <p className="notice error">This product is currently unavailable.</p>
+            <p className="notice error">{t('unavailableNotice')}</p>
           )}
           {product.description && (
             <p className="muted">{product.description}</p>
           )}
 
           <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-            Available sizes
+            {t('availableSizes')}
           </h2>
           {product.variants.length > 0 ? (
             <ul className="variant-list">
@@ -65,7 +70,7 @@ export default async function ProductPage({ params }: Params) {
               ))}
             </ul>
           ) : (
-            <p className="empty-state">No sizes available.</p>
+            <p className="empty-state">{t('noSizes')}</p>
           )}
         </div>
       </article>

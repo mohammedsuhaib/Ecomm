@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { getMyOrders, reorder } from '@/app/lib/api';
 import { saveCartId } from '@/app/lib/cart';
@@ -12,6 +13,7 @@ import type { Order } from '@/app/lib/types';
 
 /** Recent order history with live status stamps + a per-order "Reorder" action. */
 export default function OrderHistory() {
+  const t = useTranslations('orders');
   const router = useRouter();
   const { refresh } = useCart();
 
@@ -27,7 +29,7 @@ export default function OrderHistory() {
       const page = await getMyOrders(0, 20);
       setOrders(page.content);
     } catch {
-      setError('Could not load your orders.');
+      setError(t('couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -46,16 +48,16 @@ export default function OrderHistory() {
       await refresh();
       router.push('/cart');
     } catch {
-      setError('Could not start a reorder. Some items may be unavailable.');
+      setError(t('couldNotReorder'));
       setBusyId(null);
     }
   }
 
-  if (loading) return <p className="muted">Loading your orders…</p>;
+  if (loading) return <p className="muted">{t('loadingOrders')}</p>;
   if (error && orders.length === 0)
     return <p className="notice error">{error}</p>;
   if (orders.length === 0)
-    return <p className="muted">You haven’t placed any orders yet.</p>;
+    return <p className="muted">{t('none')}</p>;
 
   return (
     <>
@@ -64,16 +66,20 @@ export default function OrderHistory() {
         {orders.map((o) => (
           <li key={o.id} className="order-history-row">
             <div className="order-history-info">
-              <span className="order-history-id">Order #{o.id}</span>
+              <span className="order-history-id">
+                {t('orderNumber', { id: o.id })}
+              </span>
               <LiveOrderStamp order={o} />
               <span className="muted">
-                {o.items.length} item{o.items.length === 1 ? '' : 's'} ·{' '}
-                {formatRupees(o.total)}
+                {t('itemsCount', {
+                  count: o.items.length,
+                  total: formatRupees(o.total),
+                })}
               </span>
             </div>
             <div className="order-history-actions">
               <Link href={`/order/${o.id}`} className="link-action">
-                View
+                {t('view')}
               </Link>
               <button
                 type="button"
@@ -81,7 +87,7 @@ export default function OrderHistory() {
                 disabled={busyId === o.id}
                 onClick={() => onReorder(o.id)}
               >
-                {busyId === o.id ? 'Reordering…' : 'Reorder'}
+                {busyId === o.id ? t('reordering') : t('reorder')}
               </button>
             </div>
           </li>

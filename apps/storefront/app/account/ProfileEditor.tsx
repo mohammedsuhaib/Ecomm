@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useAuth } from '@/app/components/AuthProvider';
 import { ApiError, updateProfile } from '@/app/lib/api';
@@ -14,6 +15,8 @@ const MAX_NAME = 80;
  * surfaces field + request (ApiError) errors.
  */
 export default function ProfileEditor({ user }: { user: UserDto }) {
+  const t = useTranslations('profile');
+  const common = useTranslations('common');
   const { refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user.name ?? '');
@@ -48,12 +51,10 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
-          err.status === 400
-            ? 'Please enter a name between 1 and 80 characters.'
-            : 'Could not update your name. Please try again.',
+          err.status === 400 ? t('errorRange') : t('errorUpdate'),
         );
       } else {
-        setError('Could not update your name. Please try again.');
+        setError(t('errorUpdate'));
       }
       setSaving(false);
     }
@@ -64,10 +65,10 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
       <div className="profile-card">
         <div className="account-section-head">
           <p style={{ margin: 0 }}>
-            <strong>{user.name?.trim() || 'Customer'}</strong>
+            <strong>{user.name?.trim() || t('customer')}</strong>
           </p>
           <button type="button" className="link-action" onClick={openEdit}>
-            Edit name
+            {t('editName')}
           </button>
         </div>
         {user.phone && (
@@ -87,7 +88,7 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
   return (
     <form className="profile-card" onSubmit={submit}>
       <div className="field">
-        <label htmlFor="profile-name">Display name</label>
+        <label htmlFor="profile-name">{t('displayName')}</label>
         <input
           id="profile-name"
           value={name}
@@ -98,7 +99,7 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
         />
         {!valid && trimmed.length === 0 && (
           <span className="muted" style={{ fontSize: '0.8rem' }}>
-            Name is required (1–80 characters).
+            {t('nameRequired')}
           </span>
         )}
       </div>
@@ -107,7 +108,7 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
 
       <div className="account-form-actions">
         <button type="submit" className="btn" disabled={!valid || saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? common('saving') : common('save')}
         </button>
         <button
           type="button"
@@ -115,7 +116,7 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
           onClick={cancel}
           disabled={saving}
         >
-          Cancel
+          {common('cancel')}
         </button>
       </div>
     </form>

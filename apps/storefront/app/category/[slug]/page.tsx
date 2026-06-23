@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { getCategories, getProducts } from '@/app/lib/api';
 import ProductCard from '@/app/components/ProductCard';
 import SortControl from '@/app/components/SortControl';
@@ -14,10 +15,11 @@ interface Params {
 }
 
 export async function generateMetadata({ params }: Params) {
+  const t = await getTranslations('metadata');
   const categories = await getCategories().catch(() => [] as Category[]);
   const cat = categories.find((c) => c.slug === params.slug);
   return {
-    title: cat ? `${cat.name} — Town Basket` : 'Category — Town Basket',
+    title: cat ? t('categoryTitle', { name: cat.name }) : t('categoryFallback'),
   };
 }
 
@@ -25,6 +27,8 @@ export default async function CategoryPage({ params, searchParams }: Params) {
   const page = Math.max(0, Number.parseInt(searchParams.page ?? '0', 10) || 0);
   const sort = parseSort(searchParams.sort);
   const sortQs = sort ? `&sort=${sort}` : '';
+  const tc = await getTranslations('common');
+  const t = await getTranslations('category');
 
   // Resolve slug -> category id (the products endpoint filters by id).
   const categories = await getCategories().catch(() => [] as Category[]);
@@ -42,7 +46,7 @@ export default async function CategoryPage({ params, searchParams }: Params) {
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">Home</Link> / <span>{category.name}</span>
+        <Link href="/">{tc('home')}</Link> / <span>{category.name}</span>
       </nav>
       <div className="listing-head">
         <h1 className="section-title">{category.name}</h1>
@@ -69,7 +73,7 @@ export default async function CategoryPage({ params, searchParams }: Params) {
                 className="btn btn-outline"
                 href={`/category/${category.slug}?page=${page - 1}${sortQs}`}
               >
-                ← Previous
+                {tc('previous')}
               </Link>
             ) : (
               <span />
@@ -79,13 +83,13 @@ export default async function CategoryPage({ params, searchParams }: Params) {
                 className="btn btn-outline"
                 href={`/category/${category.slug}?page=${page + 1}${sortQs}`}
               >
-                Next →
+                {tc('next')}
               </Link>
             )}
           </div>
         </>
       ) : (
-        <p className="empty-state">No products in this category yet.</p>
+        <p className="empty-state">{t('noProducts')}</p>
       )}
     </>
   );

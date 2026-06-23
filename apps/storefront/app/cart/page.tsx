@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { ApiError, getStore } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
@@ -8,6 +9,8 @@ import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 
 export default function CartPage() {
+  const t = useTranslations('cart');
+  const tc = useTranslations('common');
   const { cart, loading, refresh, setQty, removeItem } = useCart();
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   const [busyItem, setBusyItem] = useState<string | null>(null);
@@ -34,8 +37,8 @@ export default function CartPage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? `Only limited stock available for ${item.productName}.`
-          : 'Could not update your cart. Please try again.',
+          ? t('limitedStock', { product: item.productName })
+          : t('couldNotUpdate'),
       );
     } finally {
       setBusyItem(null);
@@ -52,22 +55,22 @@ export default function CartPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">Home</Link> / <span>Cart</span>
+        <Link href="/">{tc('home')}</Link> / <span>{tc('cart')}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginTop: 0 }}>
-        🧺 Your cart
+        {t('title')}
       </h1>
 
       {error && <p className="notice error">{error}</p>}
 
       {loading && items.length === 0 ? (
-        <p className="empty-state">Loading your cart…</p>
+        <p className="empty-state">{t('loading')}</p>
       ) : items.length === 0 ? (
         <div className="empty-state">
-          <p>Your cart is empty.</p>
+          <p>{t('empty')}</p>
           <Link href="/" className="btn">
-            Start shopping
+            {tc('startShopping')}
           </Link>
         </div>
       ) : (
@@ -79,21 +82,21 @@ export default function CartPage() {
                   <span className="cart-row-name">{item.productName}</span>
                   <span className="muted cart-row-label">{item.label}</span>
                   <span className="muted">
-                    {formatRupees(item.unitPrice)} each
+                    {t('each', { price: formatRupees(item.unitPrice) })}
                   </span>
                   {!item.available && (
                     <span className="unavailable-tag">
-                      Out of stock — remove to continue
+                      {t('outOfStockRemove')}
                     </span>
                   )}
                 </div>
                 <div className="cart-row-actions">
-                  <div className="qty-stepper" aria-label={`Quantity of ${item.productName}`}>
+                  <div className="qty-stepper" aria-label={t('ariaQuantity', { product: item.productName })}>
                     <button
                       type="button"
                       disabled={busyItem === item.itemId}
                       onClick={() => change(item, item.qty - 1)}
-                      aria-label="Decrease quantity"
+                      aria-label={tc('decrease')}
                     >
                       −
                     </button>
@@ -102,7 +105,7 @@ export default function CartPage() {
                       type="button"
                       disabled={busyItem === item.itemId}
                       onClick={() => change(item, item.qty + 1)}
-                      aria-label="Increase quantity"
+                      aria-label={tc('increase')}
                     >
                       +
                     </button>
@@ -116,7 +119,7 @@ export default function CartPage() {
                     disabled={busyItem === item.itemId}
                     onClick={() => change(item, 0)}
                   >
-                    Remove
+                    {tc('remove')}
                   </button>
                 </div>
               </li>
@@ -125,33 +128,35 @@ export default function CartPage() {
 
           <div className="cart-summary">
             <div className="cart-summary-row">
-              <span>Subtotal</span>
+              <span>{t('subtotal')}</span>
               <strong>{formatRupees(subtotal)}</strong>
             </div>
 
             {belowMin && minOrderValue != null && (
               <p className="notice warn">
-                Minimum order is {formatRupees(minOrderValue)}. Add{' '}
-                {formatRupees(minOrderValue - subtotal)} more to checkout.
+                {t('minOrderNotice', {
+                  min: formatRupees(minOrderValue),
+                  needed: formatRupees(minOrderValue - subtotal),
+                })}
               </p>
             )}
             {hasUnavailable && (
               <p className="notice error">
-                Some items are out of stock. Remove them to continue.
+                {t('someOutOfStock')}
               </p>
             )}
 
             {canCheckout ? (
               <Link href="/checkout" className="btn btn-block">
-                Proceed to checkout
+                {t('proceedToCheckout')}
               </Link>
             ) : (
               <button type="button" className="btn btn-block" disabled>
-                Proceed to checkout
+                {t('proceedToCheckout')}
               </button>
             )}
             <Link href="/" className="btn btn-outline btn-block">
-              Continue shopping
+              {tc('continueShopping')}
             </Link>
           </div>
         </>

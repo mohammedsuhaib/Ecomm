@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ApiError,
@@ -50,6 +51,9 @@ function toInput(f: FormState): AddressInput | null {
 
 /** Saved-addresses panel: list + add + edit + delete + set-default. */
 export default function AddressManager() {
+  const t = useTranslations('addresses');
+  const common = useTranslations('common');
+  const tCheckout = useTranslations('checkout');
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +71,7 @@ export default function AddressManager() {
     try {
       setAddresses(await listAddresses());
     } catch {
-      setError('Could not load your saved addresses.');
+      setError(t('couldNotLoad'));
     } finally {
       setLoading(false);
     }
@@ -122,8 +126,8 @@ export default function AddressManager() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 404
-          ? 'That address no longer exists.'
-          : 'Could not save the address. Please try again.',
+          ? t('noLongerExists')
+          : t('couldNotSave'),
       );
       setSaving(false);
     }
@@ -136,7 +140,7 @@ export default function AddressManager() {
       await deleteAddress(id);
       await load();
     } catch {
-      setError('Could not delete that address. Please try again.');
+      setError(t('couldNotDelete'));
     } finally {
       setBusyId(null);
     }
@@ -156,7 +160,7 @@ export default function AddressManager() {
       });
       await load();
     } catch {
-      setError('Could not update the default address.');
+      setError(t('couldNotUpdateDefault'));
     } finally {
       setBusyId(null);
     }
@@ -168,11 +172,11 @@ export default function AddressManager() {
     <section className="account-section">
       <div className="account-section-head">
         <h2 className="section-title" style={{ margin: 0 }}>
-          Saved addresses
+          {t('savedAddresses')}
         </h2>
         {!showForm && (
           <button type="button" className="btn btn-outline" onClick={openAdd}>
-            Add address
+            {t('addAddress')}
           </button>
         )}
       </div>
@@ -182,27 +186,27 @@ export default function AddressManager() {
       {showForm && (
         <form className="checkout-section" onSubmit={submit}>
           <div className="field">
-            <label htmlFor="addr-label">Label (optional)</label>
+            <label htmlFor="addr-label">{t('labelOptional')}</label>
             <input
               id="addr-label"
-              placeholder="Home, Work…"
+              placeholder={t('labelPlaceholder')}
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
             />
           </div>
           <div className="field">
-            <label htmlFor="addr-line">Address</label>
+            <label htmlFor="addr-line">{t('address')}</label>
             <textarea
               id="addr-line"
               rows={3}
-              placeholder="Flat / house no, building, street, area, landmark"
+              placeholder={tCheckout('addressPlaceholder')}
               value={form.line}
               onChange={(e) => setForm({ ...form, line: e.target.value })}
               required
             />
           </div>
           <div className="field">
-            <label>Location</label>
+            <label>{t('location')}</label>
             <LocationPicker
               lat={form.lat}
               lng={form.lng}
@@ -223,7 +227,7 @@ export default function AddressManager() {
                 setForm({ ...form, isDefault: e.target.checked })
               }
             />
-            <span>Set as default address</span>
+            <span>{t('setDefaultCheckbox')}</span>
           </label>
           <div className="account-form-actions">
             <button
@@ -232,10 +236,10 @@ export default function AddressManager() {
               disabled={!formInput || saving}
             >
               {saving
-                ? 'Saving…'
+                ? common('saving')
                 : editingId == null
-                  ? 'Add address'
-                  : 'Save changes'}
+                  ? t('addAddress')
+                  : t('saveChanges')}
             </button>
             <button
               type="button"
@@ -243,25 +247,25 @@ export default function AddressManager() {
               onClick={closeForm}
               disabled={saving}
             >
-              Cancel
+              {common('cancel')}
             </button>
           </div>
         </form>
       )}
 
       {loading ? (
-        <p className="muted">Loading addresses…</p>
+        <p className="muted">{t('loadingAddresses')}</p>
       ) : addresses.length === 0 && !showForm ? (
-        <p className="muted">No saved addresses yet.</p>
+        <p className="muted">{t('noAddresses')}</p>
       ) : (
         <ul className="address-list">
           {addresses.map((a) => (
             <li key={a.id} className="address-row">
               <div className="address-info">
                 <span className="address-label">
-                  {a.label || 'Address'}
+                  {a.label || t('addressFallback')}
                   {a.isDefault && (
-                    <span className="default-tag">Default</span>
+                    <span className="default-tag">{common('default')}</span>
                   )}
                 </span>
                 <span className="muted">{a.line}</span>
@@ -277,7 +281,7 @@ export default function AddressManager() {
                     disabled={busyId === a.id}
                     onClick={() => setDefault(a)}
                   >
-                    Set default
+                    {t('setDefault')}
                   </button>
                 )}
                 <button
@@ -286,7 +290,7 @@ export default function AddressManager() {
                   disabled={busyId === a.id}
                   onClick={() => openEdit(a)}
                 >
-                  Edit
+                  {common('edit')}
                 </button>
                 <button
                   type="button"
@@ -294,7 +298,7 @@ export default function AddressManager() {
                   disabled={busyId === a.id}
                   onClick={() => remove(a.id)}
                 >
-                  Delete
+                  {common('delete')}
                 </button>
               </div>
             </li>

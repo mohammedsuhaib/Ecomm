@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { getCategories, getProducts, getStore } from './lib/api';
 import { formatHours, formatRupees } from './lib/format';
 import CategoryCard from './components/CategoryCard';
@@ -16,6 +17,7 @@ export default async function Home({
   searchParams: { sort?: string };
 }) {
   const sort = parseSort(searchParams.sort);
+  const t = await getTranslations('home');
 
   // Fetch in parallel; tolerate a backend that isn't up yet (M2 dev) so the
   // shell still renders rather than throwing.
@@ -36,20 +38,22 @@ export default async function Home({
         style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}
       >
         <span>
-          🧺 <strong>Fresh groceries, delivered fast.</strong> Order within
-          5&nbsp;km of {store?.name ?? 'our store'}.
+          🧺 <strong>{t('bannerTitle')}</strong>{' '}
+          {t('bannerOrderWithin', { store: store?.name ?? t('storeFallback') })}
         </span>
         {store && (
           <span className="muted">
-            Open {formatHours(store.openingTime, store.closingTime)} · Min order{' '}
-            {formatRupees(store.minOrderValue)}
+            {t('openMinOrder', {
+              hours: formatHours(store.openingTime, store.closingTime),
+              amount: formatRupees(store.minOrderValue),
+            })}
           </span>
         )}
       </section>
 
       {featured.length > 0 && (
         <>
-          <h2 className="section-title">Popular picks</h2>
+          <h2 className="section-title">{t('popularPicks')}</h2>
           <div className="product-grid">
             {featured.map((p) => (
               <ProductCard key={p.id} product={p} />
@@ -58,7 +62,7 @@ export default async function Home({
         </>
       )}
 
-      <h1 className="section-title">Shop by category</h1>
+      <h1 className="section-title">{t('shopByCategory')}</h1>
       {categories.length > 0 ? (
         <div className="category-grid">
           {categories.map((c) => (
@@ -67,12 +71,12 @@ export default async function Home({
         </div>
       ) : (
         <p className="empty-state">
-          Categories will appear here once the catalogue is loaded.
+          {t('categoriesEmpty')}
         </p>
       )}
 
       <div className="listing-head">
-        <h2 className="section-title">Popular products</h2>
+        <h2 className="section-title">{t('popularProducts')}</h2>
         <SortControl basePath="/" sort={sort} />
       </div>
       {products.length > 0 ? (
@@ -83,9 +87,8 @@ export default async function Home({
         </div>
       ) : (
         <p className="empty-state">
-          No products to show yet. The catalogue API may still be starting up —
-          try refreshing in a moment.{' '}
-          <Link href="/">Reload</Link>
+          {t('productsEmpty')}{' '}
+          <Link href="/">{t('reload')}</Link>
         </p>
       )}
     </>

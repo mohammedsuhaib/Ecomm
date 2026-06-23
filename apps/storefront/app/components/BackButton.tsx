@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 /**
  * Mobile-only back control (F4). Shown on phone widths on every route except
@@ -11,6 +12,7 @@ import { usePathname, useRouter } from 'next/navigation';
 export default function BackButton() {
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations('common');
 
   // No back control on the home page itself.
   if (pathname === '/') return null;
@@ -28,8 +30,8 @@ export default function BackButton() {
       type="button"
       className="mobile-back"
       onClick={onClick}
-      aria-label="Go back"
-      title="Go back"
+      aria-label={t('goBack')}
+      title={t('goBack')}
     >
       <span aria-hidden>←</span>
     </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { ApiError, mergeCart } from '@/app/lib/api';
@@ -11,6 +12,8 @@ import { useCart } from '@/app/components/CartProvider';
 type Step = 'phone' | 'code';
 
 export default function LoginPage() {
+  const t = useTranslations('login');
+  const tc = useTranslations('common');
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') || '/account';
@@ -35,7 +38,7 @@ export default function LoginPage() {
   async function sendCode(e: React.FormEvent) {
     e.preventDefault();
     if (!phoneValid || busy) {
-      if (!phoneValid) setError('Enter a valid 10-digit mobile number.');
+      if (!phoneValid) setError(t('enterValidMobile'));
       return;
     }
     setError(null);
@@ -50,7 +53,7 @@ export default function LoginPage() {
       setError(
         err instanceof Error
           ? err.message
-          : 'Could not send the code. Please try again.',
+          : t('couldNotSend'),
       );
     } finally {
       setBusy(false);
@@ -81,14 +84,14 @@ export default function LoginPage() {
       router.replace(next);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setError('We could not verify that number. Please try again.');
+        setError(t('couldNotVerify'));
       } else if (err instanceof ApiError) {
-        setError('Something went wrong signing you in. Please try again.');
+        setError(t('signInError'));
       } else if (err instanceof Error) {
         // Friendly Firebase error (e.g. wrong/expired code) from the real flow.
         setError(err.message);
       } else {
-        setError('Something went wrong signing you in. Please try again.');
+        setError(t('signInError'));
       }
       setBusy(false);
     }
@@ -97,11 +100,11 @@ export default function LoginPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">Home</Link> / <span>Login</span>
+        <Link href="/">{tc('home')}</Link> / <span>{tc('login')}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginTop: 0 }}>
-        Sign in
+        {t('signIn')}
       </h1>
 
       {error && <p className="notice error">{error}</p>}
@@ -109,12 +112,12 @@ export default function LoginPage() {
       {step === 'phone' ? (
         <form className="auth-form" onSubmit={sendCode}>
           <div className="field">
-            <label htmlFor="phone">Mobile number</label>
+            <label htmlFor="phone">{t('mobileNumber')}</label>
             <input
               id="phone"
               inputMode="numeric"
               autoComplete="tel"
-              placeholder="10-digit mobile"
+              placeholder={t('mobilePlaceholder')}
               value={phone}
               maxLength={10}
               onChange={(e) =>
@@ -123,7 +126,7 @@ export default function LoginPage() {
               autoFocus
             />
             {phone && !phoneValid && (
-              <span className="add-error">Enter a 10-digit phone number.</span>
+              <span className="add-error">{t('phoneError')}</span>
             )}
           </div>
           <button
@@ -131,15 +134,18 @@ export default function LoginPage() {
             className="btn btn-block"
             disabled={!phoneValid || busy}
           >
-            {busy ? 'Sending…' : 'Send code'}
+            {busy ? t('sending') : t('sendCode')}
           </button>
           {firebaseEnabled ? (
             <p className="muted" style={{ fontSize: '0.8rem' }}>
-              We&apos;ll text a 6-digit code to <strong>+91 {phone || 'your number'}</strong>.
+              {t.rich('smsHint', {
+                number: `+91 ${phone || t('yourNumber')}`,
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </p>
           ) : (
             <p className="muted" style={{ fontSize: '0.8rem' }}>
-              Local dev: no SMS is sent — enter any 6-digit code on the next step.
+              {t('devHintPhone')}
             </p>
           )}
           {/* Invisible reCAPTCHA mount for the real Firebase phone flow. */}
@@ -148,15 +154,18 @@ export default function LoginPage() {
       ) : (
         <form className="auth-form" onSubmit={verify}>
           <p className="muted">
-            Enter the 6-digit code sent to <strong>+91 {phone}</strong>.
+            {t.rich('enterCodeSent', {
+              number: `+91 ${phone}`,
+              b: (chunks) => <strong>{chunks}</strong>,
+            })}
           </p>
           <div className="field">
-            <label htmlFor="code">Verification code</label>
+            <label htmlFor="code">{t('verificationCode')}</label>
             <input
               id="code"
               inputMode="numeric"
               autoComplete="one-time-code"
-              placeholder="6-digit code"
+              placeholder={t('codePlaceholder')}
               value={code}
               maxLength={6}
               onChange={(e) =>
@@ -165,7 +174,7 @@ export default function LoginPage() {
               autoFocus
             />
             {code && !codeValid && (
-              <span className="add-error">Enter the 6-digit code.</span>
+              <span className="add-error">{t('codeError')}</span>
             )}
           </div>
           <button
@@ -173,7 +182,7 @@ export default function LoginPage() {
             className="btn btn-block"
             disabled={!codeValid || busy}
           >
-            {busy ? 'Verifying…' : 'Verify & continue'}
+            {busy ? t('verifying') : t('verifyContinue')}
           </button>
           <button
             type="button"
@@ -185,15 +194,15 @@ export default function LoginPage() {
               setError(null);
             }}
           >
-            Change number
+            {t('changeNumber')}
           </button>
           {firebaseEnabled ? (
             <p className="muted" style={{ fontSize: '0.8rem' }}>
-              Enter the code from the SMS we just sent.
+              {t('smsHintVerify')}
             </p>
           ) : (
             <p className="muted" style={{ fontSize: '0.8rem' }}>
-              Local dev: any 6-digit code is accepted.
+              {t('devHintCode')}
             </p>
           )}
         </form>

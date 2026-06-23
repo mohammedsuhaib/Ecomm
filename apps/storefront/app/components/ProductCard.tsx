@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import type { Product } from '@/app/lib/types';
 import VegMarker from './VegMarker';
 import PriceTag from './PriceTag';
@@ -10,6 +11,7 @@ import ProductThumb from './ProductThumb';
  * cheapest available variant's price. Cart actions live on the detail page.
  */
 export default function ProductCard({ product }: { product: Product }) {
+  const t = useTranslations('product');
   // Show the lowest-priced variant as the "from" price on the card.
   const variants = product.variants ?? [];
   const cheapest = variants.reduce<(typeof variants)[number] | null>(
@@ -42,7 +44,7 @@ export default function ProductCard({ product }: { product: Product }) {
           />
         ) : null}
         {!product.available && (
-          <span className="unavailable-tag">Currently unavailable</span>
+          <span className="unavailable-tag">{t('currentlyUnavailable')}</span>
         )}
       </div>
     </Link>

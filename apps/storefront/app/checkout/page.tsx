@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -18,6 +19,8 @@ import LocationPicker from '@/app/components/LocationPicker';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
 export default function CheckoutPage() {
+  const t = useTranslations('checkout');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { cart, refresh } = useCart();
   const { user, isAuthenticated } = useAuth();
@@ -151,9 +154,7 @@ export default function CheckoutPage() {
       const svc = await checkServiceability(latNum, lngNum);
       saveServiceability(svc, latNum, lngNum);
       if (!svc.serviceable) {
-        setError(
-          `Sorry, ${svc.storeName} doesn’t deliver to this address yet (outside the delivery range). Please choose a different location.`,
-        );
+        setError(t('notServiceable', { store: svc.storeName }));
         setSubmitting(false);
         return;
       }
@@ -174,18 +175,14 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setError(
-            'Some items just went out of stock. Please review your cart and try again.',
-          );
+          setError(t('errorStock'));
         } else if (err.status === 422 || err.status === 400) {
-          setError(
-            'We couldn’t place this order — your cart may be below the minimum or an item is unavailable. Please review and retry.',
-          );
+          setError(t('errorInvalid'));
         } else {
-          setError('Something went wrong placing your order. Please try again.');
+          setError(t('errorGeneric'));
         }
       } else {
-        setError('Something went wrong placing your order. Please try again.');
+        setError(t('errorGeneric'));
       }
       setSubmitting(false);
     }
@@ -193,14 +190,14 @@ export default function CheckoutPage() {
 
   // Gate: login required to check out (no guest checkout).
   if (!checked) {
-    return <p className="empty-state">Loading…</p>;
+    return <p className="empty-state">{tc('loading')}</p>;
   }
   if (!isAuthenticated) {
     return (
       <div className="empty-state">
-        <p>Please sign in to place your order.</p>
+        <p>{t('signInPrompt')}</p>
         <Link href="/account/login?next=/checkout" className="btn">
-          Sign in to continue
+          {t('signInContinue')}
         </Link>
       </div>
     );
@@ -210,12 +207,12 @@ export default function CheckoutPage() {
     return (
       <>
         <nav className="breadcrumb">
-          <Link href="/cart">Cart</Link> / <span>Checkout</span>
+          <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
         </nav>
         <div className="empty-state">
-          <p>Your cart is empty.</p>
+          <p>{t('emptyCart')}</p>
           <Link href="/" className="btn">
-            Start shopping
+            {tc('startShopping')}
           </Link>
         </div>
       </>
@@ -225,20 +222,20 @@ export default function CheckoutPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/cart">Cart</Link> / <span>Checkout</span>
+        <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginTop: 0 }}>
-        Checkout
+        {t('title')}
       </h1>
 
       {error && <p className="notice error">{error}</p>}
 
       <form className="checkout-form" onSubmit={onSubmit}>
         <fieldset className="checkout-section" disabled={submitting}>
-          <legend>Delivery details</legend>
+          <legend>{t('deliveryDetails')}</legend>
           <div className="field">
-            <label htmlFor="name">Full name</label>
+            <label htmlFor="name">{t('fullName')}</label>
             <input
               id="name"
               value={name}
@@ -248,23 +245,23 @@ export default function CheckoutPage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="phone">Phone number</label>
+            <label htmlFor="phone">{t('phoneNumber')}</label>
             <input
               id="phone"
               inputMode="numeric"
-              placeholder="10-digit mobile"
+              placeholder={t('phonePlaceholder')}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
               required
             />
             {phone && !phoneValid && (
-              <span className="add-error">Enter a 10-digit phone number.</span>
+              <span className="add-error">{t('phoneError')}</span>
             )}
           </div>
           {savedAddresses.length > 0 && (
             <div className="field">
-              <label>Saved addresses</label>
+              <label>{t('savedAddresses')}</label>
               <div className="saved-address-picks">
                 {savedAddresses.map((a) => {
                   const active =
@@ -279,8 +276,8 @@ export default function CheckoutPage() {
                       onClick={() => pickAddress(a)}
                     >
                       <span className="chip-label">
-                        {a.label || 'Address'}
-                        {a.isDefault ? ' · Default' : ''}
+                        {a.label || t('addressFallback')}
+                        {a.isDefault ? ` · ${tc('default')}` : ''}
                       </span>
                       <span className="chip-line muted">{a.line}</span>
                     </button>
@@ -290,18 +287,18 @@ export default function CheckoutPage() {
             </div>
           )}
           <div className="field">
-            <label htmlFor="line">Delivery address</label>
+            <label htmlFor="line">{t('deliveryAddress')}</label>
             <textarea
               id="line"
               rows={3}
-              placeholder="Flat / house no, building, street, area, landmark"
+              placeholder={t('addressPlaceholder')}
               value={line}
               onChange={(e) => setLine(e.target.value)}
               required
             />
           </div>
           <div className="field">
-            <label>Delivery location</label>
+            <label>{t('deliveryLocation')}</label>
             <LocationPicker
               lat={lat}
               lng={lng}
@@ -312,13 +309,12 @@ export default function CheckoutPage() {
             />
           </div>
           <p className="muted" style={{ fontSize: '0.8rem' }}>
-            Drop a pin on the map (or use your current location). We re-check
-            that you’re within range before placing the order.
+            {t('mapHint')}
           </p>
         </fieldset>
 
         <fieldset className="checkout-section" disabled={submitting}>
-          <legend>Payment method</legend>
+          <legend>{t('paymentMethod')}</legend>
           <label className="radio-row">
             <input
               type="radio"
@@ -328,9 +324,9 @@ export default function CheckoutPage() {
               onChange={() => setPaymentMethod('COD')}
             />
             <span>
-              <strong>Cash on Delivery</strong>
+              <strong>{t('cod')}</strong>
               <br />
-              <span className="muted">Pay in cash when your order arrives.</span>
+              <span className="muted">{t('codHint')}</span>
             </span>
           </label>
           <label className="radio-row">
@@ -344,26 +340,29 @@ export default function CheckoutPage() {
             <span>
               <strong>UPI</strong>
               <br />
-              <span className="muted">Pay online via UPI.</span>
+              <span className="muted">{t('upiHint')}</span>
             </span>
           </label>
         </fieldset>
 
         <div className="cart-summary">
           <div className="cart-summary-row">
-            <span>Subtotal</span>
+            <span>{t('subtotal')}</span>
             <strong>{formatRupees(subtotal)}</strong>
           </div>
           {belowMin && minOrderValue != null && (
             <p className="notice warn">
-              Minimum order is {formatRupees(minOrderValue)}. Add{' '}
-              {formatRupees(minOrderValue - subtotal)} more to checkout.
+              {t('minOrderNotice', {
+                min: formatRupees(minOrderValue),
+                needed: formatRupees(minOrderValue - subtotal),
+              })}
             </p>
           )}
           {hasUnavailable && (
             <p className="notice error">
-              Some items are out of stock. Please{' '}
-              <Link href="/cart">edit your cart</Link> first.
+              {t.rich('someOutOfStockEdit', {
+                link: (chunks) => <Link href="/cart">{chunks}</Link>,
+              })}
             </p>
           )}
           <button
@@ -372,8 +371,8 @@ export default function CheckoutPage() {
             disabled={!formValid || submitting}
           >
             {submitting
-              ? 'Placing order…'
-              : `Place order · ${formatRupees(subtotal)}`}
+              ? t('placingOrder')
+              : t('placeOrder', { amount: formatRupees(subtotal) })}
           </button>
         </div>
       </form>

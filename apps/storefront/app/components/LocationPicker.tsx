@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
 // F7 — Map pin-drop that replaces the old typed latitude/longitude inputs on
@@ -49,6 +50,7 @@ function parseCoords(lat: string, lng: string): { lat: number; lng: number } | n
 }
 
 export default function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
+  const t = useTranslations('location');
   // Mounted flag: guarantees we never init the map during SSR/prerender. The
   // map subtree is gated on this AND on the key being present.
   const [mounted, setMounted] = useState(false);
@@ -65,7 +67,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     (onLocated?: (lat: number, lng: number) => void) => {
       setGeoError(null);
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
-        setGeoError('Your browser doesn’t support location.');
+        setGeoError(t('noSupport'));
         return;
       }
       setLocating(true);
@@ -79,9 +81,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         },
         () => {
           setLocating(false);
-          setGeoError(
-            'Location permission was denied. Please allow location access and try again.',
-          );
+          setGeoError(t('denied'));
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
       );
@@ -100,13 +100,16 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
             onClick={() => useCurrentLocation()}
             disabled={locating || !mounted}
           >
-            {locating ? 'Locating…' : '📍 Use my current location'}
+            {locating ? t('locating') : t('useCurrent')}
           </button>
           {geoError && <span className="add-error">{geoError}</span>}
           <p className="location-readout muted">
             {coords
-              ? `Pinned: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
-              : 'No location set yet.'}
+              ? t('pinned', {
+                  lat: coords.lat.toFixed(4),
+                  lng: coords.lng.toFixed(4),
+                })
+              : t('noLocation')}
           </p>
         </div>
       </div>
@@ -140,6 +143,7 @@ function MapPicker({
   locating: boolean;
   geoError: string | null;
 }) {
+  const t = useTranslations('location');
   // The Google Maps hooks/components below only run because the parent gated
   // this subtree on `mounted && hasKey` — so useJsApiLoader (which injects the
   // <script> tag) never fires during SSR/prerender. The static import above is
@@ -172,22 +176,23 @@ function MapPicker({
     return (
       <div className="location-picker">
         <div className="location-picker-fallback">
-          <p className="add-error">
-            The map couldn’t load. You can still pin your location:
-          </p>
+          <p className="add-error">{t('mapFailed')}</p>
           <button
             type="button"
             className="btn btn-block"
             onClick={() => useCurrentLocation()}
             disabled={locating}
           >
-            {locating ? 'Locating…' : '📍 Use my current location'}
+            {locating ? t('locating') : t('useCurrent')}
           </button>
           {geoError && <span className="add-error">{geoError}</span>}
           <p className="location-readout muted">
             {coords
-              ? `Pinned: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`
-              : 'No location set yet.'}
+              ? t('pinned', {
+                  lat: coords.lat.toFixed(4),
+                  lng: coords.lng.toFixed(4),
+                })
+              : t('noLocation')}
           </p>
         </div>
       </div>
@@ -207,7 +212,7 @@ function MapPicker({
           }
           disabled={locating || !isLoaded}
         >
-          {locating ? 'Locating…' : '📍 Use my current location'}
+          {locating ? t('locating') : t('useCurrent')}
         </button>
       </div>
       {geoError && <span className="add-error">{geoError}</span>}
@@ -240,13 +245,16 @@ function MapPicker({
         </GoogleMap>
       ) : (
         <div className="location-map location-map-loading">
-          <span className="muted">Loading map…</span>
+          <span className="muted">{t('loadingMap')}</span>
         </div>
       )}
       <p className="location-readout muted">
         {coords
-          ? `Pinned: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} · tap the map or drag the pin to adjust.`
-          : 'Tap the map to drop a pin, or use your current location.'}
+          ? t('pinnedAdjust', {
+              lat: coords.lat.toFixed(4),
+              lng: coords.lng.toFixed(4),
+            })
+          : t('tapToDrop')}
       </p>
     </div>
   );

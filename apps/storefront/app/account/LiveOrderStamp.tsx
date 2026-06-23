@@ -1,17 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getOrder, orderStreamUrl } from '@/app/lib/api';
 import type { Order, OrderStatus } from '@/app/lib/types';
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  PLACED: 'Order placed',
-  CONFIRMED: 'Confirmed',
-  PACKING: 'Being packed',
-  OUT_FOR_DELIVERY: 'Out for delivery',
-  DELIVERED: 'Delivered',
-  CANCELLED: 'Cancelled',
-};
 
 const TERMINAL: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
   'DELIVERED',
@@ -38,6 +30,8 @@ function formatTime(iso: string): string {
  * polling fallback, mirroring the full tracking page.
  */
 export default function LiveOrderStamp({ order }: { order: Order }) {
+  const ts = useTranslations('orderStatus');
+  const t = useTranslations('orderStamp');
   const [current, setCurrent] = useState<Order>(order);
 
   // Keep the latest server-provided order if the parent list reloads.
@@ -109,13 +103,13 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
             ●
           </span>
         )}
-        {STATUS_LABELS[current.status] ?? current.status}
+        {ts(current.status)}
         {currentAt && current.status !== 'PLACED' && (
           <span className="muted"> · {formatTime(currentAt)}</span>
         )}
       </span>
       <span className="muted order-stamp-placed">
-        Placed {formatTime(current.placedAt)}
+        {t('placed', { time: formatTime(current.placedAt) })}
       </span>
     </span>
   );

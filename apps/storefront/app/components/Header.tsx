@@ -5,6 +5,7 @@ import LocationIndicator from './LocationIndicator';
 import CartIndicator from './CartIndicator';
 import AccountIndicator from './AccountIndicator';
 import BackButton from './BackButton';
+import LanguageSwitcher from './LanguageSwitcher';
 
 /** Site header: brand, search, and the delivery-location indicator. */
 export default function Header() {
@@ -30,6 +31,7 @@ export default function Header() {
           </Suspense>
         </div>
         <LocationIndicator />
+        <LanguageSwitcher />
         <AccountIndicator />
         <CartIndicator />
       </div>
