@@ -1,5 +1,6 @@
 package com.townbasket.catalog.internal;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +18,9 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     Page<ProductEntity> findByCategoryIdAndFeaturedTrue(Long categoryId, Pageable pageable);
 
     Optional<ProductEntity> findBySlug(String slug);
+
+    /** Products still missing a Kannada name — drained by the transliteration backfill. */
+    List<ProductEntity> findByNameKnIsNull(Pageable pageable);
 
     /**
      * Full-text + trigram search over product name/description.

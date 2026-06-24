@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getProduct } from '@/app/lib/api';
+import { productDisplayName } from '@/app/lib/productName';
 import VegMarker from '@/app/components/VegMarker';
 import PriceTag from '@/app/components/PriceTag';
 import AddToCartButton from '@/app/components/AddToCartButton';
@@ -15,10 +16,11 @@ interface Params {
 
 export async function generateMetadata({ params }: Params) {
   const t = await getTranslations('metadata');
+  const locale = await getLocale();
   const product = await getProduct(params.idOrSlug).catch(() => null);
   if (!product) return { title: t('productFallback') };
   return {
-    title: t('productTitle', { name: product.name }),
+    title: t('productTitle', { name: productDisplayName(product, locale) }),
     description: product.description,
   };
 }
@@ -29,11 +31,13 @@ export default async function ProductPage({ params }: Params) {
 
   const t = await getTranslations('product');
   const tc = await getTranslations('common');
+  const locale = await getLocale();
+  const displayName = productDisplayName(product, locale);
 
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/">{tc('home')}</Link> / <span>{product.name}</span>
+        <Link href="/">{tc('home')}</Link> / <span>{displayName}</span>
       </nav>
 
       <article className="product-detail">
@@ -44,7 +48,7 @@ export default async function ProductPage({ params }: Params) {
         <div>
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <VegMarker veg={product.vegMarker} />
-            {product.name}
+            {displayName}
           </h1>
           {!product.available && (
             <p className="notice error">{t('unavailableNotice')}</p>
@@ -65,7 +69,7 @@ export default async function ProductPage({ params }: Params) {
                     <br />
                     <PriceTag sellingPrice={v.sellingPrice} mrp={v.mrp} />
                   </span>
-                  <AddToCartButton variant={v} productName={product.name} />
+                  <AddToCartButton variant={v} productName={displayName} />
                 </li>
               ))}
             </ul>

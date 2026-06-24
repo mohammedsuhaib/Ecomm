@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ApiError } from '@/app/lib/api';
 import type { Product } from '@/app/lib/types';
+import { productDisplayName } from '@/app/lib/productName';
 import { useCart } from './CartProvider';
 
 /**
@@ -16,6 +17,8 @@ import { useCart } from './CartProvider';
 export default function QuickAddButton({ product }: { product: Product }) {
   const t = useTranslations('quickAdd');
   const tc = useTranslations('common');
+  const locale = useLocale();
+  const displayName = productDisplayName(product, locale);
   const { addItem, decrementVariant, qtyOf } = useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -59,7 +62,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
           stop(e);
           void run(() => addItem(variant.id, 1));
         }}
-        aria-label={t('ariaAdd', { product: product.name })}
+        aria-label={t('ariaAdd', { product: displayName })}
         title={error ? t('couldNotAdd') : t('addToCart')}
       >
         {busy ? '…' : '+'}
@@ -71,7 +74,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
     <div
       className="quick-add-stepper"
       onClick={stop}
-      aria-label={t('ariaQuantity', { product: product.name })}
+      aria-label={t('ariaQuantity', { product: displayName })}
     >
       <button
         type="button"

@@ -9,6 +9,7 @@ import java.util.List;
 public record ProductDto(
         Long id,
         String name,
+        String nameKn,
         String slug,
         Long categoryId,
         String description,

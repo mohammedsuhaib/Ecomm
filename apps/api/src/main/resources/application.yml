@@ -112,6 +112,21 @@ townbasket:
       # Google-signed-token verifier and disable the fake — a hard security
       # requirement. Do NOT give it an empty-string default: an empty value
       # would still count as "present" and wrongly activate the real verifier.
+  catalog:
+    transliteration:
+      # Auto-fill Kannada product names (catalog.products.name_kn) so customers
+      # browsing in Kannada see transliterated names; the storefront falls back to
+      # the English name when blank. OFF by default (and in tests) so no external
+      # calls happen unless opted in — enable with CATALOG_TRANSLITERATION_ENABLED.
+      # A periodic background sweep (ProductNameBackfillJob) drains products that
+      # have no Kannada name yet, including ones added later by import. For a fast
+      # initial drain of a large catalogue, lower the interval / raise the batch.
+      enabled: ${CATALOG_TRANSLITERATION_ENABLED:false}
+      endpoint: https://inputtools.google.com/request
+      itc: kn-t-i0-und
+      batch-size: ${CATALOG_TRANSLITERATION_BATCH_SIZE:25}
+      backfill-initial-delay-ms: ${CATALOG_TRANSLITERATION_INITIAL_DELAY_MS:30000}
+      backfill-interval-ms: ${CATALOG_TRANSLITERATION_INTERVAL_MS:300000}
   serviceability:
     # TESTING ONLY: override the store's base coordinates for the 5 km gate so you
     # can test serviceability from your OWN location without changing the seeded

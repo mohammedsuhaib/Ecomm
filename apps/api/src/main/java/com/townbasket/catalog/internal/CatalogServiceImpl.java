@@ -219,6 +219,7 @@ class CatalogServiceImpl implements CatalogService {
         return new ProductDto(
                 e.getId(),
                 e.getName(),
+                e.getNameKn(),
                 e.getSlug(),
                 e.getCategoryId(),
                 e.getDescription(),

@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Catalog integration test against a real Postgres (Testcontainers). Exercises
@@ -18,6 +19,23 @@ class CatalogIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     CatalogService catalogService;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Test
+    void productCarriesStoredKannadaNameAndNullByDefault() {
+        // name_kn is nullable and unset by the seed (the backfill job is disabled
+        // in tests), so it surfaces as null until populated.
+        assertThat(catalogService.findProduct("amul-paneer").orElseThrow().nameKn()).isNull();
+
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE slug = ?",
+                "ಅಮುಲ್ ಬಟರ್", "amul-butter");
+
+        ProductDto butter = catalogService.findProduct("amul-butter").orElseThrow();
+        assertThat(butter.name()).isEqualTo("Amul Butter");
+        assertThat(butter.nameKn()).isEqualTo("ಅಮುಲ್ ಬಟರ್");
+    }
 
     @Test
     void listsSeededCategories() {

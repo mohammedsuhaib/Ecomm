@@ -35,6 +35,9 @@ class ProductEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "name_kn")
+    private String nameKn;
+
     @Column(nullable = false, unique = true)
     private String slug;
 
@@ -75,6 +78,14 @@ class ProductEntity {
 
     String getName() {
         return name;
+    }
+
+    String getNameKn() {
+        return nameKn;
+    }
+
+    void setNameKn(String nameKn) {
+        this.nameKn = nameKn;
     }
 
     String getSlug() {

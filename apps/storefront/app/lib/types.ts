@@ -13,6 +13,7 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   name: string;
+  nameKn?: string | null; // Kannada transliteration (catalog name_kn); null until backfilled
   slug: string;
   categoryId: string;
   description: string;

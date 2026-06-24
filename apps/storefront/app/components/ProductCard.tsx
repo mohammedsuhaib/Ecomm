@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Product } from '@/app/lib/types';
+import { productDisplayName } from '@/app/lib/productName';
 import VegMarker from './VegMarker';
 import PriceTag from './PriceTag';
 import QuickAddButton from './QuickAddButton';
@@ -12,6 +13,8 @@ import ProductThumb from './ProductThumb';
  */
 export default function ProductCard({ product }: { product: Product }) {
   const t = useTranslations('product');
+  const locale = useLocale();
+  const displayName = productDisplayName(product, locale);
   // Show the lowest-priced variant as the "from" price on the card.
   const variants = product.variants ?? [];
   const cheapest = variants.reduce<(typeof variants)[number] | null>(
@@ -23,7 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
     <Link
       href={`/product/${product.slug}`}
       className="product-card"
-      aria-label={product.name}
+      aria-label={displayName}
     >
       <div className="thumb">
         <ProductThumb product={product} />
@@ -35,7 +38,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="body">
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <VegMarker veg={product.vegMarker} />
-          <span className="name">{product.name}</span>
+          <span className="name">{displayName}</span>
         </span>
         {cheapest ? (
           <PriceTag
