@@ -30,10 +30,18 @@ class ProductNameBackfillJob {
 
     private static final Logger log = LoggerFactory.getLogger(ProductNameBackfillJob.class);
 
+    /** Upper bound on how many sweeps to skip while the endpoint is unavailable. */
+    private static final int MAX_SWEEPS_TO_SKIP = 15;
+
     private final ProductRepository products;
     private final ProductNameTransliterator transliterator;
     private final ProductNameWriter writer;
     private final TransliterationProperties props;
+
+    // Simple back-off: if a whole sweep yields nothing (endpoint down/blocked),
+    // skip an increasing number of subsequent sweeps instead of hammering it.
+    private int consecutiveFailedSweeps = 0;
+    private int sweepsToSkip = 0;
 
     ProductNameBackfillJob(ProductRepository products,
                            ProductNameTransliterator transliterator,
@@ -49,6 +57,10 @@ class ProductNameBackfillJob {
             initialDelayString = "${townbasket.catalog.transliteration.backfill-initial-delay-ms:30000}",
             fixedDelayString = "${townbasket.catalog.transliteration.backfill-interval-ms:300000}")
     void backfillMissingNames() {
+        if (sweepsToSkip > 0) {
+            sweepsToSkip--;
+            return;
+        }
         List<ProductEntity> batch = products.findByNameKnIsNull(PageRequest.of(0, props.batchSize()));
         if (batch.isEmpty()) {
             return;
@@ -62,6 +74,18 @@ class ProductNameBackfillJob {
                 filled++;
             }
         }
-        log.info("Transliteration backfill: filled {} of {} pending product name(s)", filled, batch.size());
+        if (filled == 0) {
+            // Whole sweep produced nothing — the endpoint is almost certainly
+            // unreachable/blocked (e.g. TLS not trusted). Back off so we neither
+            // hammer it nor flood the log; resumes promptly once names come back.
+            consecutiveFailedSweeps++;
+            sweepsToSkip = Math.min(consecutiveFailedSweeps, MAX_SWEEPS_TO_SKIP);
+            log.warn("Transliteration backfill: 0 of {} pending name(s) filled; "
+                    + "transliteration endpoint appears unavailable — backing off {} sweep(s)",
+                    batch.size(), sweepsToSkip);
+        } else {
+            consecutiveFailedSweeps = 0;
+            log.info("Transliteration backfill: filled {} of {} pending product name(s)", filled, batch.size());
+        }
     }
 }

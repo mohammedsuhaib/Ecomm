@@ -3,6 +3,7 @@ package com.townbasket.catalog.internal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
+import java.net.ProxySelector;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -37,6 +38,9 @@ class GoogleInputToolsTransliterator implements ProductNameTransliterator {
     private final TransliterationProperties props;
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
+            // Honour a configured system proxy (-Dhttps.proxyHost/Port) for
+            // egress-controlled deployments; direct otherwise.
+            .proxy(ProxySelector.getDefault())
             .build();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -75,7 +79,9 @@ class GoogleInputToolsTransliterator implements ProductNameTransliterator {
             String transliterated = candidates.get(0).asText();
             return transliterated.isBlank() ? Optional.empty() : Optional.of(transliterated);
         } catch (Exception e) {
-            log.warn("Transliteration failed for \"{}\": {}", englishName, e.toString());
+            // Per-item at debug to avoid flooding the log when the endpoint is
+            // down; the backfill job logs one summary line per sweep.
+            log.debug("Transliteration failed for \"{}\": {}", englishName, e.toString());
             return Optional.empty();
         }
     }
