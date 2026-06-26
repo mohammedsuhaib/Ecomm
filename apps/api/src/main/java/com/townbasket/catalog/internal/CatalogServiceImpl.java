@@ -335,7 +335,9 @@ class CatalogServiceImpl implements CatalogService {
             }
         }
 
-        return toAdminProductDto(productRepository.save(product));
+        // saveAndFlush so the cascade-inserted variants' IDENTITY ids are
+        // assigned before we map them into the response DTO.
+        return toAdminProductDto(productRepository.saveAndFlush(product));
     }
 
     @Override
@@ -401,7 +403,9 @@ class CatalogServiceImpl implements CatalogService {
         ProductEntity product = requireProduct(productId);
         ProductVariantEntity variant = buildVariant(request);
         product.getVariants().add(variant);
-        productRepository.save(product);
+        // saveAndFlush so the cascade-inserted variant's IDENTITY id is assigned
+        // onto the instance before we map it into the response DTO.
+        productRepository.saveAndFlush(product);
         return toAdminVariantDto(variant);
     }
 
