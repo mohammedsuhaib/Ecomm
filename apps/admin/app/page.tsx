@@ -1,15 +1,16 @@
+import AdminSections from './components/AdminSections';
 import AdminShell from './components/AdminShell';
-import OrderQueue from './components/OrderQueue';
 
 /**
- * Admin home = live order queue (M3), now gated behind staff/admin login (M4).
- * The shell renders the header (with the signed-in staffer + Logout) and wraps
- * the queue in <LoginGate>, so the queue only mounts once authenticated.
+ * Admin home, gated behind staff/admin login (M4). The shell renders the header
+ * (with the signed-in staffer + Logout) and wraps the body in <LoginGate>; once
+ * authenticated, <AdminSections> offers an Orders | Catalogue switch — the live
+ * order queue (M3) and the catalogue-management UI (M5).
  */
 export default function Home() {
   return (
     <AdminShell>
-      <OrderQueue />
+      <AdminSections />
     </AdminShell>
   );
 }
