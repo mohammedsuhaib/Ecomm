@@ -59,8 +59,12 @@ class ProductEntity {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
+    // nullable=false so Hibernate writes product_id in the variant INSERT itself
+    // (a unidirectional @OneToMany @JoinColumn otherwise inserts a NULL FK then
+    // UPDATEs it, which violates the NOT NULL product_id constraint when variants
+    // are cascade-persisted via the admin create path).
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = false)
     @OrderBy("sortOrder ASC, id ASC")
     private List<ProductVariantEntity> variants = new ArrayList<>();
 
