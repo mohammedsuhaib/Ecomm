@@ -403,9 +403,12 @@ class CatalogServiceImpl implements CatalogService {
         ProductEntity product = requireProduct(productId);
         ProductVariantEntity variant = buildVariant(request);
         product.getVariants().add(variant);
-        // saveAndFlush so the cascade-inserted variant's IDENTITY id is assigned
-        // onto the instance before we map it into the response DTO.
-        productRepository.saveAndFlush(product);
+        // `product` is a MANAGED entity (loaded in this transaction), so flushing
+        // cascade-persists the new variant onto this very instance and assigns its
+        // IDENTITY id. Do NOT use save() here: the product already has an id, so
+        // save() does an em.merge() which copies the transient variant — the id
+        // would land on the copy, leaving our reference's id null.
+        productRepository.flush();
         return toAdminVariantDto(variant);
     }
 
