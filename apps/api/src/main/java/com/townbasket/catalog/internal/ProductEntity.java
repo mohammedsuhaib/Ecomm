@@ -59,13 +59,38 @@ class ProductEntity {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
+    // nullable=false so Hibernate writes product_id in the variant INSERT itself
+    // (a unidirectional @OneToMany @JoinColumn otherwise inserts a NULL FK then
+    // UPDATEs it, which violates the NOT NULL product_id constraint when variants
+    // are cascade-persisted via the admin create path).
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = false)
     @OrderBy("sortOrder ASC, id ASC")
     private List<ProductVariantEntity> variants = new ArrayList<>();
 
     protected ProductEntity() {
         // JPA
+    }
+
+    /**
+     * Creation factory for a new product (admin write path). {@code created_at} is
+     * DB-defaulted (not insertable) and {@code search_vector} is trigger-maintained,
+     * so neither is set here.
+     */
+    static ProductEntity create(Long categoryId, String name, String nameKn, String slug,
+                                String description, boolean vegMarker, String imageUrl,
+                                boolean available, boolean featured) {
+        ProductEntity p = new ProductEntity();
+        p.categoryId = categoryId;
+        p.name = name;
+        p.nameKn = nameKn;
+        p.slug = slug;
+        p.description = description;
+        p.vegMarker = vegMarker;
+        p.imageUrl = imageUrl;
+        p.available = available;
+        p.featured = featured;
+        return p;
     }
 
     Long getId() {
@@ -76,8 +101,16 @@ class ProductEntity {
         return categoryId;
     }
 
+    void setCategoryId(Long categoryId) {
+        this.categoryId = categoryId;
+    }
+
     String getName() {
         return name;
+    }
+
+    void setName(String name) {
+        this.name = name;
     }
 
     String getNameKn() {
@@ -96,20 +129,40 @@ class ProductEntity {
         return description;
     }
 
+    void setDescription(String description) {
+        this.description = description;
+    }
+
     boolean isVegMarker() {
         return vegMarker;
+    }
+
+    void setVegMarker(boolean vegMarker) {
+        this.vegMarker = vegMarker;
     }
 
     String getImageUrl() {
         return imageUrl;
     }
 
+    void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
     boolean isAvailable() {
         return available;
     }
 
+    void setAvailable(boolean available) {
+        this.available = available;
+    }
+
     boolean isFeatured() {
         return featured;
+    }
+
+    void setFeatured(boolean featured) {
+        this.featured = featured;
     }
 
     Instant getCreatedAt() {
