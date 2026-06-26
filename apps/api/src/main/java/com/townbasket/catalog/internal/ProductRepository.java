@@ -19,6 +19,15 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     Optional<ProductEntity> findBySlug(String slug);
 
+    /** Whether any product references a category — the category-delete guard. */
+    boolean existsByCategoryId(Long categoryId);
+
+    /** Admin name search (case-insensitive contains), optionally scoped to a category. */
+    Page<ProductEntity> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
+    Page<ProductEntity> findByCategoryIdAndNameContainingIgnoreCase(
+            Long categoryId, String name, Pageable pageable);
+
     /** Products still missing a Kannada name — drained by the transliteration backfill. */
     List<ProductEntity> findByNameKnIsNull(Pageable pageable);
 

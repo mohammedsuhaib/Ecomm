@@ -80,6 +80,27 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void adminCatalogRequiresStaffOrAdmin() {
+        // The admin catalogue write surface is covered by the same /api/v1/admin/**
+        // matcher; verify the matrix on a representative endpoint.
+        // No token -> 401.
+        ResponseEntity<String> anon = rest.getForEntity("/api/v1/admin/catalog/products", String.class);
+        assertThat(anon.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // CUSTOMER token -> 403.
+        AuthResponse customer = authService.phoneVerify(new PhoneVerifyRequest("dev:9888800003"));
+        ResponseEntity<String> forbidden = rest.exchange(
+                "/api/v1/admin/catalog/products", HttpMethod.GET, bearer(customer.accessToken()), String.class);
+        assertThat(forbidden.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+
+        // ADMIN token -> 200.
+        AuthResponse admin = authService.staffLogin(new StaffLoginRequest("admin@townbasket.local", "Admin@12345"));
+        ResponseEntity<String> ok = rest.exchange(
+                "/api/v1/admin/catalog/categories", HttpMethod.GET, bearer(admin.accessToken()), String.class);
+        assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
     void meRequiresAuthentication() {
         ResponseEntity<String> anon = rest.getForEntity("/api/v1/me", String.class);
         assertThat(anon.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);

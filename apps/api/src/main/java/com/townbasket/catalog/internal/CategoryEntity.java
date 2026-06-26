@@ -35,12 +35,26 @@ class CategoryEntity {
         // JPA
     }
 
+    /** Creation factory for a new category (admin write path). */
+    static CategoryEntity create(String name, String slug, int sortOrder, String imageUrl) {
+        CategoryEntity c = new CategoryEntity();
+        c.name = name;
+        c.slug = slug;
+        c.sortOrder = sortOrder;
+        c.imageUrl = imageUrl;
+        return c;
+    }
+
     Long getId() {
         return id;
     }
 
     String getName() {
         return name;
+    }
+
+    void setName(String name) {
+        this.name = name;
     }
 
     String getSlug() {
@@ -51,7 +65,15 @@ class CategoryEntity {
         return sortOrder;
     }
 
+    void setSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
     String getImageUrl() {
         return imageUrl;
+    }
+
+    void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

@@ -48,6 +48,23 @@ class ProductVariantEntity {
         // JPA
     }
 
+    /**
+     * Creation factory for a new variant (admin write path). {@code productId} is
+     * populated by the owning product's {@code @OneToMany @JoinColumn} on save, so
+     * it is intentionally not assigned here.
+     */
+    static ProductVariantEntity create(String label, BigDecimal sellingPrice, BigDecimal costPrice,
+                                       BigDecimal mrp, boolean available, int sortOrder) {
+        ProductVariantEntity v = new ProductVariantEntity();
+        v.label = label;
+        v.sellingPrice = sellingPrice;
+        v.costPrice = costPrice;
+        v.mrp = mrp;
+        v.available = available;
+        v.sortOrder = sortOrder;
+        return v;
+    }
+
     Long getId() {
         return id;
     }
@@ -60,8 +77,16 @@ class ProductVariantEntity {
         return label;
     }
 
+    void setLabel(String label) {
+        this.label = label;
+    }
+
     BigDecimal getSellingPrice() {
         return sellingPrice;
+    }
+
+    void setSellingPrice(BigDecimal sellingPrice) {
+        this.sellingPrice = sellingPrice;
     }
 
     /** Internal-only — must not be exposed in any API response. */
@@ -69,15 +94,31 @@ class ProductVariantEntity {
         return costPrice;
     }
 
+    void setCostPrice(BigDecimal costPrice) {
+        this.costPrice = costPrice;
+    }
+
     BigDecimal getMrp() {
         return mrp;
+    }
+
+    void setMrp(BigDecimal mrp) {
+        this.mrp = mrp;
     }
 
     boolean isAvailable() {
         return available;
     }
 
+    void setAvailable(boolean available) {
+        this.available = available;
+    }
+
     int getSortOrder() {
         return sortOrder;
+    }
+
+    void setSortOrder(int sortOrder) {
+        this.sortOrder = sortOrder;
     }
 }
