@@ -20,7 +20,10 @@ import {
   updateTokens,
 } from './auth';
 import type {
+  AdminProduct,
+  AdminVariant,
   AuthResponse,
+  Category,
   Order,
   Page,
   TokenPair,
@@ -314,4 +317,201 @@ export function adminOrderStreamUrl(): string {
   const url = new URL(base);
   url.searchParams.set('token', token);
   return url.toString();
+}
+
+// ---- Catalogue management (admin, contract /admin/catalog) ------------------
+//
+// Categories + products + variants. List endpoints return the full catalogue
+// INCLUDING unavailable items (the storefront filters those out; staff need to
+// see and toggle them). The base path is `/admin/catalog`.
+
+const CATALOG_BASE = '/admin/catalog';
+
+/** Request body for creating a category. */
+export interface CategoryCreateRequest {
+  name: string;
+  slug?: string;
+  sortOrder?: number;
+  imageUrl?: string | null;
+}
+
+/** Request body for updating a category (slug is immutable after create). */
+export interface CategoryUpdateRequest {
+  name: string;
+  sortOrder?: number;
+  imageUrl?: string | null;
+}
+
+/** A variant payload sent when creating a product (inline) or a variant. */
+export interface VariantWriteRequest {
+  label: string;
+  sellingPrice: number;
+  costPrice: number;
+  mrp?: number | null;
+  available: boolean;
+  sortOrder: number;
+}
+
+/** Request body for creating a product (variants sent inline). */
+export interface ProductCreateRequest {
+  name: string;
+  nameKn?: string | null;
+  slug?: string;
+  categoryId: number;
+  description?: string | null;
+  vegMarker: boolean;
+  imageUrl?: string | null;
+  available: boolean;
+  featured: boolean;
+  variants: VariantWriteRequest[];
+}
+
+/** Request body for updating a product's own fields (variants managed separately). */
+export interface ProductUpdateRequest {
+  name: string;
+  nameKn?: string | null;
+  categoryId: number;
+  description?: string | null;
+  vegMarker: boolean;
+  imageUrl?: string | null;
+  available: boolean;
+  featured: boolean;
+}
+
+// -- Categories --------------------------------------------------------------
+
+/** GET /admin/catalog/categories — all categories, ordered by sortOrder. */
+export function getAdminCategories(): Promise<Category[]> {
+  return apiFetch<Category[]>(`${CATALOG_BASE}/categories`);
+}
+
+/** POST /admin/catalog/categories — create a category. */
+export function createCategory(req: CategoryCreateRequest): Promise<Category> {
+  return apiMutate<Category>('POST', `${CATALOG_BASE}/categories`, req);
+}
+
+/** PUT /admin/catalog/categories/{id} — rename / re-sort / re-image. */
+export function updateCategory(
+  id: number,
+  req: CategoryUpdateRequest,
+): Promise<Category> {
+  return apiMutate<Category>('PUT', `${CATALOG_BASE}/categories/${id}`, req);
+}
+
+/**
+ * DELETE /admin/catalog/categories/{id} — remove an empty category. The backend
+ * returns 422 (ApiError) when the category still has products; the caller maps
+ * that to a friendly "move/remove its products first" message.
+ */
+export function deleteCategory(id: number): Promise<null> {
+  return apiMutate<null>('DELETE', `${CATALOG_BASE}/categories/${id}`);
+}
+
+// -- Products ----------------------------------------------------------------
+
+/**
+ * GET /admin/catalog/products — paged product list (includes unavailable).
+ * Optional `categoryId` / `q` filters; defaults to page 0, size 50.
+ */
+export function getAdminProducts(opts?: {
+  categoryId?: number;
+  q?: string;
+  page?: number;
+  size?: number;
+}): Promise<Page<AdminProduct>> {
+  return apiFetch<Page<AdminProduct>>(`${CATALOG_BASE}/products`, {
+    categoryId: opts?.categoryId,
+    q: opts?.q,
+    page: opts?.page ?? 0,
+    size: opts?.size ?? 50,
+  });
+}
+
+/** GET /admin/catalog/products/{id} — one product with its variants. */
+export function getAdminProduct(id: number): Promise<AdminProduct> {
+  return apiFetch<AdminProduct>(`${CATALOG_BASE}/products/${id}`);
+}
+
+/** POST /admin/catalog/products — create a product with inline variants. */
+export function createProduct(req: ProductCreateRequest): Promise<AdminProduct> {
+  return apiMutate<AdminProduct>('POST', `${CATALOG_BASE}/products`, req);
+}
+
+/** PUT /admin/catalog/products/{id} — update a product's own fields. */
+export function updateProduct(
+  id: number,
+  req: ProductUpdateRequest,
+): Promise<AdminProduct> {
+  return apiMutate<AdminProduct>('PUT', `${CATALOG_BASE}/products/${id}`, req);
+}
+
+/** POST /admin/catalog/products/{id}/availability — toggle product visibility. */
+export function setProductAvailability(
+  id: number,
+  available: boolean,
+): Promise<AdminProduct> {
+  return apiMutate<AdminProduct>(
+    'POST',
+    `${CATALOG_BASE}/products/${id}/availability`,
+    { available },
+  );
+}
+
+/** DELETE /admin/catalog/products/{id} — permanently remove a product. */
+export function deleteProduct(id: number): Promise<null> {
+  return apiMutate<null>('DELETE', `${CATALOG_BASE}/products/${id}`);
+}
+
+// -- Variants ----------------------------------------------------------------
+
+/** POST /admin/catalog/products/{id}/variants — add a variant to a product. */
+export function createVariant(
+  productId: number,
+  req: VariantWriteRequest,
+): Promise<AdminVariant> {
+  return apiMutate<AdminVariant>(
+    'POST',
+    `${CATALOG_BASE}/products/${productId}/variants`,
+    req,
+  );
+}
+
+/** PUT /admin/catalog/products/{id}/variants/{variantId} — update a variant. */
+export function updateVariant(
+  productId: number,
+  variantId: number,
+  req: VariantWriteRequest,
+): Promise<AdminVariant> {
+  return apiMutate<AdminVariant>(
+    'PUT',
+    `${CATALOG_BASE}/products/${productId}/variants/${variantId}`,
+    req,
+  );
+}
+
+/**
+ * POST /admin/catalog/products/{id}/variants/{variantId}/availability — toggle
+ * a single variant's availability.
+ */
+export function setVariantAvailability(
+  productId: number,
+  variantId: number,
+  available: boolean,
+): Promise<AdminVariant> {
+  return apiMutate<AdminVariant>(
+    'POST',
+    `${CATALOG_BASE}/products/${productId}/variants/${variantId}/availability`,
+    { available },
+  );
+}
+
+/** DELETE /admin/catalog/products/{id}/variants/{variantId} — remove a variant. */
+export function deleteVariant(
+  productId: number,
+  variantId: number,
+): Promise<null> {
+  return apiMutate<null>(
+    'DELETE',
+    `${CATALOG_BASE}/products/${productId}/variants/${variantId}`,
+  );
 }

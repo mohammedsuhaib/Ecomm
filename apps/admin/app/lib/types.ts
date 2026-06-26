@@ -85,3 +85,49 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
 }
+
+// ---- Catalogue management (admin) — see API contract /admin/catalog --------
+
+/**
+ * A purchasable variant of a product (e.g. "500 g", "1 L"). `costPrice` is
+ * admin-only (never exposed on the storefront); the catalogue UI uses it to
+ * surface margin context to staff.
+ */
+export interface AdminVariant {
+  id: number;
+  label: string;
+  sellingPrice: number;
+  costPrice: number;
+  mrp: number | null;
+  available: boolean;
+  sortOrder: number;
+}
+
+/**
+ * A catalogue product as seen by staff — includes UNAVAILABLE items and the
+ * full variant list with cost prices. `nameKn` is the Kannada name (auto-filled
+ * by transliteration on the backend when left blank).
+ */
+export interface AdminProduct {
+  id: number;
+  name: string;
+  nameKn: string | null;
+  slug: string;
+  categoryId: number;
+  categoryName: string;
+  description: string | null;
+  vegMarker: boolean;
+  imageUrl: string | null;
+  available: boolean;
+  featured: boolean;
+  variants: AdminVariant[];
+}
+
+/** A catalogue category. */
+export interface Category {
+  id: number;
+  name: string;
+  slug: string;
+  imageUrl: string | null;
+  sortOrder: number;
+}
