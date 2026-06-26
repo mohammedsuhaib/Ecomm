@@ -10,12 +10,14 @@
 -- re-apply cannot create duplicates. Prices are in INR; cost_price is
 -- internal-only (gross-profit reporting), matching V3_2's conventions.
 
--- image_url is set here (most products leave it NULL for now). Served from the
--- storefront's /public for local/dev; swap to the DO Spaces URL in production.
-INSERT INTO catalog.products (category_id, name, slug, description, veg_marker, image_url, available)
+-- image_url is left NULL: no real asset exists yet, and a set-but-missing path
+-- would render a broken <img>. With NULL the storefront's ProductThumb falls
+-- back to its emoji tile (keyword 'dahi' -> milk/dahi glyph), matching every
+-- other photo-less product. Wire a real image later (a follow-on migration or
+-- admin update) once an asset is added under apps/storefront/public/images/products/.
+INSERT INTO catalog.products (category_id, name, slug, description, veg_marker, available)
 SELECT id, 'Amul Dahi', 'amul-dahi',
-       'Toned milk dahi — creamy and tasty.', TRUE,
-       '/products/amul-dahi.jpg', TRUE
+       'Toned milk dahi — creamy and tasty.', TRUE, TRUE
 FROM catalog.categories WHERE slug = 'dairy'
 ON CONFLICT (slug) DO NOTHING;
 
