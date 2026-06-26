@@ -30,9 +30,12 @@ import com.townbasket.shared.events.OrderPlaced;
 import com.townbasket.shared.events.OrderStatusChanged;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -61,6 +64,7 @@ class OrderServiceImpl implements OrderService {
     private final InventoryService inventoryService;
     private final PaymentService paymentService;
     private final ApplicationEventPublisher events;
+    private final Clock clock;
 
     OrderServiceImpl(OrderRepository orders,
                      CartService cartService,
@@ -68,7 +72,8 @@ class OrderServiceImpl implements OrderService {
                      ServiceabilityService serviceabilityService,
                      InventoryService inventoryService,
                      PaymentService paymentService,
-                     ApplicationEventPublisher events) {
+                     ApplicationEventPublisher events,
+                     Clock clock) {
         this.orders = orders;
         this.cartService = cartService;
         this.catalogService = catalogService;
@@ -76,6 +81,7 @@ class OrderServiceImpl implements OrderService {
         this.inventoryService = inventoryService;
         this.paymentService = paymentService;
         this.events = events;
+        this.clock = clock;
     }
 
     @Override
@@ -85,7 +91,7 @@ class OrderServiceImpl implements OrderService {
         // Idempotency: a retry with the same key returns the original order.
         Optional<OrderEntity> existing = orders.findByIdempotencyKey(key);
         if (existing.isPresent()) {
-            return toDto(existing.get());
+            return toDto(existing.get(), true);
         }
 
         validateRequest(request);
@@ -95,10 +101,31 @@ class OrderServiceImpl implements OrderService {
         if (cart.items().isEmpty()) {
             throw new BusinessRuleException("Cannot place an order from an empty cart");
         }
+        // Guard against double-ordering the same cart (back button / network retry /
+        // PWA resume): once a cart has been ordered it can never be ordered again,
+        // even under a fresh idempotency key. The idempotent retry path above
+        // already returned the original order for the same key.
+        if (cart.checkedOut()) {
+            throw new BusinessRuleException(
+                    "This cart has already been ordered. Please start a new cart.");
+        }
 
         StoreDto store = serviceabilityService.activeStore()
                 .orElseThrow(() -> new IllegalStateException("No active store configured"));
         Long storeId = resolveActiveStoreId();
+
+        requireStoreOpen(store);
+
+        // Reject lines a store admin has marked unavailable since they were added.
+        List<String> unavailable = cart.items().stream()
+                .filter(i -> !i.available())
+                .map(CartItemDto::productName)
+                .collect(Collectors.toList());
+        if (!unavailable.isEmpty()) {
+            throw new BusinessRuleException(
+                    "Some items are no longer available: " + String.join(", ", unavailable)
+                            + ". Please remove them and try again.");
+        }
 
         AddressDto address = request.address();
         ServiceabilityCheckDto check = serviceabilityService.check(address.lat(), address.lng());
@@ -111,6 +138,12 @@ class OrderServiceImpl implements OrderService {
         if (subtotal.compareTo(store.minOrderValue()) < 0) {
             throw new BusinessRuleException("Order subtotal " + subtotal
                     + " is below the minimum order value " + store.minOrderValue());
+        }
+        // Never charge a total different from the one the customer confirmed.
+        if (request.expectedTotal() != null && request.expectedTotal().compareTo(subtotal) != 0) {
+            throw new BusinessRuleException(
+                    "The total has changed (now " + subtotal + ", you saw " + request.expectedTotal()
+                            + "). Please review your cart and confirm the new total.");
         }
 
         // Reserve stock atomically (per-line conditional UPDATE). A failure throws
@@ -162,13 +195,15 @@ class OrderServiceImpl implements OrderService {
 
         cartService.markCheckedOut(cart.cartId());
 
-        return toDto(reloaded);
+        // Customer-facing response: carries the tracking token; the OTP stays
+        // hidden until OUT_FOR_DELIVERY (so it is null here at placement).
+        return toDto(reloaded, true);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<OrderDto> getOrder(Long orderId) {
-        return orders.findById(orderId).map(this::toDto);
+    public Optional<OrderDto> getOrderByToken(UUID trackingToken) {
+        return orders.findByPublicToken(trackingToken).map(o -> toDto(o, true));
     }
 
     @Override
@@ -177,13 +212,17 @@ class OrderServiceImpl implements OrderService {
         var page = (status == null || status.isBlank())
                 ? orders.findAllByOrderByPlacedAtDescIdDesc(pageable)
                 : orders.findByStatusOrderByPlacedAtDescIdDesc(parseStatus(status), pageable);
-        return PagedResponse.of(page, this::toDto);
+        // Admin surface: never expose the delivery OTP (staff collect it at handover).
+        return PagedResponse.of(page, o -> toDto(o, false));
     }
 
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable) {
-        return PagedResponse.of(orders.findByUserIdOrderByPlacedAtDescIdDesc(userId, pageable), this::toDto);
+        // The caller's own order history is customer-facing: the OTP is still gated
+        // to OUT_FOR_DELIVERY by toDto, and each order carries its tracking token.
+        return PagedResponse.of(
+                orders.findByUserIdOrderByPlacedAtDescIdDesc(userId, pageable), o -> toDto(o, true));
     }
 
     @Override
@@ -237,7 +276,8 @@ class OrderServiceImpl implements OrderService {
             events.publishEvent(new OrderCancelled(order.getId(), order.getStoreId(), request.reason()));
         }
 
-        return toDto(orders.findById(orderId).orElseThrow());
+        // Admin surface: never expose the delivery OTP.
+        return toDto(orders.findById(orderId).orElseThrow(), false);
     }
 
     /** Mark an order CONFIRMED and record the timeline entry (called within checkout). */
@@ -262,6 +302,38 @@ class OrderServiceImpl implements OrderService {
         }
         if (request.paymentMethod() == null) {
             throw new IllegalArgumentException("paymentMethod is required");
+        }
+        // A reachable phone and in-range coordinates are required to deliver; the
+        // frontend validates these too, but the server is authoritative (a malformed
+        // client, or a tampered request, must not create an undeliverable order).
+        String phone = request.phone().trim();
+        if (!phone.matches("[0-9]{10}")) {
+            throw new IllegalArgumentException("phone must be a 10-digit number");
+        }
+        double lat = request.address().lat();
+        double lng = request.address().lng();
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            throw new IllegalArgumentException("address coordinates are out of range");
+        }
+    }
+
+    /**
+     * Reject checkout when the store is closed (the address may be serviceable,
+     * but nobody can fulfil the order). Hours are interpreted in the store's
+     * local time via the injected {@link Clock}. Supports an overnight window
+     * (closing before opening), though the MVP store opens 08:00–21:00.
+     */
+    private void requireStoreOpen(StoreDto store) {
+        LocalTime now = LocalTime.now(clock);
+        LocalTime open = store.openingTime();
+        LocalTime close = store.closingTime();
+        boolean isOpen = !open.isAfter(close)
+                ? !now.isBefore(open) && !now.isAfter(close)        // same-day window
+                : !now.isBefore(open) || !now.isAfter(close);       // crosses midnight
+        if (!isOpen) {
+            throw new BusinessRuleException(
+                    store.name() + " is closed right now. Delivery hours are "
+                            + open + "–" + close + ". Please order during open hours.");
         }
     }
 
@@ -298,7 +370,14 @@ class OrderServiceImpl implements OrderService {
         return s == null || s.isBlank();
     }
 
-    private OrderDto toDto(OrderEntity o) {
+    /**
+     * Map an order to its public DTO.
+     *
+     * @param customerFacing when {@code true} (the tracking endpoint) the delivery
+     *     OTP is included <em>only</em> while the order is OUT_FOR_DELIVERY;
+     *     when {@code false} (admin surface) the OTP is never included.
+     */
+    private OrderDto toDto(OrderEntity o, boolean customerFacing) {
         List<OrderItemDto> items = o.getItems().stream()
                 // NOTE: cost price (COGS) is intentionally NOT mapped — internal only.
                 .map(i -> new OrderItemDto(i.getProductName(), i.getLabel(),
@@ -307,13 +386,17 @@ class OrderServiceImpl implements OrderService {
         List<OrderTimelineEntryDto> timeline = o.getEvents().stream()
                 .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt()))
                 .toList();
-        // The delivery OTP is proof-of-handover; once the order is DELIVERED (code
-        // spent) or CANCELLED, omit it from the response. The DELIVERED transition
-        // still verifies against the stored value on the entity, not this DTO.
-        boolean otpRelevant = o.getStatus() != OrderStatus.DELIVERED
-                && o.getStatus() != OrderStatus.CANCELLED;
+        // The delivery OTP is the proof-of-delivery / COD-fraud code. It is exposed
+        // to the customer ONLY while the order is OUT_FOR_DELIVERY (staff collect it
+        // at handover) and is NEVER returned on the admin surface (customerFacing ==
+        // false). The DELIVERED transition still verifies against the stored value on
+        // the entity, not this DTO.
+        String deliveryOtp = (customerFacing && o.getStatus() == OrderStatus.OUT_FOR_DELIVERY)
+                ? o.getDeliveryOtp()
+                : null;
         return new OrderDto(
                 o.getId(),
+                o.getPublicToken().toString(),
                 o.getStatus().name(),
                 o.getPaymentMethod(),
                 o.getPaymentStatus(),
@@ -323,7 +406,7 @@ class OrderServiceImpl implements OrderService {
                 items,
                 o.getSubtotal(),
                 o.getTotal(),
-                otpRelevant ? o.getDeliveryOtp() : null,
+                deliveryOtp,
                 o.getPlacedAt(),
                 timeline);
     }

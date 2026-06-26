@@ -69,7 +69,8 @@ export interface CartItem {
   unitPrice: number; // decimal rupees
   qty: number;
   lineTotal: number; // decimal rupees
-  available: boolean; // false => line is out of stock / unbuyable
+  available: boolean; // false => the item has been marked unavailable by the store
+  availableStock: number; // live sellable units (on_hand - reserved)
 }
 
 export interface Cart {
@@ -77,6 +78,7 @@ export interface Cart {
   items: CartItem[];
   subtotal: number; // decimal rupees
   itemCount: number; // total quantity across lines
+  checkedOut: boolean; // true once this cart has been turned into an order
 }
 
 // ---- Orders (M3) --------------------------------------------------------
@@ -112,6 +114,7 @@ export interface OrderTimelineEntry {
 
 export interface Order {
   id: string;
+  trackingToken: string; // unguessable token used to fetch/track this order
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: string;
@@ -121,7 +124,7 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   total: number;
-  deliveryOtp: string;
+  deliveryOtp: string | null; // present only while OUT_FOR_DELIVERY
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
 }
@@ -132,6 +135,7 @@ export interface PlaceOrderRequest {
   phone: string;
   address: OrderAddress;
   paymentMethod: PaymentMethod;
+  expectedTotal: number; // the subtotal the customer confirmed; server rejects a mismatch
 }
 
 // ---- Identity (M4) ------------------------------------------------------

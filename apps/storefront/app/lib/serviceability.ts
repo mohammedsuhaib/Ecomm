@@ -6,9 +6,10 @@ import type { ServiceabilityResult } from './types';
 
 export const SERVICEABILITY_KEY = 'tb.serviceability.v1';
 
-// Cached serviceable result is trusted for this long before we re-check.
-// Keeps the gate lightweight while still re-validating periodically.
-const TTL_MS = 1000 * 60 * 60 * 24; // 24h
+// Cached serviceable result is trusted for this long before we re-check. Kept
+// short so a customer who moves (or a store radius change) is re-validated soon;
+// checkout always re-checks against the submitted coordinates regardless.
+const TTL_MS = 1000 * 60 * 30; // 30 min
 
 export interface StoredServiceability {
   result: ServiceabilityResult;

@@ -1,7 +1,14 @@
 package com.townbasket;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 /**
@@ -24,6 +31,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * so it stays fast and runs without Docker.
  */
 @SpringBootTest
+@Import(AbstractIntegrationTest.FixedClockConfig.class)
 public abstract class AbstractIntegrationTest {
 
     @ServiceConnection
@@ -35,5 +43,19 @@ public abstract class AbstractIntegrationTest {
 
     static {
         POSTGRES.start();
+    }
+
+    /**
+     * Pins the application clock to 12:00 IST so the store open/closed check
+     * (seeded hours 08:00–21:00) is deterministic regardless of when CI runs.
+     */
+    @TestConfiguration
+    static class FixedClockConfig {
+        @Bean
+        @Primary
+        Clock fixedClock() {
+            // 2024-01-01T06:30:00Z == 12:00 in Asia/Kolkata (UTC+5:30).
+            return Clock.fixed(Instant.parse("2024-01-01T06:30:00Z"), ZoneId.of("Asia/Kolkata"));
+        }
     }
 }

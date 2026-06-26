@@ -376,17 +376,22 @@ async function ensureFreshAccessToken(): Promise<void> {
   }
 }
 
-/** GET /orders/{id} — order summary + status timeline (live). */
-export function getOrder(id: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/${encodeURIComponent(id)}`, undefined, {
+/**
+ * GET /orders/track/{token} — order summary + status timeline (live), fetched
+ * by the unguessable tracking token (never the sequential id, so orders can't
+ * be harvested by enumeration).
+ */
+export function getOrder(token: string): Promise<Order> {
+  return apiFetch<Order>(`/orders/track/${encodeURIComponent(token)}`, undefined, {
     noStore: true,
   });
 }
 
 /**
- * URL for the per-order SSE stream (GET /orders/{id}/stream). Consumed by the
- * tracking page with `new EventSource(...)`, so it must use the public
- * (browser-reachable) base URL.
+ * URL for the per-order SSE stream (GET /orders/{id}/stream). The numeric id is
+ * only known after the order is fetched by token; the stream carries non-PII
+ * status pings. Consumed by the tracking page with `new EventSource(...)`, so it
+ * must use the public (browser-reachable) base URL.
  */
 export function orderStreamUrl(id: string): string {
   return `${API_BASE_URL.replace(/\/$/, '')}/orders/${encodeURIComponent(id)}/stream`;
