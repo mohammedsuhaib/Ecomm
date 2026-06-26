@@ -23,6 +23,9 @@ class CartEntity {
     @Id
     private UUID id;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "checked_out", nullable = false)
     private boolean checkedOut;
 
@@ -41,13 +44,26 @@ class CartEntity {
     }
 
     CartEntity(UUID id) {
+        this(id, null);
+    }
+
+    CartEntity(UUID id, Long userId) {
         this.id = id;
+        this.userId = userId;
         this.checkedOut = false;
         this.updatedAt = Instant.now();
     }
 
     UUID getId() {
         return id;
+    }
+
+    Long getUserId() {
+        return userId;
+    }
+
+    void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     boolean isCheckedOut() {

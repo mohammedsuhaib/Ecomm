@@ -1,7 +1,7 @@
 # Deploying the Town Basket holding site to town-basket.com
 
 This puts the "coming soon" + policy pages live on **town-basket.com** with
-automatic HTTPS, so the payment provider (Paytm) KYC review can see the
+automatic HTTPS, so the payment provider (Razorpay) KYC review can see the
 required policy pages. It uses Caddy (auto-TLS) in Docker.
 
 > Note: the support/grievance **email is still a placeholder** in the pages —
@@ -57,7 +57,7 @@ Caddy automatically obtains Let's Encrypt certificates for town-basket.com
 and www.town-basket.com (DNS must already point here — step 1).
 
 ### 5. Verify
-Open **https://town-basket.com**. Confirm these load (give these URLs to Paytm):
+Open **https://town-basket.com**. Confirm these load (give these URLs to Razorpay):
 - https://town-basket.com/terms.html
 - https://town-basket.com/privacy.html
 - https://town-basket.com/refund.html

@@ -1,23 +1,15 @@
+import AdminShell from './components/AdminShell';
 import OrderQueue from './components/OrderQueue';
 
-/** Admin home = live order queue (M3). Catalogue/inventory polish lands later. */
+/**
+ * Admin home = live order queue (M3), now gated behind staff/admin login (M4).
+ * The shell renders the header (with the signed-in staffer + Logout) and wraps
+ * the queue in <LoginGate>, so the queue only mounts once authenticated.
+ */
 export default function Home() {
   return (
-    <>
-      <header className="admin-header">
-        <div className="admin-header-inner">
-          <span className="admin-brand">
-            <span className="logo" aria-hidden>
-              🧺
-            </span>
-            Town Basket — Store Admin
-          </span>
-          <span className="admin-sub">Order queue</span>
-        </div>
-      </header>
-      <main className="admin-main">
-        <OrderQueue />
-      </main>
-    </>
+    <AdminShell>
+      <OrderQueue />
+    </AdminShell>
   );
 }

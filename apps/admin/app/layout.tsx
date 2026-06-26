@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { AuthProvider } from './components/AuthProvider';
 
 export const metadata: Metadata = {
   title: 'Town Basket — Store Admin',
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1f3a8a',
+  themeColor: '#f9a825',
   width: 'device-width',
   initialScale: 1,
 };
@@ -19,7 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

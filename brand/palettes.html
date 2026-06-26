@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Town Basket — colour palette options</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#eceef0;color:#1f2937;margin:0;padding:28px}
+  h1{margin:0 0 4px;font-size:24px}
+  .sub{color:#6b7280;margin:0 0 24px;font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:22px}
+  .pal{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.10)}
+  .pal h2{margin:0;padding:16px 16px 2px;font-size:17px}
+  .pal .tag{color:#16a34a;font-size:12px;font-weight:600}
+  .vibe{padding:0 16px 12px;color:#6b7280;font-size:12.5px;margin:0}
+  .sw{display:flex;height:46px}
+  .sw span{flex:1;display:flex;align-items:flex-end;justify-content:center;font:600 9px/1 ui-monospace,monospace;padding-bottom:3px}
+  /* applied mock — uses the palette CSS vars set per card */
+  .mock{background:var(--bg);padding:14px}
+  .bar{background:var(--primary);color:var(--onp);font-weight:700;padding:10px 12px;border-radius:9px;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+  .card{background:var(--surface);border-radius:11px;padding:12px;margin-top:12px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .pname{color:var(--ink);font-weight:600;font-size:13.5px}
+  .muted{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+  .price{color:var(--dark);font-weight:800;font-size:16px}
+  .add{background:var(--primary);color:var(--onp);border:none;border-radius:8px;padding:7px 16px;font-weight:700;font-size:13px}
+  .cta{background:var(--accent);color:var(--ona);border:none;border-radius:9px;padding:11px;width:100%;font-weight:800;margin-top:12px;font-size:14px}
+</style>
+</head>
+<body>
+  <h1>Town Basket — colour palette options 🧺</h1>
+  <p class="sub">Each card shows the palette swatches and a mini storefront mock (header · product card · checkout button) so you can see it applied. Pick one.</p>
+  <div class="grid">
+
+    <section class="pal" style="--primary:#2EA561;--dark:#1B7A43;--accent:#9CCC65;--bg:#FFF8E7;--surface:#fff;--ink:#1F2A24;--muted:#7A8B7E;--onp:#fff;--ona:#1F2A24">
+      <h2>1 · Fresh Green <span class="tag">(current)</span></h2>
+      <p class="vibe">Natural, trustworthy, classic grocery.</p>
+      <div class="sw"><span style="background:#2EA561;color:#fff">2EA561</span><span style="background:#1B7A43;color:#fff">1B7A43</span><span style="background:#9CCC65;color:#1F2A24">9CCC65</span><span style="background:#FFF8E7;color:#7A8B7E">FFF8E7</span><span style="background:#1F2A24;color:#fff">1F2A24</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#1E8E5A;--dark:#14663F;--accent:#FB8C00;--bg:#FFFDF6;--surface:#fff;--ink:#23302A;--muted:#8A9690;--onp:#fff;--ona:#fff">
+      <h2>2 · Orchard <span class="tag">green + mango</span></h2>
+      <p class="vibe">Green trust with appetising orange CTAs. Energetic.</p>
+      <div class="sw"><span style="background:#1E8E5A;color:#fff">1E8E5A</span><span style="background:#14663F;color:#fff">14663F</span><span style="background:#FB8C00;color:#fff">FB8C00</span><span style="background:#FFFDF6;color:#8A9690">FFFDF6</span><span style="background:#23302A;color:#fff">23302A</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#E8590C;--dark:#C2410C;--accent:#2F9E44;--bg:#FFF7ED;--surface:#fff;--ink:#3A2A1F;--muted:#9A8478;--onp:#fff;--ona:#fff">
+      <h2>3 · Saffron Market <span class="tag">warm Indian</span></h2>
+      <p class="vibe">Warm, festive, appetite-driving. Very "Indian grocery".</p>
+      <div class="sw"><span style="background:#E8590C;color:#fff">E8590C</span><span style="background:#C2410C;color:#fff">C2410C</span><span style="background:#2F9E44;color:#fff">2F9E44</span><span style="background:#FFF7ED;color:#9A8478">FFF7ED</span><span style="background:#3A2A1F;color:#fff">3A2A1F</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#7C3AED;--dark:#5B21B6;--accent:#FACC15;--bg:#FAF7FF;--surface:#fff;--ink:#241B33;--muted:#8A82A0;--onp:#fff;--ona:#241B33">
+      <h2>4 · Zip Purple <span class="tag">quick-commerce</span></h2>
+      <p class="vibe">Bold, modern, youthful — Zepto-style energy.</p>
+      <div class="sw"><span style="background:#7C3AED;color:#fff">7C3AED</span><span style="background:#5B21B6;color:#fff">5B21B6</span><span style="background:#FACC15;color:#241B33">FACC15</span><span style="background:#FAF7FF;color:#8A82A0">FAF7FF</span><span style="background:#241B33;color:#fff">241B33</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F7C600;--dark:#B98900;--accent:#1E8E5A;--bg:#FFFDF4;--surface:#fff;--ink:#2A2410;--muted:#8C8568;--onp:#2A2410;--ona:#fff">
+      <h2>5 · Sunny <span class="tag">cheerful yellow</span></h2>
+      <p class="vibe">Friendly, high-visibility, value-for-money — Blinkit-style.</p>
+      <div class="sw"><span style="background:#F7C600;color:#2A2410">F7C600</span><span style="background:#B98900;color:#fff">B98900</span><span style="background:#1E8E5A;color:#fff">1E8E5A</span><span style="background:#FFFDF4;color:#8C8568">FFFDF4</span><span style="background:#2A2410;color:#fff">2A2410</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#0F8A7E;--dark:#0B5E56;--accent:#F59E0B;--bg:#F4FBFA;--surface:#fff;--ink:#14302C;--muted:#6E8B86;--onp:#fff;--ona:#14302C">
+      <h2>6 · Teal Fresh <span class="tag">modern clean</span></h2>
+      <p class="vibe">Clean, calm, premium-modern with a citrus pop.</p>
+      <div class="sw"><span style="background:#0F8A7E;color:#fff">0F8A7E</span><span style="background:#0B5E56;color:#fff">0B5E56</span><span style="background:#F59E0B;color:#14302C">F59E0B</span><span style="background:#F4FBFA;color:#6E8B86">F4FBFA</span><span style="background:#14302C;color:#fff">14302C</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#E23744;--dark:#B71C2B;--accent:#16A34A;--bg:#FFF6F5;--surface:#fff;--ink:#331E20;--muted:#9A7E80;--onp:#fff;--ona:#fff">
+      <h2>7 · Tomato <span class="tag">appetising red</span></h2>
+      <p class="vibe">Bold, appetite-driving, urgent — Zomato-style.</p>
+      <div class="sw"><span style="background:#E23744;color:#fff">E23744</span><span style="background:#B71C2B;color:#fff">B71C2B</span><span style="background:#16A34A;color:#fff">16A34A</span><span style="background:#FFF6F5;color:#9A7E80">FFF6F5</span><span style="background:#331E20;color:#fff">331E20</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#A7E0C4;--dark:#2F8268;--accent:#FBD3A8;--bg:#F1FAF5;--surface:#fff;--ink:#2C3A34;--muted:#8AA399;--onp:#2C3A34;--ona:#2C3A34">
+      <h2>8 · Mint Cream <span class="tag">pastel</span></h2>
+      <p class="vibe">Soft, fresh and calm — gentle take on the grocery green.</p>
+      <div class="sw"><span style="background:#A7E0C4;color:#2C3A34">A7E0C4</span><span style="background:#2F8268;color:#fff">2F8268</span><span style="background:#FBD3A8;color:#2C3A34">FBD3A8</span><span style="background:#F1FAF5;color:#8AA399">F1FAF5</span><span style="background:#2C3A34;color:#fff">2C3A34</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F3C3D0;--dark:#9B5B72;--accent:#BBD4B0;--bg:#FBF4F6;--surface:#fff;--ink:#3A2C32;--muted:#A98F98;--onp:#3A2C32;--ona:#3A2C32">
+      <h2>9 · Blush &amp; Sage <span class="tag">pastel</span></h2>
+      <p class="vibe">Boutique / artisanal — dusty rose with a soft sage accent.</p>
+      <div class="sw"><span style="background:#F3C3D0;color:#3A2C32">F3C3D0</span><span style="background:#9B5B72;color:#fff">9B5B72</span><span style="background:#BBD4B0;color:#3A2C32">BBD4B0</span><span style="background:#FBF4F6;color:#A98F98">FBF4F6</span><span style="background:#3A2C32;color:#fff">3A2C32</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#AFD6F0;--dark:#3E79A8;--accent:#F6E27A;--bg:#F1F8FD;--surface:#fff;--ink:#28323B;--muted:#8AA1B0;--onp:#28323B;--ona:#28323B">
+      <h2>10 · Sky &amp; Lemon <span class="tag">pastel</span></h2>
+      <p class="vibe">Airy, clean and trustworthy — soft sky blue, lemon pop.</p>
+      <div class="sw"><span style="background:#AFD6F0;color:#28323B">AFD6F0</span><span style="background:#3E79A8;color:#fff">3E79A8</span><span style="background:#F6E27A;color:#28323B">F6E27A</span><span style="background:#F1F8FD;color:#8AA1B0">F1F8FD</span><span style="background:#28323B;color:#fff">28323B</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#CFC2EE;--dark:#6E59B0;--accent:#BCE3C9;--bg:#F7F4FD;--surface:#fff;--ink:#2F2A3D;--muted:#9B91B5;--onp:#2F2A3D;--ona:#2F2A3D">
+      <h2>11 · Lavender Bloom <span class="tag">pastel</span></h2>
+      <p class="vibe">Gentle, modern, premium — soft lavender with mint.</p>
+      <div class="sw"><span style="background:#CFC2EE;color:#2F2A3D">CFC2EE</span><span style="background:#6E59B0;color:#fff">6E59B0</span><span style="background:#BCE3C9;color:#2F2A3D">BCE3C9</span><span style="background:#F7F4FD;color:#9B91B5">F7F4FD</span><span style="background:#2F2A3D;color:#fff">2F2A3D</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F7C9A0;--dark:#B86F39;--accent:#C7E0A6;--bg:#FFF6EE;--surface:#fff;--ink:#3A2C22;--muted:#B09A86;--onp:#3A2C22;--ona:#3A2C22">
+      <h2>12 · Peach &amp; Pistachio <span class="tag">pastel</span></h2>
+      <p class="vibe">Warm, friendly, artisanal — soft peach with pistachio.</p>
+      <div class="sw"><span style="background:#F7C9A0;color:#3A2C22">F7C9A0</span><span style="background:#B86F39;color:#fff">B86F39</span><span style="background:#C7E0A6;color:#3A2C22">C7E0A6</span><span style="background:#FFF6EE;color:#B09A86">FFF6EE</span><span style="background:#3A2C22;color:#fff">3A2C22</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F6BE00;--dark:#B45309;--accent:#D7263D;--bg:#FFF8E1;--surface:#fff;--ink:#3A2E12;--muted:#9A8B5E;--onp:#3A2E12;--ona:#fff">
+      <h2>13 · Haldi &amp; Kumkum <span class="tag">festive</span></h2>
+      <p class="vibe">Turmeric-gold + vermillion — the auspicious Indian pairing.</p>
+      <div class="sw"><span style="background:#F6BE00;color:#3A2E12">F6BE00</span><span style="background:#B45309;color:#fff">B45309</span><span style="background:#D7263D;color:#fff">D7263D</span><span style="background:#FFF8E1;color:#9A8B5E">FFF8E1</span><span style="background:#3A2E12;color:#fff">3A2E12</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F2730D;--dark:#C2410C;--accent:#2E8B3D;--bg:#FFF6EC;--surface:#fff;--ink:#3A2517;--muted:#A88A74;--onp:#fff;--ona:#fff">
+      <h2>14 · Saffron Harvest <span class="tag">festive</span></h2>
+      <p class="vibe">Saffron + harvest green — warm, energetic, broadly loved.</p>
+      <div class="sw"><span style="background:#F2730D;color:#fff">F2730D</span><span style="background:#C2410C;color:#fff">C2410C</span><span style="background:#2E8B3D;color:#fff">2E8B3D</span><span style="background:#FFF6EC;color:#A88A74">FFF6EC</span><span style="background:#3A2517;color:#fff">3A2517</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#D81B7A;--dark:#A01457;--accent:#2EA561;--bg:#FFF0F7;--surface:#fff;--ink:#3A1B2B;--muted:#B08597;--onp:#fff;--ona:#fff">
+      <h2>15 · Rani Pink <span class="tag">festive</span></h2>
+      <p class="vibe">Iconic Indian "rani" pink with leaf green — joyful, vivid.</p>
+      <div class="sw"><span style="background:#D81B7A;color:#fff">D81B7A</span><span style="background:#A01457;color:#fff">A01457</span><span style="background:#2EA561;color:#fff">2EA561</span><span style="background:#FFF0F7;color:#B08597">FFF0F7</span><span style="background:#3A1B2B;color:#fff">3A1B2B</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#F9A825;--dark:#B45309;--accent:#C2185B;--bg:#FFF8EC;--surface:#fff;--ink:#3A2A14;--muted:#AE9A6E;--onp:#3A2A14;--ona:#fff">
+      <h2>16 · Marigold <span class="tag">festive</span></h2>
+      <p class="vibe">Golden marigold + festive pink — wedding/temple warmth.</p>
+      <div class="sw"><span style="background:#F9A825;color:#3A2A14">F9A825</span><span style="background:#B45309;color:#fff">B45309</span><span style="background:#C2185B;color:#fff">C2185B</span><span style="background:#FFF8EC;color:#AE9A6E">FFF8EC</span><span style="background:#3A2A14;color:#fff">3A2A14</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#0E7C8B;--dark:#0A5A66;--accent:#F6BE00;--bg:#EEF8F9;--surface:#fff;--ink:#103038;--muted:#6E9098;--onp:#fff;--ona:#103038">
+      <h2>17 · Peacock <span class="tag">festive</span></h2>
+      <p class="vibe">Peacock teal-blue + gold — regal, vivid, auspicious.</p>
+      <div class="sw"><span style="background:#0E7C8B;color:#fff">0E7C8B</span><span style="background:#0A5A66;color:#fff">0A5A66</span><span style="background:#F6BE00;color:#103038">F6BE00</span><span style="background:#EEF8F9;color:#6E9098">EEF8F9</span><span style="background:#103038;color:#fff">103038</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#C4633F;--dark:#9A4A2C;--accent:#8AA37B;--bg:#FBF3EC;--surface:#fff;--ink:#38271F;--muted:#A38C7E;--onp:#fff;--ona:#fff">
+      <h2>18 · Terracotta &amp; Sage <span class="tag">aesthetic</span></h2>
+      <p class="vibe">Earthy, artisanal, editorial — warm clay with soft sage.</p>
+      <div class="sw"><span style="background:#C4633F;color:#fff">C4633F</span><span style="background:#9A4A2C;color:#fff">9A4A2C</span><span style="background:#8AA37B;color:#fff">8AA37B</span><span style="background:#FBF3EC;color:#A38C7E">FBF3EC</span><span style="background:#38271F;color:#fff">38271F</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#6B7A3A;--dark:#4E5A26;--accent:#D8A23A;--bg:#F8F6EC;--surface:#fff;--ink:#2E3320;--muted:#8E927A;--onp:#fff;--ona:#2E3320">
+      <h2>19 · Olive Grove <span class="tag">aesthetic</span></h2>
+      <p class="vibe">Organic, natural-premium — olive green with honey accents.</p>
+      <div class="sw"><span style="background:#6B7A3A;color:#fff">6B7A3A</span><span style="background:#4E5A26;color:#fff">4E5A26</span><span style="background:#D8A23A;color:#2E3320">D8A23A</span><span style="background:#F8F6EC;color:#8E927A">F8F6EC</span><span style="background:#2E3320;color:#fff">2E3320</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#7B5E47;--dark:#573F2E;--accent:#D9A66B;--bg:#F7F1EA;--surface:#fff;--ink:#33271E;--muted:#A2917F;--onp:#fff;--ona:#33271E">
+      <h2>20 · Mocha <span class="tag">aesthetic</span></h2>
+      <p class="vibe">Cosy, warm, "clean" minimal — coffee browns with caramel.</p>
+      <div class="sw"><span style="background:#7B5E47;color:#fff">7B5E47</span><span style="background:#573F2E;color:#fff">573F2E</span><span style="background:#D9A66B;color:#33271E">D9A66B</span><span style="background:#F7F1EA;color:#A2917F">F7F1EA</span><span style="background:#33271E;color:#fff">33271E</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#2B2B2B;--dark:#111111;--accent:#C9A227;--bg:#F6F4EF;--surface:#fff;--ink:#1C1C1C;--muted:#8C8C86;--onp:#fff;--ona:#1C1C1C">
+      <h2>21 · Charcoal &amp; Gold <span class="tag">aesthetic</span></h2>
+      <p class="vibe">Upscale, minimal, premium — charcoal with a gold accent.</p>
+      <div class="sw"><span style="background:#2B2B2B;color:#fff">2B2B2B</span><span style="background:#111111;color:#fff">111111</span><span style="background:#C9A227;color:#1C1C1C">C9A227</span><span style="background:#F6F4EF;color:#8C8C86">F6F4EF</span><span style="background:#1C1C1C;color:#fff">1C1C1C</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#3E7C76;--dark:#2A5853;--accent:#CB7B5B;--bg:#EFF5F3;--surface:#fff;--ink:#20302E;--muted:#7E928E;--onp:#fff;--ona:#fff">
+      <h2>22 · Dusty Teal &amp; Clay <span class="tag">aesthetic</span></h2>
+      <p class="vibe">Calm, modern-editorial — muted teal with a clay accent.</p>
+      <div class="sw"><span style="background:#3E7C76;color:#fff">3E7C76</span><span style="background:#2A5853;color:#fff">2A5853</span><span style="background:#CB7B5B;color:#fff">CB7B5B</span><span style="background:#EFF5F3;color:#7E928E">EFF5F3</span><span style="background:#20302E;color:#fff">20302E</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#FF6B5C;--dark:#D84A3C;--accent:#FFB74D;--bg:#FFF5F1;--surface:#fff;--ink:#3A211C;--muted:#B89189;--onp:#fff;--ona:#3A211C">
+      <h2>23 · Sunset Coral <span class="tag">striking</span></h2>
+      <p class="vibe">Warm, inviting, appetising — coral with a golden amber pop.</p>
+      <div class="sw"><span style="background:#FF6B5C;color:#fff">FF6B5C</span><span style="background:#D84A3C;color:#fff">D84A3C</span><span style="background:#FFB74D;color:#3A211C">FFB74D</span><span style="background:#FFF5F1;color:#B89189">FFF5F1</span><span style="background:#3A211C;color:#fff">3A211C</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#047857;--dark:#045D44;--accent:#A3E635;--bg:#F0FBF4;--surface:#fff;--ink:#14302A;--muted:#6E928A;--onp:#fff;--ona:#14302A">
+      <h2>24 · Emerald Pop <span class="tag">striking</span></h2>
+      <p class="vibe">Deep emerald with electric lime — fresh, bold, modern.</p>
+      <div class="sw"><span style="background:#047857;color:#fff">047857</span><span style="background:#045D44;color:#fff">045D44</span><span style="background:#A3E635;color:#14302A">A3E635</span><span style="background:#F0FBF4;color:#6E928A">F0FBF4</span><span style="background:#14302A;color:#fff">14302A</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#1565C0;--dark:#0D47A1;--accent:#26C6DA;--bg:#EEF5FD;--surface:#fff;--ink:#14253A;--muted:#7E92A8;--onp:#fff;--ona:#14253A">
+      <h2>25 · Ocean Breeze <span class="tag">striking</span></h2>
+      <p class="vibe">Clean, vibrant, trustworthy — ocean blue with aqua.</p>
+      <div class="sw"><span style="background:#1565C0;color:#fff">1565C0</span><span style="background:#0D47A1;color:#fff">0D47A1</span><span style="background:#26C6DA;color:#14253A">26C6DA</span><span style="background:#EEF5FD;color:#7E92A8">EEF5FD</span><span style="background:#14253A;color:#fff">14253A</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+    <section class="pal" style="--primary:#14A89B;--dark:#0E7A70;--accent:#FF7A59;--bg:#EFFAF8;--surface:#fff;--ink:#14302D;--muted:#7E948F;--onp:#fff;--ona:#fff">
+      <h2>26 · Coral &amp; Teal <span class="tag">striking</span></h2>
+      <p class="vibe">Trendy, lively duo — bright teal with a coral accent.</p>
+      <div class="sw"><span style="background:#14A89B;color:#fff">14A89B</span><span style="background:#0E7A70;color:#fff">0E7A70</span><span style="background:#FF7A59;color:#fff">FF7A59</span><span style="background:#EFFAF8;color:#7E948F">EFFAF8</span><span style="background:#14302D;color:#fff">14302D</span></div>
+      <div class="mock"><div class="bar"><span>🧺 Town Basket</span><span>₹0</span></div><div class="card"><div class="pname">Aashirvaad Atta · 5 kg</div><div class="muted">Atta &amp; Flours</div><div class="row"><span class="price">₹265</span><button class="add">Add</button></div></div><button class="cta">Checkout · min ₹499</button></div>
+    </section>
+
+  </div>
+</body>
+</html>

@@ -1,17 +1,32 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError, checkServiceability, getStore, placeOrder } from '@/app/lib/api';
+import {
+  ApiError,
+  checkServiceability,
+  getStore,
+  listAddresses,
+  placeOrder,
+} from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
-import type { PaymentMethod } from '@/app/lib/types';
+import { useAuth } from '@/app/components/AuthProvider';
+import LocationPicker from '@/app/components/LocationPicker';
+import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
 export default function CheckoutPage() {
+  const t = useTranslations('checkout');
+  const tc = useTranslations('common');
   const router = useRouter();
   const { cart, refresh } = useCart();
+  const { user, isAuthenticated } = useAuth();
+  // Auth hydrates from localStorage after mount; wait a tick before gating so a
+  // logged-in customer isn't bounced. Placing an order requires login.
+  const [checked, setChecked] = useState(false);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -19,6 +34,12 @@ export default function CheckoutPage() {
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
+
+  // Logged-in extras: prefill name/phone and offer saved addresses as quick
+  // picks. Guests see none of this and the flow is unchanged.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  // Track whether the name/phone have been touched so we don't clobber typing.
+  const prefilled = useRef(false);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -38,6 +59,16 @@ export default function CheckoutPage() {
     void refresh();
   }, [refresh]);
 
+  // Placing an order requires a logged-in (OTP-verified) account — no guest
+  // checkout. Once hydration settles, send guests to sign in and bring them back
+  // here afterward (their cart merges into the account on login).
+  useEffect(() => setChecked(true), []);
+  useEffect(() => {
+    if (checked && !isAuthenticated) {
+      router.replace('/account/login?next=/checkout');
+    }
+  }, [checked, isAuthenticated, router]);
+
   useEffect(() => {
     getStore()
       .then((s) => setMinOrderValue(s.minOrderValue))
@@ -52,6 +83,40 @@ export default function CheckoutPage() {
       setLng(String(stored.lng));
     }
   }, []);
+
+  // When logged in, prefill name/phone from the profile (once) and load saved
+  // addresses for quick-pick. Guests skip this entirely.
+  useEffect(() => {
+    if (!isAuthenticated || !user || prefilled.current) return;
+    prefilled.current = true;
+    if (user.name) setName(user.name);
+    if (user.phone) setPhone(user.phone);
+  }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSavedAddresses([]);
+      return;
+    }
+    listAddresses()
+      .then((list) => {
+        setSavedAddresses(list);
+        // Pre-pick the default address if the form is still empty.
+        const def = list.find((a) => a.isDefault) ?? list[0];
+        if (def) {
+          setLine((prev) => (prev.trim() ? prev : def.line));
+          setLat((prev) => (prev.trim() ? prev : String(def.lat)));
+          setLng((prev) => (prev.trim() ? prev : String(def.lng)));
+        }
+      })
+      .catch(() => setSavedAddresses([]));
+  }, [isAuthenticated]);
+
+  function pickAddress(a: SavedAddress) {
+    setLine(a.line);
+    setLat(String(a.lat));
+    setLng(String(a.lng));
+  }
 
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal ?? 0;
@@ -89,9 +154,7 @@ export default function CheckoutPage() {
       const svc = await checkServiceability(latNum, lngNum);
       saveServiceability(svc, latNum, lngNum);
       if (!svc.serviceable) {
-        setError(
-          `Sorry, ${svc.storeName} doesn’t deliver to this address yet (outside the delivery range). Please choose a different location.`,
-        );
+        setError(t('notServiceable', { store: svc.storeName }));
         setSubmitting(false);
         return;
       }
@@ -112,33 +175,44 @@ export default function CheckoutPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
-          setError(
-            'Some items just went out of stock. Please review your cart and try again.',
-          );
+          setError(t('errorStock'));
         } else if (err.status === 422 || err.status === 400) {
-          setError(
-            'We couldn’t place this order — your cart may be below the minimum or an item is unavailable. Please review and retry.',
-          );
+          setError(t('errorInvalid'));
         } else {
-          setError('Something went wrong placing your order. Please try again.');
+          setError(t('errorGeneric'));
         }
       } else {
-        setError('Something went wrong placing your order. Please try again.');
+        setError(t('errorGeneric'));
       }
       setSubmitting(false);
     }
+  }
+
+  // Gate: login required to check out (no guest checkout).
+  if (!checked) {
+    return <p className="empty-state">{tc('loading')}</p>;
+  }
+  if (!isAuthenticated) {
+    return (
+      <div className="empty-state">
+        <p>{t('signInPrompt')}</p>
+        <Link href="/account/login?next=/checkout" className="btn">
+          {t('signInContinue')}
+        </Link>
+      </div>
+    );
   }
 
   if (items.length === 0) {
     return (
       <>
         <nav className="breadcrumb">
-          <Link href="/cart">Cart</Link> / <span>Checkout</span>
+          <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
         </nav>
         <div className="empty-state">
-          <p>Your cart is empty.</p>
+          <p>{t('emptyCart')}</p>
           <Link href="/" className="btn">
-            Start shopping
+            {tc('startShopping')}
           </Link>
         </div>
       </>
@@ -148,20 +222,20 @@ export default function CheckoutPage() {
   return (
     <>
       <nav className="breadcrumb">
-        <Link href="/cart">Cart</Link> / <span>Checkout</span>
+        <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
       </nav>
 
       <h1 className="section-title" style={{ marginTop: 0 }}>
-        Checkout
+        {t('title')}
       </h1>
 
       {error && <p className="notice error">{error}</p>}
 
       <form className="checkout-form" onSubmit={onSubmit}>
         <fieldset className="checkout-section" disabled={submitting}>
-          <legend>Delivery details</legend>
+          <legend>{t('deliveryDetails')}</legend>
           <div className="field">
-            <label htmlFor="name">Full name</label>
+            <label htmlFor="name">{t('fullName')}</label>
             <input
               id="name"
               value={name}
@@ -171,61 +245,76 @@ export default function CheckoutPage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="phone">Phone number</label>
+            <label htmlFor="phone">{t('phoneNumber')}</label>
             <input
               id="phone"
               inputMode="numeric"
-              placeholder="10-digit mobile"
+              placeholder={t('phonePlaceholder')}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
               required
             />
             {phone && !phoneValid && (
-              <span className="add-error">Enter a 10-digit phone number.</span>
+              <span className="add-error">{t('phoneError')}</span>
             )}
           </div>
+          {savedAddresses.length > 0 && (
+            <div className="field">
+              <label>{t('savedAddresses')}</label>
+              <div className="saved-address-picks">
+                {savedAddresses.map((a) => {
+                  const active =
+                    line.trim() === a.line.trim() &&
+                    String(a.lat) === lat &&
+                    String(a.lng) === lng;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className={`address-chip ${active ? 'active' : ''}`}
+                      onClick={() => pickAddress(a)}
+                    >
+                      <span className="chip-label">
+                        {a.label || t('addressFallback')}
+                        {a.isDefault ? ` · ${tc('default')}` : ''}
+                      </span>
+                      <span className="chip-line muted">{a.line}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="field">
-            <label htmlFor="line">Delivery address</label>
+            <label htmlFor="line">{t('deliveryAddress')}</label>
             <textarea
               id="line"
               rows={3}
-              placeholder="Flat / house no, building, street, area, landmark"
+              placeholder={t('addressPlaceholder')}
               value={line}
               onChange={(e) => setLine(e.target.value)}
               required
             />
           </div>
-          <div className="checkout-coords">
-            <div className="field">
-              <label htmlFor="lat">Latitude</label>
-              <input
-                id="lat"
-                inputMode="decimal"
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="lng">Longitude</label>
-              <input
-                id="lng"
-                inputMode="decimal"
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                required
-              />
-            </div>
+          <div className="field">
+            <label>{t('deliveryLocation')}</label>
+            <LocationPicker
+              lat={lat}
+              lng={lng}
+              onChange={(la, ln) => {
+                setLat(String(la));
+                setLng(String(ln));
+              }}
+            />
           </div>
           <p className="muted" style={{ fontSize: '0.8rem' }}>
-            Prefilled from your delivery location. We re-check that you’re within
-            range before placing the order.
+            {t('mapHint')}
           </p>
         </fieldset>
 
         <fieldset className="checkout-section" disabled={submitting}>
-          <legend>Payment method</legend>
+          <legend>{t('paymentMethod')}</legend>
           <label className="radio-row">
             <input
               type="radio"
@@ -235,9 +324,9 @@ export default function CheckoutPage() {
               onChange={() => setPaymentMethod('COD')}
             />
             <span>
-              <strong>Cash on Delivery</strong>
+              <strong>{t('cod')}</strong>
               <br />
-              <span className="muted">Pay in cash when your order arrives.</span>
+              <span className="muted">{t('codHint')}</span>
             </span>
           </label>
           <label className="radio-row">
@@ -251,26 +340,29 @@ export default function CheckoutPage() {
             <span>
               <strong>UPI</strong>
               <br />
-              <span className="muted">Pay online via UPI.</span>
+              <span className="muted">{t('upiHint')}</span>
             </span>
           </label>
         </fieldset>
 
         <div className="cart-summary">
           <div className="cart-summary-row">
-            <span>Subtotal</span>
+            <span>{t('subtotal')}</span>
             <strong>{formatRupees(subtotal)}</strong>
           </div>
           {belowMin && minOrderValue != null && (
             <p className="notice warn">
-              Minimum order is {formatRupees(minOrderValue)}. Add{' '}
-              {formatRupees(minOrderValue - subtotal)} more to checkout.
+              {t('minOrderNotice', {
+                min: formatRupees(minOrderValue),
+                needed: formatRupees(minOrderValue - subtotal),
+              })}
             </p>
           )}
           {hasUnavailable && (
             <p className="notice error">
-              Some items are out of stock. Please{' '}
-              <Link href="/cart">edit your cart</Link> first.
+              {t.rich('someOutOfStockEdit', {
+                link: (chunks) => <Link href="/cart">{chunks}</Link>,
+              })}
             </p>
           )}
           <button
@@ -279,8 +371,8 @@ export default function CheckoutPage() {
             disabled={!formValid || submitting}
           >
             {submitting
-              ? 'Placing order…'
-              : `Place order · ${formatRupees(subtotal)}`}
+              ? t('placingOrder')
+              : t('placeOrder', { amount: formatRupees(subtotal) })}
           </button>
         </div>
       </form>

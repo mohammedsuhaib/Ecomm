@@ -94,6 +94,50 @@ class CartServiceImpl implements CartService {
         require(cartId).setCheckedOut(true);
     }
 
+    @Override
+    public CartDto createUserCart(Long userId) {
+        CartEntity cart = carts.saveAndFlush(new CartEntity(UUID.randomUUID(), userId));
+        return toDto(cart);
+    }
+
+    @Override
+    public CartDto merge(UUID guestCartId, Long userId) {
+        CartEntity guest = (guestCartId != null) ? carts.findById(guestCartId).orElse(null) : null;
+        boolean guestUsable = guest != null && !guest.isCheckedOut() && !guest.getItems().isEmpty();
+
+        Optional<CartEntity> activeUserCart = carts.findFirstByUserIdAndCheckedOutFalse(userId);
+
+        // No active user cart: claim the guest cart (if usable), else return/create
+        // the user's empty cart.
+        if (activeUserCart.isEmpty()) {
+            if (guestUsable) {
+                guest.setUserId(userId);
+                guest.touch();
+                return toDto(carts.saveAndFlush(guest));
+            }
+            return createUserCart(userId);
+        }
+
+        // Active user cart exists: fold the guest lines in (sum qty per variant),
+        // check the guest cart out, return the user cart.
+        CartEntity userCart = activeUserCart.get();
+        if (guestUsable && !guest.getId().equals(userCart.getId())) {
+            for (CartItemEntity guestItem : guest.getItems()) {
+                userCart.getItems().stream()
+                        .filter(i -> i.getVariantId().equals(guestItem.getVariantId()))
+                        .findFirst()
+                        .ifPresentOrElse(
+                                existing -> existing.setQty(existing.getQty() + guestItem.getQty()),
+                                () -> userCart.getItems().add(
+                                        new CartItemEntity(userCart, guestItem.getVariantId(), guestItem.getQty())));
+            }
+            guest.setCheckedOut(true);
+            carts.save(guest);
+        }
+        userCart.touch();
+        return toDto(carts.saveAndFlush(userCart));
+    }
+
     private CartEntity require(UUID cartId) {
         return carts.findById(cartId).orElseThrow(() -> new CartNotFoundException(cartId));
     }

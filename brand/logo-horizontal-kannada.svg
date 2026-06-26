@@ -1,0 +1,29 @@
+<svg width="760" height="230" viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ಟೌನ್ ಬಾಸ್ಕೆಟ್ logo">
+  <!-- Horizontal lockup (Kannada): basket mark + Kannada wordmark -->
+  <!-- mark (identical to the English lockup) -->
+  <g transform="translate(20,34)">
+    <!-- sprout -->
+    <path d="M80 36 C 80 14, 96 0, 118 0 C 118 22, 104 36, 80 36 Z" fill="#9CCC65"/>
+    <path d="M80 36 C 80 16, 64 4, 44 6 C 46 28, 60 38, 80 36 Z" fill="#C5E1A5"/>
+    <!-- handle -->
+    <path d="M28 70 C 36 26, 124 26, 132 70" fill="none" stroke="#B45309" stroke-width="11" stroke-linecap="round"/>
+    <!-- rim -->
+    <rect x="14" y="64" width="132" height="18" rx="9" fill="#B45309"/>
+    <!-- body -->
+    <path d="M24 86 L136 86 L122 146 C 120 154, 114 159, 106 159 L54 159 C 46 159, 40 154, 38 146 Z" fill="#F9A825"/>
+    <!-- weave -->
+    <g stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.9">
+      <line x1="58" y1="90" x2="55" y2="156"/>
+      <line x1="80" y1="90" x2="80" y2="157"/>
+      <line x1="102" y1="90" x2="105" y2="156"/>
+      <line x1="32" y1="108" x2="128" y2="108"/>
+      <line x1="36" y1="132" x2="124" y2="132"/>
+    </g>
+  </g>
+  <!-- Kannada wordmark: "Town Basket" transliterated -->
+  <text x="200" y="120" font-family="'Noto Sans Kannada', 'Kannada MN', 'Tunga', 'Nirmala UI', sans-serif" font-size="62">
+    <tspan font-weight="400" fill="#B45309">ಟೌನ್</tspan><tspan font-weight="700" fill="#F9A825"> ಬಾಸ್ಕೆಟ್</tspan>
+  </text>
+  <!-- Kannada tagline: "groceries · to your doorstep" -->
+  <text x="202" y="170" font-family="'Noto Sans Kannada', 'Kannada MN', 'Tunga', 'Nirmala UI', sans-serif" font-size="22" font-weight="500" fill="#AE9A6E">ದಿನಸಿ ಸಾಮಾನು · ಮನೆ ಬಾಗಿಲಿಗೆ</text>
+</svg>

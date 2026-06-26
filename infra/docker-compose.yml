@@ -30,6 +30,21 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/townbasket
       DB_USERNAME: townbasket
       DB_PASSWORD: townbasket
+      # Dev-only JWT signing secret (>= 32 bytes). Override with a real secret in
+      # production. Firebase is left unconfigured locally, so the FAKE phone
+      # verifier is active (accepts dev:<10-digit-phone> tokens).
+      JWT_SECRET: dev-only-insecure-jwt-secret-change-me-32bytes+
+      # TESTING: set STORE_LAT/STORE_LNG (your coordinates) to make the 5 km
+      # serviceability gate measure from you instead of the seeded Mysuru store.
+      # Empty => seeded store. e.g. STORE_LAT=12.97 STORE_LNG=77.59 docker compose up
+      TOWNBASKET_SERVICEABILITY_STORE_LAT: ${STORE_LAT:-}
+      TOWNBASKET_SERVICEABILITY_STORE_LNG: ${STORE_LNG:-}
+      # Auto-transliterate product names to Kannada (name_kn) for the storefront's
+      # Kannada mode. Needs outbound internet (Google Input Tools). A quicker
+      # sweep is used locally so the seeded catalogue fills in soon after startup.
+      CATALOG_TRANSLITERATION_ENABLED: ${CATALOG_TRANSLITERATION_ENABLED:-true}
+      CATALOG_TRANSLITERATION_INTERVAL_MS: ${CATALOG_TRANSLITERATION_INTERVAL_MS:-60000}
+      CATALOG_TRANSLITERATION_BATCH_SIZE: ${CATALOG_TRANSLITERATION_BATCH_SIZE:-50}
     ports:
       - "8080:8080"
     depends_on:
@@ -41,6 +56,10 @@ services:
     build:
       context: ..
       dockerfile: apps/storefront/Dockerfile
+      args:
+        # Google Maps pin-drop. Public, HTTP-referrer-restricted browser key,
+        # inlined by Next at build time. Override via the env var if needed.
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-AIzaSyBT7nnGEdDd9y66tZCF2Ajv9QriIduxpuA}
     environment:
       # Browser-facing URL (used by the visitor's browser on the host).
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1

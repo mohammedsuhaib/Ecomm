@@ -35,6 +35,9 @@ class ProductEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "name_kn")
+    private String nameKn;
+
     @Column(nullable = false, unique = true)
     private String slug;
 
@@ -49,6 +52,9 @@ class ProductEntity {
 
     @Column(nullable = false)
     private boolean available;
+
+    @Column(nullable = false)
+    private boolean featured;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
@@ -74,6 +80,14 @@ class ProductEntity {
         return name;
     }
 
+    String getNameKn() {
+        return nameKn;
+    }
+
+    void setNameKn(String nameKn) {
+        this.nameKn = nameKn;
+    }
+
     String getSlug() {
         return slug;
     }
@@ -92,6 +106,10 @@ class ProductEntity {
 
     boolean isAvailable() {
         return available;
+    }
+
+    boolean isFeatured() {
+        return featured;
     }
 
     Instant getCreatedAt() {

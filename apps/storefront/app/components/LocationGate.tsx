@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useTranslations } from 'next-intl';
 import { checkServiceability } from '@/app/lib/api';
 import { formatDistance } from '@/app/lib/format';
 import {
@@ -16,6 +17,7 @@ import {
   type StoredServiceability,
 } from '@/app/lib/serviceability';
 import type { ServiceabilityResult } from '@/app/lib/types';
+import LocationPicker from './LocationPicker';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
 
@@ -44,23 +46,31 @@ type Phase =
  * the result. If not serviceable it shows a clear blocking screen; otherwise
  * it renders the catalogue (children).
  *
- * Lightweight by design — no paid maps SDK, just the Geolocation API +
- * manual coordinate entry (ARCHITECTURE.md §3.7, §4.1).
+ * Location is set with the shared {@link LocationPicker} — a Google-Maps pin-drop
+ * when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is configured, otherwise a "use my current
+ * location" geolocation fallback (ARCHITECTURE.md §3.7, §4.1).
  */
 export default function LocationGate({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations('location');
   const [phase, setPhase] = useState<Phase>('idle');
   const [result, setResult] = useState<ServiceabilityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [manualLat, setManualLat] = useState('');
-  const [manualLng, setManualLng] = useState('');
+  // The point chosen via the map pin-drop (LocationPicker), as strings.
+  const [pickLat, setPickLat] = useState('');
+  const [pickLng, setPickLng] = useState('');
 
   // Decide initial phase from persisted result (runs client-side only).
   useEffect(() => {
     const stored: StoredServiceability | null = loadServiceability();
+    if (stored) {
+      // Prefill the picker with the last-used point so re-opening shows it.
+      setPickLat(String(stored.lat));
+      setPickLng(String(stored.lng));
+    }
     if (stored?.result.serviceable) {
       setResult(stored.result);
       setPhase('serviceable');
@@ -83,54 +93,28 @@ export default function LocationGate({
       // Let the header indicator refresh.
       window.dispatchEvent(new Event('tb:serviceability-changed'));
     } catch {
-      setError(
-        'We couldn’t check your location right now. Please try again, or enter coordinates manually.',
-      );
+      setError(t('errorCheck'));
       setPhase('prompt');
     }
   }, []);
 
-  const useBrowserLocation = useCallback(() => {
-    setError(null);
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setError(
-        'Your browser doesn’t support location. Please enter coordinates manually.',
-      );
+  // Check the point chosen on the map / via "use my current location".
+  const checkPicked = useCallback(() => {
+    const lat = Number.parseFloat(pickLat);
+    const lng = Number.parseFloat(pickLng);
+    if (
+      Number.isNaN(lat) ||
+      Number.isNaN(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      setError(t('errorSetFirst'));
       return;
     }
-    setPhase('checking');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => runCheck(pos.coords.latitude, pos.coords.longitude),
-      () => {
-        setError(
-          'Location permission was denied. Enter coordinates manually or browse anyway.',
-        );
-        setPhase('prompt');
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
-  }, [runCheck]);
-
-  const submitManual = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      const lat = Number.parseFloat(manualLat);
-      const lng = Number.parseFloat(manualLng);
-      if (
-        Number.isNaN(lat) ||
-        Number.isNaN(lng) ||
-        lat < -90 ||
-        lat > 90 ||
-        lng < -180 ||
-        lng > 180
-      ) {
-        setError('Please enter a valid latitude and longitude.');
-        return;
-      }
-      runCheck(lat, lng);
-    },
-    [manualLat, manualLng, runCheck],
-  );
+    runCheck(lat, lng);
+  }, [pickLat, pickLng, runCheck]);
 
   // "Browse anyway" — let them into the catalogue without a serviceable
   // result. Checkout (M3) will re-verify, per the architecture.
@@ -158,67 +142,38 @@ export default function LocationGate({
       {(phase === 'prompt' || phase === 'checking') && (
         <div className="gate-overlay" role="dialog" aria-modal="true">
           <div className="gate-card">
-            <h2>🧺 Where should we deliver?</h2>
-            <p>
-              We deliver groceries within 5&nbsp;km of our store. Share your
-              location so we can check if you’re in range.
-            </p>
+            <h2>{t('gateTitle')}</h2>
+            <p>{t('gateBody')}</p>
 
             {error && <p className="gate-error">{error}</p>}
+
+            <LocationPicker
+              lat={pickLat}
+              lng={pickLng}
+              onChange={(la, ln) => {
+                setPickLat(String(la));
+                setPickLng(String(ln));
+                setError(null);
+              }}
+            />
 
             <div className="gate-actions">
               <button
                 type="button"
                 className="btn btn-block"
-                onClick={useBrowserLocation}
+                onClick={checkPicked}
                 disabled={phase === 'checking'}
               >
-                {phase === 'checking'
-                  ? 'Checking…'
-                  : '📍 Use my current location'}
+                {phase === 'checking' ? t('checking') : t('check')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline btn-block"
+                onClick={browseAnyway}
+              >
+                {t('browse')}
               </button>
             </div>
-
-            <div className="gate-divider">— or enter coordinates —</div>
-
-            <form onSubmit={submitManual}>
-              <div className="field">
-                <label htmlFor="lat">Latitude</label>
-                <input
-                  id="lat"
-                  inputMode="decimal"
-                  placeholder="e.g. 12.9716"
-                  value={manualLat}
-                  onChange={(e) => setManualLat(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="lng">Longitude</label>
-                <input
-                  id="lng"
-                  inputMode="decimal"
-                  placeholder="e.g. 77.5946"
-                  value={manualLng}
-                  onChange={(e) => setManualLng(e.target.value)}
-                />
-              </div>
-              <div className="gate-actions">
-                <button
-                  type="submit"
-                  className="btn btn-outline btn-block"
-                  disabled={phase === 'checking'}
-                >
-                  Check this location
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-block"
-                  onClick={browseAnyway}
-                >
-                  Just browse for now
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -233,24 +188,27 @@ function NotServiceableScreen({
   result: ServiceabilityResult | null;
   onRetry: () => void;
 }) {
+  const t = useTranslations('location');
   return (
     <div className="gate-overlay" role="dialog" aria-modal="true">
       <div className="gate-card not-serviceable">
         <div className="big-emoji" aria-hidden>
           🛵💨
         </div>
-        <h2>Sorry, we don’t deliver to your location yet</h2>
+        <h2>{t('nsTitle')}</h2>
         <p>
-          We currently deliver within 5&nbsp;km of our store
-          {result ? ` (${result.storeName})` : ''}.
+          {result
+            ? t('nsRangeWithStore', { store: result.storeName })
+            : t('nsRangeNoStore')}
           {result &&
-            ` You’re about ${formatDistance(result.distanceMeters)} away, just outside our ${formatDistance(
-              result.radiusMeters,
-            )} delivery range.`}
+            t('nsDistance', {
+              distance: formatDistance(result.distanceMeters),
+              radius: formatDistance(result.radiusMeters),
+            })}
         </p>
         <div className="gate-actions">
           <button type="button" className="btn btn-block" onClick={onRetry}>
-            Try a different location
+            {t('nsRetry')}
           </button>
         </div>
       </div>

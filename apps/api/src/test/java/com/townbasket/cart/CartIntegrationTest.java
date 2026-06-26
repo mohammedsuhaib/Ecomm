@@ -26,7 +26,7 @@ class CartIntegrationTest extends AbstractIntegrationTest {
     CatalogService catalogService;
 
     private ProductVariantDto anyVariant() {
-        ProductDto product = catalogService.listProducts(null, PageRequest.of(0, 1)).content().get(0);
+        ProductDto product = catalogService.listProducts(null, false, null, PageRequest.of(0, 1)).content().get(0);
         return product.variants().get(0);
     }
 

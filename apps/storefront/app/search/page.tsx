@@ -1,32 +1,42 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { searchProducts } from '@/app/lib/api';
 import ProductCard from '@/app/components/ProductCard';
+import SortControl from '@/app/components/SortControl';
+import { parseSort } from '@/app/lib/sort';
 
 // Search results depend on the query; render dynamically (no static cache).
 export const dynamic = 'force-dynamic';
 
 interface Params {
-  searchParams: { q?: string; page?: string };
+  searchParams: { q?: string; page?: string; sort?: string };
 }
 
-export function generateMetadata({ searchParams }: Params) {
+export async function generateMetadata({ searchParams }: Params) {
+  const t = await getTranslations('metadata');
   const q = (searchParams.q ?? '').trim();
-  return { title: q ? `“${q}” — Town Basket` : 'Search — Town Basket' };
+  return { title: q ? t('searchTitle', { q }) : t('searchFallback') };
 }
 
 export default async function SearchPage({ searchParams }: Params) {
   const q = (searchParams.q ?? '').trim();
   const page = Math.max(0, Number.parseInt(searchParams.page ?? '0', 10) || 0);
+  const sort = parseSort(searchParams.sort);
+  const sortQs = sort ? `&sort=${sort}` : '';
+  const t = await getTranslations('search');
+  const tc = await getTranslations('common');
 
   if (!q) {
     return (
       <p className="empty-state">
-        Type a product name in the search bar above to find groceries.
+        {t('prompt')}
       </p>
     );
   }
 
-  const resultPage = await searchProducts(q, page, 24).catch(() => null);
+  const resultPage = await searchProducts(q, page, 24, { sort }).catch(
+    () => null,
+  );
   const products = resultPage?.content ?? [];
   const total = resultPage?.totalElements ?? products.length;
   const size = resultPage?.size ?? 24;
@@ -34,12 +44,18 @@ export default async function SearchPage({ searchParams }: Params) {
 
   return (
     <>
-      <h1 className="section-title">
-        Results for “{q}”{' '}
-        <span className="muted" style={{ fontSize: '0.9rem', fontWeight: 400 }}>
-          {resultPage ? `(${total})` : ''}
-        </span>
-      </h1>
+      <div className="listing-head">
+        <h1 className="section-title">
+          {t('resultsFor', { q })}{' '}
+          <span
+            className="muted"
+            style={{ fontSize: '0.9rem', fontWeight: 400 }}
+          >
+            {resultPage ? t('resultsCount', { count: total }) : ''}
+          </span>
+        </h1>
+        <SortControl basePath="/search" sort={sort} />
+      </div>
 
       {products.length > 0 ? (
         <>
@@ -59,9 +75,9 @@ export default async function SearchPage({ searchParams }: Params) {
             {page > 0 ? (
               <Link
                 className="btn btn-outline"
-                href={`/search?q=${encodeURIComponent(q)}&page=${page - 1}`}
+                href={`/search?q=${encodeURIComponent(q)}&page=${page - 1}${sortQs}`}
               >
-                ← Previous
+                {tc('previous')}
               </Link>
             ) : (
               <span />
@@ -69,16 +85,16 @@ export default async function SearchPage({ searchParams }: Params) {
             {hasNext && (
               <Link
                 className="btn btn-outline"
-                href={`/search?q=${encodeURIComponent(q)}&page=${page + 1}`}
+                href={`/search?q=${encodeURIComponent(q)}&page=${page + 1}${sortQs}`}
               >
-                Next →
+                {tc('next')}
               </Link>
             )}
           </div>
         </>
       ) : (
         <p className="empty-state">
-          No products matched “{q}”. Try a different search.
+          {t('noMatch', { q })}
         </p>
       )}
     </>

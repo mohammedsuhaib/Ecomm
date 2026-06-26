@@ -1,13 +1,14 @@
 /* Town Basket — shared stylesheet (mobile-first) */
 
 :root {
-  --green: #2e7d32;
-  --green-dark: #1b5e20;
-  --green-light: #e8f5e9;
-  --text: #1f2a24;
-  --muted: #5a6b62;
-  --bg: #ffffff;
-  --border: #e0e6e2;
+  --green: #f9a825;        /* marigold — primary brand */
+  --green-dark: #b45309;   /* deep amber — text, links, hover */
+  --green-light: #fff3d6;  /* light marigold tint */
+  --on-primary: #3a2a14;   /* dark ink for text on the light primary */
+  --text: #3a2a14;
+  --muted: #8a7a55;
+  --bg: #fff8ec;
+  --border: #ece0c8;
   --max: 760px;
 }
 
@@ -40,7 +41,7 @@ a:hover {
 /* Header */
 .site-header {
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .site-header .wrap {
@@ -57,7 +58,7 @@ a:hover {
   gap: 0.6rem;
   font-weight: 700;
   font-size: 1.25rem;
-  color: #fff;
+  color: var(--on-primary);
   text-decoration: none;
 }
 
@@ -74,7 +75,7 @@ a:hover {
 }
 
 .site-header nav a {
-  color: #eafaf0;
+  color: var(--green-dark);
   text-decoration: none;
   font-size: 0.95rem;
   margin-left: 0.9rem;
@@ -82,7 +83,7 @@ a:hover {
 
 .site-header nav a:hover {
   text-decoration: underline;
-  color: #fff;
+  color: var(--on-primary);
 }
 
 /* Layout */
@@ -107,7 +108,7 @@ main.wrap {
 .hero .badge {
   display: inline-block;
   background: var(--green);
-  color: #fff;
+  color: var(--on-primary);
   font-size: 0.8rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;

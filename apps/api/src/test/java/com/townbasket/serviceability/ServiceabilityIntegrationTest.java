@@ -26,7 +26,7 @@ class ServiceabilityIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(store.name()).isEqualTo("Town Basket");
         assertThat(store.deliveryRadiusMeters()).isEqualTo(5000);
-        assertThat(store.minOrderValue()).isEqualByComparingTo("499");
+        assertThat(store.minOrderValue()).isEqualByComparingTo("299");
         assertThat(store.openingTime().toString()).isEqualTo("08:00");
         assertThat(store.closingTime().toString()).isEqualTo("21:00");
     }

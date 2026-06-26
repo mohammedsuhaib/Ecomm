@@ -9,7 +9,7 @@ This site exists to:
 
 1. Show a clean **"Coming Soon"** landing page.
 2. Host the **legal / policy pages** that the payment provider
-   (**Paytm Payment Gateway**) requires to be live before it will approve the
+   (**Razorpay**) requires to be live before it will approve the
    merchant's KYC.
 
 This unblocks payment onboarding. It will be **replaced by the real Next.js

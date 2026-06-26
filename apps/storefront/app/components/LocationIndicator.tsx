@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { loadServiceability } from '@/app/lib/serviceability';
 import { useLocationGate } from './LocationGate';
 
@@ -10,24 +11,25 @@ import { useLocationGate } from './LocationGate';
  */
 export default function LocationIndicator() {
   const { reopen } = useLocationGate();
-  const [label, setLabel] = useState('Set location');
+  const t = useTranslations('location');
+  const [label, setLabel] = useState(t('setLocation'));
 
   useEffect(() => {
     const stored = loadServiceability();
     if (stored?.result.serviceable) {
-      setLabel(`Delivering near you`);
+      setLabel(t('delivering'));
     } else if (stored && !stored.result.serviceable) {
-      setLabel('Out of range');
+      setLabel(t('outOfRange'));
     }
     // Re-sync when the gate updates storage.
     const onStorage = () => {
       const s = loadServiceability();
       setLabel(
         s?.result.serviceable
-          ? 'Delivering near you'
+          ? t('delivering')
           : s
-            ? 'Out of range'
-            : 'Set location',
+            ? t('outOfRange')
+            : t('setLocation'),
       );
     };
     window.addEventListener('tb:serviceability-changed', onStorage);
@@ -43,7 +45,7 @@ export default function LocationIndicator() {
       type="button"
       className="location-pill"
       onClick={reopen}
-      title="Change delivery location"
+      title={t('changeTitle')}
     >
       <span aria-hidden>📍</span>
       <span>{label}</span>

@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Town Basket app icon">
+  <!-- App icon: fresh-green rounded tile with a white shopping basket + sprout -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBB829"/>
+      <stop offset="1" stop-color="#F08C00"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tile)"/>
+
+  <!-- sprout / fresh leaf rising from the basket -->
+  <path d="M256 196 C 256 156, 284 132, 322 132 C 322 172, 296 196, 256 196 Z" fill="#9CCC65"/>
+  <path d="M256 196 C 256 160, 232 138, 198 140 C 200 178, 224 198, 256 196 Z" fill="#C5E1A5"/>
+  <rect x="251" y="190" width="10" height="40" rx="5" fill="#9CCC65"/>
+
+  <!-- handle -->
+  <path d="M176 250 C 188 178, 324 178, 336 250" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round"/>
+  <!-- rim -->
+  <rect x="138" y="240" width="236" height="30" rx="15" fill="#FFFFFF"/>
+  <!-- body -->
+  <path d="M160 276 L352 276 L328 374 C 325 388, 314 396, 300 396 L212 396 C 198 396, 187 388, 184 374 Z" fill="#FFFFFF"/>
+  <!-- weave gaps (tile-coloured lines over the white body) -->
+  <g stroke="#B45309" stroke-width="9" stroke-linecap="round">
+    <line x1="216" y1="282" x2="210" y2="390"/>
+    <line x1="256" y1="282" x2="256" y2="392"/>
+    <line x1="296" y1="282" x2="302" y2="390"/>
+    <line x1="170" y1="312" x2="342" y2="312"/>
+    <line x1="178" y1="350" x2="334" y2="350"/>
+  </g>
+</svg>

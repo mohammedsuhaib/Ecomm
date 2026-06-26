@@ -59,3 +59,27 @@ export interface TransitionRequest {
   deliveryOtp?: string;
   reason?: string;
 }
+
+// ---- M4 Identity (auth) — see M4_CONTRACT.md §7 ----------------------------
+
+/** The authenticated user/staff record (contract §7). */
+export interface UserDto {
+  id: number;
+  role: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/** Returned by POST /auth/staff/login (and /auth/phone/verify). */
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: UserDto;
+}
+
+/** Returned by POST /auth/refresh — a rotated access+refresh pair (no user). */
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}

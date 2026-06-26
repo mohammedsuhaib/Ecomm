@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Town Basket shopfront icon">
+  <!-- Concept: neighbourhood store — pitched roof over a basket-weave body. -->
+  <defs>
+    <linearGradient id="tiles" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBB829"/><stop offset="1" stop-color="#F08C00"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tiles)"/>
+  <!-- leaf on the roof apex -->
+  <path d="M256 150 C 256 124, 276 108, 300 110 C 300 136, 280 152, 256 150 Z" fill="#9CCC65"/>
+  <!-- roof -->
+  <path d="M140 256 L256 158 L372 256 Z" fill="#FFFFFF"/>
+  <!-- store body (basket) -->
+  <path d="M168 256 L344 256 L344 388 C 344 396, 338 402, 330 402 L182 402 C 174 402, 168 396, 168 388 Z" fill="#FFFFFF"/>
+  <!-- weave on the body (tile-coloured gaps) -->
+  <g stroke="#B45309" stroke-width="9" stroke-linecap="round">
+    <line x1="212" y1="262" x2="212" y2="398"/>
+    <line x1="256" y1="262" x2="256" y2="402"/>
+    <line x1="300" y1="262" x2="300" y2="398"/>
+    <line x1="176" y1="300" x2="336" y2="300"/>
+    <line x1="176" y1="344" x2="336" y2="344"/>
+  </g>
+  <!-- doorway accent -->
+  <rect x="236" y="352" width="40" height="50" rx="6" fill="#F9A825"/>
+</svg>

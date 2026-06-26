@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ApiError } from '@/app/lib/api';
 import type { ProductVariant } from '@/app/lib/types';
 import { useCart } from './CartProvider';
@@ -18,6 +19,8 @@ export default function AddToCartButton({
   variant: ProductVariant;
   productName: string;
 }) {
+  const t = useTranslations('addToCart');
+  const tc = useTranslations('common');
   const { addItem, decrementVariant, qtyOf } = useCart();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export default function AddToCartButton({
   if (!variant.available) {
     return (
       <button type="button" className="btn" disabled>
-        Out of stock
+        {t('outOfStock')}
       </button>
     );
   }
@@ -39,9 +42,9 @@ export default function AddToCartButton({
       await action();
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        setError('Not enough stock');
+        setError(t('notEnoughStock'));
       } else {
-        setError('Could not update cart');
+        setError(t('couldNotUpdate'));
       }
     } finally {
       setBusy(false);
@@ -56,9 +59,9 @@ export default function AddToCartButton({
           className="btn"
           disabled={busy}
           onClick={() => run(() => addItem(variant.id, 1))}
-          aria-label={`Add ${productName} (${variant.label}) to cart`}
+          aria-label={t('ariaAdd', { product: productName, label: variant.label })}
         >
-          {busy ? '…' : 'Add'}
+          {busy ? '…' : t('add')}
         </button>
         {error && <span className="add-error">{error}</span>}
       </div>
@@ -69,13 +72,13 @@ export default function AddToCartButton({
     <div className="add-to-cart">
       <div
         className="qty-stepper"
-        aria-label={`Quantity of ${productName} (${variant.label})`}
+        aria-label={t('ariaQuantity', { product: productName, label: variant.label })}
       >
         <button
           type="button"
           disabled={busy}
           onClick={() => run(() => decrementVariant(variant.id))}
-          aria-label="Decrease quantity"
+          aria-label={tc('decrease')}
         >
           −
         </button>
@@ -86,7 +89,7 @@ export default function AddToCartButton({
           type="button"
           disabled={busy}
           onClick={() => run(() => addItem(variant.id, 1))}
-          aria-label="Increase quantity"
+          aria-label={tc('increase')}
         >
           +
         </button>

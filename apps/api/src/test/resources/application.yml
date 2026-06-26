@@ -1,6 +1,10 @@
 spring:
   # Datasource is supplied at runtime by @ServiceConnection / Testcontainers
   # (see AbstractIntegrationTest). ModularityTests itself needs no DB.
+  autoconfigure:
+    # See main application.yml: the default in-memory UserDetailsService is unused
+    # (JWT filter authenticates); exclude it so it isn't auto-configured in tests.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,3 +24,12 @@ spring:
       - classpath:db/migration/payments
       - classpath:db/migration/serviceability
       - classpath:db/migration/notifications
+
+# Identity / security for tests. Fixed dev secret (>= 32 bytes); Firebase
+# project-id is left unset so the FAKE phone verifier (dev:<phone>) is active.
+townbasket:
+  security:
+    jwt:
+      secret: test-only-jwt-secret-which-is-long-enough-32+
+      access-ttl: PT15M
+      refresh-ttl: P30D

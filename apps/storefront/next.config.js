@@ -1,4 +1,9 @@
 const withSerwistInit = require('@serwist/next').default;
+const createNextIntlPlugin = require('next-intl/plugin');
+
+// next-intl: resolves the request locale + messages from i18n/request.ts.
+// Cookie-based (no URL routing) — see i18n/config.ts.
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
 // Serwist (Workbox) service worker: compiles app/sw.ts -> public/sw.js and
 // registers it. Disabled in dev to avoid caching surprises while iterating.
@@ -25,4 +30,4 @@ const nextConfig = {
   // next/image + configure remotePatterns when optimising images.
 };
 
-module.exports = withSerwist(nextConfig);
+module.exports = withNextIntl(withSerwist(nextConfig));

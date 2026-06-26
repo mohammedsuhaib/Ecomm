@@ -1,5 +1,6 @@
 package com.townbasket.orders;
 
+import com.townbasket.cart.CartDto;
 import com.townbasket.shared.PagedResponse;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -22,11 +23,27 @@ public interface OrderService {
      * stock, snapshots prices (and COGS), charges payment, persists the order,
      * marks the cart checked out, and publishes {@code OrderPlaced} +
      * {@code OrderConfirmed}.
+     *
+     * <p>{@code userId} ties the order to a logged-in customer when a valid
+     * Bearer token was present; it is {@code null} for a guest order (the
+     * endpoint is PUBLIC).
      */
-    OrderDto placeOrder(PlaceOrderRequest request, String idempotencyKey);
+    OrderDto placeOrder(PlaceOrderRequest request, String idempotencyKey, Long userId);
 
     /** Fetch an order by id (confirmation + tracking). */
     Optional<OrderDto> getOrder(Long orderId);
+
+    /** A customer's own orders, newest first (AUTHENTICATED). */
+    PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable);
+
+    /**
+     * Reorder: create a NEW cart owned by the user, populated from the order's
+     * currently catalog-available lines (unavailable lines are skipped). Returns
+     * the new cart.
+     *
+     * @throws com.townbasket.shared.ResourceNotFoundException if the order is missing or not owned by the user
+     */
+    CartDto reorder(Long orderId, Long userId);
 
     /** Admin: list orders newest-first, optionally filtered by status. */
     PagedResponse<OrderDto> listOrders(String status, Pageable pageable);

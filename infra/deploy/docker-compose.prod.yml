@@ -28,6 +28,15 @@ services:
       DB_URL: ${DB_URL}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
+      # App-issued JWT signing key — MUST be a real, random, >=32-byte secret
+      # (the in-repo dev default is insecure and only for local dev).
+      JWT_SECRET: ${JWT_SECRET}
+      # Set to your Firebase projectId to enable REAL phone-OTP (disables the
+      # offline dev fake verifier). A present-but-BLANK value makes the API refuse
+      # to start (fail-safe — verified: both verifiers match -> no unique bean ->
+      # boot fails; it is NOT a silent downgrade to the fake). So set a real
+      # projectId in prod; to intentionally run the offline fake, remove this line.
+      TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
     expose:
       - "8080"
 
@@ -36,6 +45,9 @@ services:
     restart: unless-stopped
     environment:
       NEXT_PUBLIC_API_BASE_URL: https://api.town-basket.com/api/v1
+      # NOTE: NEXT_PUBLIC_FIREBASE_* are inlined by Next.js at IMAGE BUILD time,
+      # NOT here — pass them as build args when CI builds the storefront image
+      # (see .env.example + apps/storefront/Dockerfile). Runtime values are ignored.
     expose:
       - "3000"
 
