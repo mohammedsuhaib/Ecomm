@@ -88,13 +88,16 @@ class IdentityIntegrationTest extends AbstractIntegrationTest {
         assertThat(rotated.accessToken()).isNotBlank();
         assertThat(rotated.refreshToken()).isNotEqualTo(firstRefresh);
 
-        // The used refresh token is revoked -> reuse rejected.
-        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(firstRefresh)))
-                .isInstanceOf(InvalidCredentialsException.class);
-
-        // The new refresh token works.
+        // The freshly-minted token rotates again (the happy rotation chain). This is
+        // checked BEFORE any reuse attempt because re-presenting a rotated token now
+        // triggers reuse-detection, which revokes the whole family (asserted in
+        // reuseOfRevokedTokenRevokesWholeFamily).
         TokenPair rotatedAgain = authService.refresh(new RefreshRequest(rotated.refreshToken()));
         assertThat(rotatedAgain.refreshToken()).isNotBlank();
+
+        // Re-presenting the FIRST (already-rotated) token is rejected.
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(firstRefresh)))
+                .isInstanceOf(InvalidCredentialsException.class);
     }
 
     @Test
