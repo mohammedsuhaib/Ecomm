@@ -42,7 +42,11 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
   const apply = useCallback((next: Order) => setCurrent(next), []);
 
   const inFlight = !TERMINAL.has(current.status);
+  // The SSE stream is keyed by the numeric order id; the order is re-fetched by
+  // its unguessable tracking token (the /orders/track/{token} endpoint — the
+  // numeric id is NOT a valid token and would 404).
   const orderId = current.id;
+  const trackingToken = current.trackingToken;
 
   // Subscribe to live updates ONLY while the order is in flight.
   // We re-run this effect when the order leaves the in-flight set so the
@@ -56,7 +60,7 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
     let es: EventSource | null = null;
 
     const refetch = () => {
-      getOrder(orderId)
+      getOrder(trackingToken)
         .then(apply)
         .catch(() => {
           /* transient; keep trying */
@@ -82,7 +86,7 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
       if (es) es.close();
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [inFlight, orderId, apply]);
+  }, [inFlight, orderId, trackingToken, apply]);
 
   const cancelled = current.status === 'CANCELLED';
   const delivered = current.status === 'DELIVERED';

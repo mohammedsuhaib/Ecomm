@@ -191,4 +191,39 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
 
         catalogService.deleteCategory(cat.id());
     }
+
+    @Test
+    void rejectsMrpBelowSellingPrice() {
+        CategoryDto cat = catalogService.createCategory(
+                new CreateCategoryRequest("Pricing Cat", null, null, null));
+
+        // MRP (40) below selling price (50) is a data error (negative discount /
+        // broken strikethrough) -> 422 on create.
+        assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
+                "Mispriced", null, null, cat.id(), null, null, null, null, null,
+                List.of(new CreateVariantRequest("1 kg",
+                        new BigDecimal("50.00"), new BigDecimal("30.00"),
+                        new BigDecimal("40.00"), null, null)))))
+                .isInstanceOf(BusinessRuleException.class);
+
+        // MRP == selling price is allowed (no discount shown).
+        AdminProductDto ok = catalogService.createProduct(new CreateProductRequest(
+                "Priced Right", null, null, cat.id(), null, null, null, null, null,
+                List.of(new CreateVariantRequest("1 kg",
+                        new BigDecimal("50.00"), new BigDecimal("30.00"),
+                        new BigDecimal("50.00"), null, null))));
+        assertThat(ok.variants()).hasSize(1);
+
+        // ...and updateVariant enforces the same rule (MRP 10 < selling 50) -> 422.
+        Long variantId = ok.variants().get(0).id();
+        assertThatThrownBy(() -> catalogService.updateVariant(ok.id(), variantId,
+                new UpdateVariantRequest("1 kg",
+                        new BigDecimal("50.00"), new BigDecimal("30.00"),
+                        new BigDecimal("10.00"), null, null)))
+                .isInstanceOf(BusinessRuleException.class);
+
+        // cleanup
+        catalogService.deleteProduct(ok.id());
+        catalogService.deleteCategory(cat.id());
+    }
 }

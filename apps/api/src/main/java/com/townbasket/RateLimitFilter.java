@@ -71,7 +71,7 @@ class RateLimitFilter extends OncePerRequestFilter {
         long windowMillis = properties.getWindow().toMillis();
         evictStale(now, windowMillis);
 
-        String key = clientIp(request) + '|' + group;
+        String key = clientIp(request) + '|' + group;  // bucket per client + endpoint
         Window window = buckets.compute(key, (k, existing) -> {
             if (existing == null || now - existing.startMillis >= windowMillis) {
                 return new Window(now);
@@ -107,24 +107,25 @@ class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * First hop of {@code X-Forwarded-For} (behind Caddy in prod), else the socket address.
+     * Client IP for bucketing. Secure by default: the socket peer address
+     * ({@code getRemoteAddr()}), which the client cannot forge.
      *
-     * <p>OPS NOTE (security): this trusts the inbound {@code X-Forwarded-For}. A directly
-     * reachable client could forge/rotate it to get a fresh bucket per request and bypass
-     * the per-IP limit, so the limiter is only effective if the fronting proxy OVERWRITES
-     * it with the real peer. In production the API MUST sit behind Caddy with
-     * {@code trusted_proxies} configured so any client-supplied {@code X-Forwarded-For} is
-     * stripped/replaced (Caddy's {@code reverse_proxy} sets it to the immediate client).
-     * If the API is ever exposed directly, switch this to {@code getRemoteAddr()} only.
-     * (Tracked for the M6 prod deploy / Caddy config.)
+     * <p>Only when {@code townbasket.security.ratelimit.trust-forwarded-for=true}
+     * (set in prod, where the API sits behind a trusted reverse proxy that
+     * OVERWRITES the header with the real peer) do we honour the first hop of
+     * {@code X-Forwarded-For}. Trusting it unconditionally would let a
+     * directly-reachable client forge/rotate the header to get a fresh bucket per
+     * request and bypass the per-IP limit entirely.
      */
-    private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            int comma = forwarded.indexOf(',');
-            String first = (comma >= 0 ? forwarded.substring(0, comma) : forwarded).trim();
-            if (!first.isEmpty()) {
-                return first;
+    private String clientIp(HttpServletRequest request) {
+        if (properties.isTrustForwardedFor()) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                int comma = forwarded.indexOf(',');
+                String first = (comma >= 0 ? forwarded.substring(0, comma) : forwarded).trim();
+                if (!first.isEmpty()) {
+                    return first;
+                }
             }
         }
         return request.getRemoteAddr();

@@ -53,8 +53,12 @@ export default function ProductsPanel({
 
   // Debounce the search box so each keystroke doesn't fire a request.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Monotonic request id: results from a superseded (slower) request are dropped
+  // so a stale response can't overwrite a newer one (e.g. "ab" landing after "abc").
+  const reqSeq = useRef(0);
 
   const load = useCallback(async () => {
+    const seq = ++reqSeq.current;
     setLoading(true);
     setError(null);
     try {
@@ -64,16 +68,22 @@ export default function ProductsPanel({
         page,
         size: PAGE_SIZE,
       });
+      if (seq !== reqSeq.current) return; // a newer request superseded this one
       setProducts(data.content);
       setTotal(data.totalElements);
+      // Deleting the last row on a non-first page strands an empty page — step back.
+      if (data.content.length === 0 && page > 0) {
+        setPage((p) => Math.max(0, p - 1));
+      }
     } catch (err) {
+      if (seq !== reqSeq.current) return;
       if (err instanceof AuthRequiredError) {
         onAuthExpired();
       } else {
         setError('Could not load products. Check the connection and retry.');
       }
     } finally {
-      setLoading(false);
+      if (seq === reqSeq.current) setLoading(false);
     }
   }, [categoryId, q, page, onAuthExpired]);
 

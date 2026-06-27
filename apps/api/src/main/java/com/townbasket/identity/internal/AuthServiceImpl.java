@@ -41,6 +41,7 @@ class AuthServiceImpl implements AuthService {
     private final UserRepository users;
     private final AddressRepository addresses;
     private final RefreshTokenRepository refreshTokens;
+    private final RefreshTokenRevoker refreshTokenRevoker;
     private final JwtTokenService tokens;
     private final PhoneTokenVerifier phoneVerifier;
     private final PasswordEncoder passwordEncoder;
@@ -48,12 +49,14 @@ class AuthServiceImpl implements AuthService {
     AuthServiceImpl(UserRepository users,
                     AddressRepository addresses,
                     RefreshTokenRepository refreshTokens,
+                    RefreshTokenRevoker refreshTokenRevoker,
                     JwtTokenService tokens,
                     PhoneTokenVerifier phoneVerifier,
                     PasswordEncoder passwordEncoder) {
         this.users = users;
         this.addresses = addresses;
         this.refreshTokens = refreshTokens;
+        this.refreshTokenRevoker = refreshTokenRevoker;
         this.tokens = tokens;
         this.phoneVerifier = phoneVerifier;
         this.passwordEncoder = passwordEncoder;
@@ -106,11 +109,26 @@ class AuthServiceImpl implements AuthService {
         String hash = tokens.hashRefreshToken(request.refreshToken());
         RefreshTokenEntity stored = refreshTokens.findByTokenHash(hash)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid refresh token"));
+
+        // Reuse detection: an already-revoked (rotated) token presented again is the
+        // classic signal of a stolen/replayed token. Defensively revoke the whole
+        // family (in its own committed transaction) and reject. Distinguished from a
+        // merely expired token, which is just rejected.
+        if (stored.isRevoked()) {
+            refreshTokenRevoker.revokeFamily(stored.getUserId());
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
         if (!stored.isUsable(Instant.now())) {
             throw new InvalidCredentialsException("Invalid refresh token");
         }
         UserEntity user = users.findById(stored.getUserId())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid refresh token"));
+        // A deactivated/suspended account must not be able to mint new access tokens
+        // by riding its still-valid refresh token (staffLogin already blocks this on
+        // the password path).
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
 
         // Rotate: revoke the presented token, mint a fresh pair.
         stored.revoke();

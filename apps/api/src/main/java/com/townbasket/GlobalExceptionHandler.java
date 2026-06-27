@@ -6,6 +6,7 @@ import com.townbasket.shared.ApiError;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -72,6 +73,19 @@ class GlobalExceptionHandler {
     ResponseEntity<ApiError> handleConflict(IllegalStateException ex, HttpServletRequest request) {
         // e.g. no active store configured for a serviceability check.
         return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
+    /**
+     * A database constraint rejected the write (e.g. a unique-index race: two
+     * requests ordering the same cart, or two products claiming the same slug)
+     * -> 409. We never leak the underlying SQL/constraint text; the generic
+     * message tells the client the state changed and a retry/refresh is in order.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT,
+                "This action conflicts with the current state. Please refresh and try again.",
+                request);
     }
 
     private static ResponseEntity<ApiError> build(HttpStatus status, String message, HttpServletRequest request) {
