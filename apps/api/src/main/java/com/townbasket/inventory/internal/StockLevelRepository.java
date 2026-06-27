@@ -48,4 +48,16 @@ interface StockLevelRepository extends JpaRepository<StockLevelEntity, Long> {
              WHERE s.variantId = :variantId
             """)
     int release(@Param("variantId") Long variantId, @Param("qty") int qty);
+
+    /** Admin physical-count correction: set on_hand to an absolute value. */
+    @Modifying
+    @Query("""
+            UPDATE StockLevelEntity s
+               SET s.onHand = :newOnHand
+             WHERE s.storeId = :storeId
+               AND s.variantId = :variantId
+            """)
+    int setOnHand(@Param("storeId") Long storeId,
+                  @Param("variantId") Long variantId,
+                  @Param("newOnHand") int newOnHand);
 }

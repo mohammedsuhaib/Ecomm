@@ -57,6 +57,10 @@ class StockLevelEntity {
         return onHand;
     }
 
+    void setOnHand(int onHand) {
+        this.onHand = onHand;
+    }
+
     int getReserved() {
         return reserved;
     }
