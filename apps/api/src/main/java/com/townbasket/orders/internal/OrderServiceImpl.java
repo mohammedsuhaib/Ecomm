@@ -17,6 +17,7 @@ import com.townbasket.orders.TransitionRequest;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.payments.PaymentResult;
 import com.townbasket.payments.PaymentService;
+import com.townbasket.payments.PaymentStatus;
 import com.townbasket.serviceability.ServiceabilityCheckDto;
 import com.townbasket.serviceability.ServiceabilityService;
 import com.townbasket.serviceability.StoreDto;
@@ -119,7 +120,9 @@ class OrderServiceImpl implements OrderService {
         // Reject lines a store admin has marked unavailable since they were added.
         List<String> unavailable = cart.items().stream()
                 .filter(i -> !i.available())
-                .map(CartItemDto::productName)
+                // productName is null when the variant has been deleted from the
+                // catalog since it was added — fall back to a neutral label.
+                .map(i -> i.productName() != null ? i.productName() : "an item")
                 .collect(Collectors.toList());
         if (!unavailable.isEmpty()) {
             throw new BusinessRuleException(
@@ -176,6 +179,16 @@ class OrderServiceImpl implements OrderService {
 
         // Charge payment. COD -> COD_PENDING; UPI (FakeProvider) -> PAID.
         PaymentResult payment = paymentService.charge(saved.getId(), method, saved.getTotal());
+
+        // A declined online payment must NOT leave a placed order holding a stock
+        // reservation forever. Throwing here rolls back the whole checkout (the
+        // order row AND the conditional stock reservation, both in this
+        // transaction) and leaves the cart un-checked-out, so the customer can
+        // retry or switch to COD on the same cart.
+        if (payment.status() == PaymentStatus.FAILED) {
+            throw new BusinessRuleException(
+                    "Payment could not be completed. Please try again or choose a different payment method.");
+        }
         saved.setPaymentStatus(payment.status().name());
 
         // Both COD and a successful UPI charge confirm the order at placement.

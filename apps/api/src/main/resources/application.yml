@@ -103,6 +103,12 @@ townbasket:
       # refresh; logout exempt) — in-memory fixed window, no Redis. Defaults below.
       capacity: 10        # max requests per IP per endpoint group per window
       window: PT60S       # the fixed window length (60 seconds)
+      # Derive the client IP from X-Forwarded-For. SECURE DEFAULT: false (use the
+      # socket peer, which can't be forged). Set to true ONLY in production, where
+      # the API sits behind a trusted reverse proxy (Caddy) that OVERWRITES the
+      # header with the real peer; trusting it when directly reachable lets a
+      # client spoof the header to bypass the per-IP limit.
+      trust-forwarded-for: ${TOWNBASKET_RATELIMIT_TRUST_FORWARDED_FOR:false}
   identity:
     firebase:
       # project-id is intentionally LEFT UNSET here. While unset, the FAKE phone

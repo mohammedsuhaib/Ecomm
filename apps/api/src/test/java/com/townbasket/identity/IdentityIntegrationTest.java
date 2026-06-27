@@ -7,6 +7,7 @@ import com.townbasket.AbstractIntegrationTest;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Service-level integration test for the identity module against a real Postgres
@@ -20,6 +21,8 @@ class IdentityIntegrationTest extends AbstractIntegrationTest {
     AuthService authService;
     @Autowired
     TokenService tokenService;
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @Test
     void phoneVerifyCreatesCustomerAndIssuesUsableTokens() {
@@ -92,6 +95,33 @@ class IdentityIntegrationTest extends AbstractIntegrationTest {
         // The new refresh token works.
         TokenPair rotatedAgain = authService.refresh(new RefreshRequest(rotated.refreshToken()));
         assertThat(rotatedAgain.refreshToken()).isNotBlank();
+    }
+
+    @Test
+    void reuseOfRevokedTokenRevokesWholeFamily() {
+        AuthResponse res = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900005"));
+        TokenPair rotated = authService.refresh(new RefreshRequest(res.refreshToken()));
+
+        // Replaying the already-rotated (revoked) token is treated as theft: the
+        // request is rejected AND the whole token family is revoked (in its own
+        // committed transaction, so it survives the rejecting rollback)...
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(res.refreshToken())))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        // ...so even the freshly-minted token from the legitimate rotation is now dead.
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(rotated.refreshToken())))
+                .isInstanceOf(InvalidCredentialsException.class);
+    }
+
+    @Test
+    void deactivatedUserCannotRefresh() {
+        AuthResponse res = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900006"));
+        // Deactivate the account out-of-band (e.g. an admin suspends a staff member).
+        jdbcTemplate.update("UPDATE identity.users SET active = false WHERE id = ?", res.user().id());
+
+        // A still-valid refresh token must not be able to mint new access tokens.
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(res.refreshToken())))
+                .isInstanceOf(InvalidCredentialsException.class);
     }
 
     @Test
