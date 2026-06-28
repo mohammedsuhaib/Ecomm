@@ -31,6 +31,13 @@ spring:
 
   flyway:
     enabled: true
+    # Wait for Postgres to become reachable before migrating instead of failing
+    # the whole boot on the first connection attempt. Covers the common startup
+    # race where the API container comes up a moment before Postgres is ready to
+    # accept connections (or its DNS name is briefly unresolvable). Without this,
+    # a transient connection error crash-loops the container.
+    connect-retries: 60
+    connect-retries-interval: 2
     # Schema-per-module: each module owns a Postgres schema and its own
     # migration folder. Flyway tracks history in the dedicated `flyway` schema
     # so no single module schema owns the migration metadata.
