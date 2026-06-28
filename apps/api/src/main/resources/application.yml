@@ -85,7 +85,7 @@ logging:
 # CORS is owned by Spring Security (SecurityConfig) reading this property.
 app:
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:3002}
 
 # Identity / security (M4).
 townbasket:
