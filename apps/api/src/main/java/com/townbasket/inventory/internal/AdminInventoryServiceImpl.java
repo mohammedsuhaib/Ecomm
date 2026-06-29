@@ -57,7 +57,17 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                 JOIN catalog.product_variants pv ON pv.id = sl.variant_id
                 JOIN catalog.products p          ON p.id  = pv.product_id
                 WHERE sl.store_id = :storeId
-                ORDER BY p.name, pv.label
+                -- Surface stock that needs attention first: out-of-stock, then
+                -- low-stock (at/below threshold), then healthy. Within each bucket
+                -- the scarcest items lead; product/variant name breaks ties.
+                ORDER BY
+                  CASE
+                    WHEN (sl.on_hand - sl.reserved) <= 0 THEN 0
+                    WHEN (sl.on_hand - sl.reserved) <= sl.low_stock_threshold THEN 1
+                    ELSE 2
+                  END,
+                  (sl.on_hand - sl.reserved) ASC,
+                  p.name, pv.label
                 LIMIT :size OFFSET :offset
                 """;
         List<StockLevelDto> content = jdbc.query(
