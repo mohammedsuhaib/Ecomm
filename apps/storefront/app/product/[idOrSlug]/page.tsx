@@ -33,6 +33,11 @@ export default async function ProductPage({ params }: Params) {
   const tc = await getTranslations('common');
   const locale = await getLocale();
   const displayName = productDisplayName(product, locale);
+  // Product is on and has variants, but none are sellable right now.
+  const outOfStock =
+    product.available &&
+    product.variants.length > 0 &&
+    !product.variants.some((v) => v.available && v.availableStock > 0);
 
   return (
     <>
@@ -52,6 +57,9 @@ export default async function ProductPage({ params }: Params) {
           </h1>
           {!product.available && (
             <p className="notice error">{t('unavailableNotice')}</p>
+          )}
+          {outOfStock && (
+            <p className="notice error">{t('outOfStockNotice')}</p>
           )}
           {product.description && (
             <p className="muted">{product.description}</p>

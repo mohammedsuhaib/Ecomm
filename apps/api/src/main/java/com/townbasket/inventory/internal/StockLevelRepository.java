@@ -1,5 +1,7 @@
 package com.townbasket.inventory.internal;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,6 +14,9 @@ interface StockLevelRepository extends JpaRepository<StockLevelEntity, Long> {
     Optional<StockLevelEntity> findByStoreIdAndVariantId(Long storeId, Long variantId);
 
     Optional<StockLevelEntity> findFirstByVariantIdOrderByIdAsc(Long variantId);
+
+    /** Batch fetch stock rows for a set of variants (single-store MVP: one row each). */
+    List<StockLevelEntity> findByVariantIdIn(Collection<Long> variantIds);
 
     /**
      * Atomically reserve {@code qty} units: the single conditional UPDATE only

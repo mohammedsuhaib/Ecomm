@@ -25,10 +25,11 @@ export default function QuickAddButton({ product }: { product: Product }) {
 
   const variant =
     product.available !== false
-      ? (product.variants ?? []).find((v) => v.available)
+      ? (product.variants ?? []).find((v) => v.available && v.availableStock > 0)
       : undefined;
 
-  // No buyable variant => no quick-add control (card still links to detail).
+  // No buyable variant (unavailable or out of stock) => no quick-add control
+  // (card still links to the detail page).
   if (!variant) return null;
 
   const qty = qtyOf(variant.id);

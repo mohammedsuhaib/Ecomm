@@ -14,13 +14,16 @@ import com.townbasket.catalog.UpdateCategoryRequest;
 import com.townbasket.catalog.UpdateProductRequest;
 import com.townbasket.catalog.UpdateVariantRequest;
 import com.townbasket.catalog.VariantView;
+import com.townbasket.inventory.InventoryService;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.PagedResponse;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.text.Normalizer;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.data.domain.Page;
@@ -45,6 +48,13 @@ class CatalogServiceImpl implements CatalogService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
+
+    /**
+     * Inventory lookup so storefront product responses carry the live sellable
+     * count per variant (out-of-stock should show in the catalogue, not only in
+     * the cart). Read-only and batched per request to avoid an N+1 across a page.
+     */
+    private final InventoryService inventory;
 
     /**
      * Optional because the bean only exists when
@@ -79,10 +89,12 @@ class CatalogServiceImpl implements CatalogService {
     CatalogServiceImpl(CategoryRepository categoryRepository,
                        ProductRepository productRepository,
                        ProductVariantRepository variantRepository,
+                       InventoryService inventory,
                        Optional<ProductNameTransliterator> transliterator) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
+        this.inventory = inventory;
         this.transliterator = transliterator;
     }
 
@@ -104,7 +116,8 @@ class CatalogServiceImpl implements CatalogService {
             return pageInMemory(sortEntities(all, sort), pageable);
         }
         Page<ProductEntity> page = pagedFiltered(categoryId, featured, pageable);
-        return PagedResponse.of(page, CatalogServiceImpl::toProductDto);
+        Map<Long, Integer> stock = stockFor(page.getContent());
+        return PagedResponse.of(page, e -> toProductDto(e, stock));
     }
 
     private Page<ProductEntity> pagedFiltered(Long categoryId, boolean featured, Pageable pageable) {
@@ -127,7 +140,7 @@ class CatalogServiceImpl implements CatalogService {
         Optional<ProductEntity> entity = parseLong(idOrSlug)
                 .flatMap(productRepository::findById)
                 .or(() -> productRepository.findBySlug(idOrSlug));
-        return entity.map(CatalogServiceImpl::toProductDto);
+        return entity.map(e -> toProductDto(e, stockFor(List.of(e))));
     }
 
     @Override
@@ -142,7 +155,9 @@ class CatalogServiceImpl implements CatalogService {
             List<ProductEntity> all = productRepository.search(q, PageRequest.of(0, MAX_SORTABLE)).getContent();
             return pageInMemory(sortEntities(all, sort), pageable);
         }
-        return PagedResponse.of(productRepository.search(q, pageable), CatalogServiceImpl::toProductDto);
+        Page<ProductEntity> page = productRepository.search(q, pageable);
+        Map<Long, Integer> stock = stockFor(page.getContent());
+        return PagedResponse.of(page, e -> toProductDto(e, stock));
     }
 
     /** Apply the requested {@link ProductSort} to the full filtered list. */
@@ -194,13 +209,15 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     /** Slice an already-sorted list into the requested page and wrap as a {@link PagedResponse}. */
-    private static PagedResponse<ProductDto> pageInMemory(List<ProductEntity> sorted, Pageable pageable) {
+    private PagedResponse<ProductDto> pageInMemory(List<ProductEntity> sorted, Pageable pageable) {
         int total = sorted.size();
         int size = pageable.getPageSize();
         int from = Math.min((int) pageable.getOffset(), total);
         int to = Math.min(from + size, total);
-        Page<ProductEntity> page = new PageImpl<>(sorted.subList(from, to), pageable, total);
-        return PagedResponse.of(page, CatalogServiceImpl::toProductDto);
+        List<ProductEntity> slice = sorted.subList(from, to);
+        Map<Long, Integer> stock = stockFor(slice);
+        Page<ProductEntity> page = new PageImpl<>(slice, pageable, total);
+        return PagedResponse.of(page, e -> toProductDto(e, stock));
     }
 
     @Override
@@ -605,9 +622,22 @@ class CatalogServiceImpl implements CatalogService {
         return new CategoryDto(e.getId(), e.getName(), e.getSlug(), e.getImageUrl(), e.getSortOrder());
     }
 
-    private static ProductDto toProductDto(ProductEntity e) {
+    /**
+     * Collect live availability for every variant across the given products in a
+     * single inventory query. Missing variants are absent from the map and read
+     * back as 0 stock (see {@link #toVariantDto}).
+     */
+    private Map<Long, Integer> stockFor(Collection<ProductEntity> products) {
+        List<Long> variantIds = products.stream()
+                .flatMap(p -> p.getVariants().stream())
+                .map(ProductVariantEntity::getId)
+                .toList();
+        return inventory.availability(variantIds);
+    }
+
+    private ProductDto toProductDto(ProductEntity e, Map<Long, Integer> stock) {
         List<ProductVariantDto> variants = e.getVariants().stream()
-                .map(CatalogServiceImpl::toVariantDto)
+                .map(v -> toVariantDto(v, stock))
                 .toList();
         return new ProductDto(
                 e.getId(),
@@ -623,14 +653,15 @@ class CatalogServiceImpl implements CatalogService {
                 variants);
     }
 
-    private static ProductVariantDto toVariantDto(ProductVariantEntity v) {
+    private static ProductVariantDto toVariantDto(ProductVariantEntity v, Map<Long, Integer> stock) {
         // NOTE: cost_price (v.getCostPrice()) is intentionally NOT mapped — internal only.
         return new ProductVariantDto(
                 v.getId(),
                 v.getLabel(),
                 v.getSellingPrice(),
                 v.getMrp(),
-                v.isAvailable());
+                v.isAvailable(),
+                stock.getOrDefault(v.getId(), 0));
     }
 
     /** Admin product mapping — includes cost price + the resolved category name. */

@@ -7,7 +7,8 @@ export interface ProductVariant {
   label: string;
   sellingPrice: number; // decimal rupees
   mrp: number | null; // decimal rupees; null when no MRP/strikethrough
-  available: boolean;
+  available: boolean; // store's manual on/off toggle
+  availableStock: number; // live sellable units (on_hand - reserved); 0 => out of stock
 }
 
 export interface Product {
