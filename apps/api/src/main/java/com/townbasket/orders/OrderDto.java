@@ -32,5 +32,6 @@ public record OrderDto(
         BigDecimal total,
         String deliveryOtp,
         Instant placedAt,
-        List<OrderTimelineEntryDto> timeline) {
+        List<OrderTimelineEntryDto> timeline,
+        Long assignedAgentId) {
 }

@@ -36,6 +36,9 @@ class OrderEntity {
     @Column(name = "user_id")
     private Long userId;
 
+    @Column(name = "assigned_agent_id")
+    private Long assignedAgentId;
+
     @Column(name = "public_token", nullable = false, updatable = false)
     private UUID publicToken;
 
@@ -126,6 +129,14 @@ class OrderEntity {
 
     Long getUserId() {
         return userId;
+    }
+
+    Long getAssignedAgentId() {
+        return assignedAgentId;
+    }
+
+    void setAssignedAgentId(Long assignedAgentId) {
+        this.assignedAgentId = assignedAgentId;
     }
 
     UUID getPublicToken() {

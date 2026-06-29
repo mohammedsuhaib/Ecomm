@@ -26,6 +26,7 @@ import type {
   AuthResponse,
   Category,
   DailySummary,
+  DeliveryAgent,
   LowStockItem,
   Order,
   Page,
@@ -304,6 +305,20 @@ export function transitionOrder(
     'POST',
     `/admin/orders/${encodeURIComponent(id)}/transitions`,
     req,
+  );
+}
+
+/** GET /admin/delivery-agents — active delivery agents for dispatch. */
+export function getDeliveryAgents(): Promise<DeliveryAgent[]> {
+  return apiFetch<DeliveryAgent[]>('/admin/delivery-agents');
+}
+
+/** POST /admin/orders/{id}/assign — dispatch to an agent (agentId=null clears it). */
+export function assignOrder(id: string, agentId: number | null): Promise<Order> {
+  return apiMutate<Order>(
+    'POST',
+    `/admin/orders/${encodeURIComponent(id)}/assign`,
+    { agentId },
   );
 }
 

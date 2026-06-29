@@ -49,6 +49,12 @@ class AdminOrderController {
         return orderService.transition(id, request);
     }
 
+    @PostMapping("/{id}/assign")
+    @Operation(summary = "Assign the order to a delivery agent (agentId=null clears the assignment).")
+    OrderDto assign(@PathVariable Long id, @RequestBody AssignAgentRequest request) {
+        return orderService.assignAgent(id, request.agentId());
+    }
+
     private static Pageable pageable(int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);

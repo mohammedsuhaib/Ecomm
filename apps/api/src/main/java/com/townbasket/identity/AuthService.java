@@ -83,4 +83,7 @@ public interface AuthService {
      * @throws com.townbasket.shared.ResourceNotFoundException if not found / not owned
      */
     void deleteAddress(Long userId, Long addressId);
+
+    /** Admin: all active delivery agents (for dispatching/assigning orders). */
+    List<UserDto> listDeliveryAgents();
 }

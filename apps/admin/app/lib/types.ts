@@ -46,6 +46,17 @@ export interface Order {
   deliveryOtp: string | null;
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
+  // identity.users id of the assigned delivery agent; null = unassigned (pool).
+  assignedAgentId: number | null;
+}
+
+/** A delivery agent that an order can be dispatched to. */
+export interface DeliveryAgent {
+  id: number;
+  role: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 // Spring Data style page envelope used by list endpoints.

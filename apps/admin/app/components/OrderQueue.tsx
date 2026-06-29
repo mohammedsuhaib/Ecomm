@@ -5,9 +5,10 @@ import {
   adminOrderStreamUrl,
   AuthRequiredError,
   getAdminOrders,
+  getDeliveryAgents,
 } from '@/app/lib/api';
 import { STATUS_TABS } from '@/app/lib/status';
-import type { Order } from '@/app/lib/types';
+import type { DeliveryAgent, Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import OrderCard from './OrderCard';
 
@@ -22,6 +23,7 @@ export default function OrderQueue() {
   const { refresh: refreshAuth } = useAuth();
   const [status, setStatus] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [agents, setAgents] = useState<DeliveryAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState(false);
@@ -64,6 +66,16 @@ export default function OrderQueue() {
   useEffect(() => {
     void load(status);
   }, [status, load]);
+
+  // Load the delivery-agent roster once (for the assignment dropdown). Best-effort:
+  // a failure just leaves assignment disabled, it doesn't break the queue.
+  useEffect(() => {
+    getDeliveryAgents()
+      .then(setAgents)
+      .catch(() => {
+        /* non-fatal — dropdown stays empty */
+      });
+  }, []);
 
   // Subscribe once; refetch the current filter on each event. The SSE URL now
   // carries the access token as a `?token=` query param (contract §6) since
@@ -157,7 +169,12 @@ export default function OrderQueue() {
       ) : (
         <div className="order-grid">
           {orders.map((order) => (
-            <OrderCard key={order.id} order={order} onUpdated={onUpdated} />
+            <OrderCard
+              key={order.id}
+              order={order}
+              agents={agents}
+              onUpdated={onUpdated}
+            />
           ))}
         </div>
       )}
