@@ -70,6 +70,9 @@ export default function AnalyticsDashboard() {
   }, [period, load]);
 
   const maxRevenue = daily.length ? Math.max(...daily.map((d) => d.revenue), 1) : 1;
+  // Period totals derived from the daily series (already carries per-day COGS).
+  const periodRevenue = daily.reduce((sum, d) => sum + d.revenue, 0);
+  const periodGrossProfit = daily.reduce((sum, d) => sum + d.grossProfit, 0);
 
   return (
     <section className="analytics">
@@ -114,6 +117,11 @@ export default function AnalyticsDashboard() {
             <div className="kpi-label">Week Revenue</div>
             <div className="kpi-value">{fmt(summary.weekRevenue)}</div>
             <div className="kpi-sub">{summary.weekOrders} orders (7 days)</div>
+          </div>
+          <div className="kpi-card kpi-card-profit">
+            <div className="kpi-label">Gross Profit ({period}d)</div>
+            <div className="kpi-value">{fmt(periodGrossProfit)}</div>
+            <div className="kpi-sub">{pct(periodGrossProfit, periodRevenue)} margin · {fmt(periodRevenue)} revenue</div>
           </div>
         </div>
       )}

@@ -885,6 +885,13 @@ a {
   color: var(--green-dark);
   line-height: 1.1;
 }
+/* Gross-profit tile: distinct blue accent so it reads apart from revenue. */
+.kpi-card-profit {
+  border-left-color: var(--blue);
+}
+.kpi-card-profit .kpi-value {
+  color: var(--blue);
+}
 .kpi-sub {
   font-size: 0.78rem;
   color: var(--muted);
