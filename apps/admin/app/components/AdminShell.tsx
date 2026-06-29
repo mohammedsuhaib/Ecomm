@@ -38,6 +38,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               <span className="admin-user-email" title={user?.email ?? undefined}>
                 {user?.email ?? user?.name ?? 'Signed in'}
               </span>
+              <ChangePassword />
               <button
                 type="button"
                 className="btn btn-ghost admin-logout"
@@ -54,7 +55,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       </header>
       <main className="admin-main">
         <LoginGate>
-          <ChangePassword />
           {children}
         </LoginGate>
       </main>
