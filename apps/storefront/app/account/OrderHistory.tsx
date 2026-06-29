@@ -78,7 +78,7 @@ export default function OrderHistory() {
               </span>
             </div>
             <div className="order-history-actions">
-              <Link href={`/order/${o.id}`} className="link-action">
+              <Link href={`/order/${o.trackingToken}`} className="link-action">
                 {t('view')}
               </Link>
               <button
