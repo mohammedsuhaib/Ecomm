@@ -74,7 +74,7 @@ BEGIN
             INSERT INTO orders.orders (
                 cart_id, store_id, customer_name, phone, address_line, lat, lng,
                 payment_method, payment_status, status, subtotal, total,
-                delivery_otp, idempotency_key, placed_at)
+                delivery_otp, public_token, idempotency_key, placed_at)
             VALUES (
                 gen_random_uuid(), 1,
                 names[1 + floor(random() * array_length(names, 1))::int],
@@ -82,6 +82,7 @@ BEGIN
                 'Mock Address, Mysuru 570001', 12.2958, 76.6394,
                 v_pay, v_paystatus, v_status, 0, 0,
                 lpad(floor(random() * 10000)::text, 4, '0'),
+                gen_random_uuid(),
                 'mock-' || gen_random_uuid(), v_placed)
             RETURNING id INTO v_order_id;
 
