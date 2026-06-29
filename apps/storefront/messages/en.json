@@ -289,7 +289,8 @@
     "connLiveTitle": "Live updates",
     "connPollingTitle": "Updating every few seconds",
     "connConnectingTitle": "Connecting…",
-    "lastUpdated": "updated {time}"
+    "lastUpdated": "updated {time}",
+    "downloadInvoice": "⬇ Download invoice (PDF)"
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

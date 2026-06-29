@@ -26,6 +26,8 @@
         <springdoc.version>2.6.0</springdoc.version>
         <!-- JJWT — sign/verify our own HS256 access tokens (identity module). -->
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- OpenPDF — pure-Java PDF generation for customer invoices (no native deps). -->
+        <openpdf.version>1.3.43</openpdf.version>
     </properties>
 
     <dependencies>
@@ -68,6 +70,13 @@
             <artifactId>jjwt-jackson</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- OpenPDF — pure-Java PDF generation for customer invoice export. -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>${openpdf.version}</version>
         </dependency>
 
         <!-- Spring Modulith — module boundaries + event publication registry (outbox) -->
