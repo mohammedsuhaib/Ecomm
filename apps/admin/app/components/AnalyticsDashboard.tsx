@@ -118,28 +118,29 @@ export default function AnalyticsDashboard() {
         </div>
       )}
 
-      <div className="analytics-row">
-        {/* Daily revenue chart */}
-        <div className="analytics-card analytics-card-wide">
-          <h3 className="analytics-card-title">Revenue — last {period} days</h3>
-          {daily.length === 0 && !loading ? (
-            <p className="muted" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No orders in this period.</p>
-          ) : (
-            <div className="bar-chart" role="img" aria-label={`Revenue bar chart, last ${period} days`}>
-              {[...daily].reverse().map((d) => {
-                const heightPct = (d.revenue / maxRevenue) * 100;
-                const gpPct = pct(d.grossProfit, d.revenue);
-                return (
-                  <div key={d.date} className="bar-col" title={`${d.date}\nRevenue: ${fmt(d.revenue)}\nOrders: ${d.orders}\nGross profit: ${fmt(d.grossProfit)} (${gpPct})`}>
-                    <div className="bar-fill" style={{ height: `${Math.max(heightPct, 2)}%` }} />
-                    <div className="bar-label">{d.date.slice(5)}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* Daily revenue chart — full width */}
+      <div className="analytics-card">
+        <h3 className="analytics-card-title">Revenue — last {period} days</h3>
+        {daily.length === 0 && !loading ? (
+          <p className="muted" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No orders in this period.</p>
+        ) : (
+          <div className="bar-chart" role="img" aria-label={`Revenue bar chart, last ${period} days`}>
+            {[...daily].reverse().map((d) => {
+              const heightPct = (d.revenue / maxRevenue) * 100;
+              const gpPct = pct(d.grossProfit, d.revenue);
+              return (
+                <div key={d.date} className="bar-col" title={`${d.date}\nRevenue: ${fmt(d.revenue)}\nOrders: ${d.orders}\nGross profit: ${fmt(d.grossProfit)} (${gpPct})`}>
+                  <div className="bar-fill" style={{ height: `${Math.max(heightPct, 2)}%` }} />
+                  <div className="bar-label">{d.date.slice(5)}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
+      {/* Two equal columns: Top Products + Low Stock */}
+      <div className="analytics-row">
         {/* Top products */}
         <div className="analytics-card">
           <h3 className="analytics-card-title">Top Products</h3>
@@ -169,37 +170,44 @@ export default function AnalyticsDashboard() {
             </table>
           )}
         </div>
-      </div>
 
-      {/* Low stock alerts */}
-      {lowStock.length > 0 && (
+        {/* Low stock alerts */}
         <div className="analytics-card">
-          <h3 className="analytics-card-title" style={{ color: 'var(--danger)' }}>
-            Low Stock Alerts ({lowStock.length})
+          <h3
+            className="analytics-card-title"
+            style={{ color: lowStock.length > 0 ? 'var(--danger)' : undefined }}
+          >
+            Low Stock Alerts{lowStock.length > 0 ? ` (${lowStock.length})` : ''}
           </h3>
-          <table className="analytics-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th className="num">Available</th>
-                <th className="num">Threshold</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lowStock.map((item) => (
-                <tr key={item.variantId} className={item.available <= 0 ? 'row-critical' : 'row-warn'}>
-                  <td>
-                    <span className="tp-name">{item.productName}</span>
-                    <span className="tp-label">{item.variantLabel}</span>
-                  </td>
-                  <td className="num">{item.available <= 0 ? <strong style={{ color: 'var(--danger)' }}>OUT</strong> : item.available}</td>
-                  <td className="num">{item.threshold}</td>
+          {lowStock.length === 0 ? (
+            <p className="muted" style={{ textAlign: 'center', padding: '1rem 0' }}>
+              {loading ? 'Loading…' : 'All items above their threshold.'}
+            </p>
+          ) : (
+            <table className="analytics-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th className="num">Available</th>
+                  <th className="num">Threshold</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lowStock.map((item) => (
+                  <tr key={item.variantId} className={item.available <= 0 ? 'row-critical' : 'row-warn'}>
+                    <td>
+                      <span className="tp-name">{item.productName}</span>
+                      <span className="tp-label">{item.variantLabel}</span>
+                    </td>
+                    <td className="num">{item.available <= 0 ? <strong style={{ color: 'var(--danger)' }}>OUT</strong> : item.available}</td>
+                    <td className="num">{item.threshold}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }

@@ -861,7 +861,7 @@ a {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 0.85rem;
 }
 .kpi-card {
@@ -893,7 +893,7 @@ a {
 
 .analytics-row {
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   align-items: start;
 }
@@ -902,9 +902,6 @@ a {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem 1.1rem 1.2rem;
-}
-.analytics-card-wide {
-  /* takes the main grid column */
 }
 .analytics-card-title {
   margin: 0 0 0.85rem;
@@ -917,7 +914,7 @@ a {
   display: flex;
   align-items: flex-end;
   gap: 3px;
-  height: 140px;
+  height: 180px;
   overflow-x: auto;
   padding-bottom: 1.5rem;
   position: relative;
