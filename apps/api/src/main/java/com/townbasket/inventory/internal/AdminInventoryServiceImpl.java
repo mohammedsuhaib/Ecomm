@@ -99,6 +99,17 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No stock level for variant " + variantId + " at store " + storeId));
 
+        // A physical count must not drop on_hand below units already reserved for
+        // open orders, or available (on_hand - reserved) goes negative and commit()
+        // would later drive on_hand negative too. Reserved stock is physically
+        // committed to existing orders; release those first if the count is truly lower.
+        if (newOnHand < entity.getReserved()) {
+            throw new BusinessRuleException(
+                    "newOnHand (" + newOnHand + ") is below the " + entity.getReserved()
+                            + " unit(s) already reserved for open orders. "
+                            + "Cancel or fulfil those orders before lowering the count this far.");
+        }
+
         int delta = newOnHand - entity.getOnHand();
         if (delta == 0) return;
 

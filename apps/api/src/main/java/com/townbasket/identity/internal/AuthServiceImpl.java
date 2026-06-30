@@ -253,6 +253,13 @@ class AuthServiceImpl implements AuthService {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isActiveDeliveryAgent(Long userId) {
+        return userId != null
+                && users.existsByIdAndRoleAndActiveTrue(userId, Role.DELIVERY_AGENT);
+    }
+
     private static UserDto toUserDto(UserEntity u) {
         return new UserDto(u.getId(), u.getRole().name(), u.getName(), u.getPhone(), u.getEmail());
     }

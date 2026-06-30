@@ -5,6 +5,7 @@ import com.townbasket.cart.CartItemDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.VariantView;
+import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.orders.AddressDto;
@@ -64,6 +65,7 @@ class OrderServiceImpl implements OrderService {
     private final ServiceabilityService serviceabilityService;
     private final InventoryService inventoryService;
     private final PaymentService paymentService;
+    private final AuthService authService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
@@ -73,6 +75,7 @@ class OrderServiceImpl implements OrderService {
                      ServiceabilityService serviceabilityService,
                      InventoryService inventoryService,
                      PaymentService paymentService,
+                     AuthService authService,
                      ApplicationEventPublisher events,
                      Clock clock) {
         this.orders = orders;
@@ -81,6 +84,7 @@ class OrderServiceImpl implements OrderService {
         this.serviceabilityService = serviceabilityService;
         this.inventoryService = inventoryService;
         this.paymentService = paymentService;
+        this.authService = authService;
         this.events = events;
         this.clock = clock;
     }
@@ -289,6 +293,13 @@ class OrderServiceImpl implements OrderService {
         if (status == OrderStatus.DELIVERED || status == OrderStatus.CANCELLED) {
             throw new BusinessRuleException(
                     "Cannot change the delivery agent on a " + status + " order.");
+        }
+        // A non-null assignment must be an existing, active DELIVERY_AGENT —
+        // otherwise the order would silently drop out of every agent's queue and
+        // could never be confirmed via the agent path. null clears the assignment.
+        if (agentId != null && !authService.isActiveDeliveryAgent(agentId)) {
+            throw new BusinessRuleException(
+                    "Agent " + agentId + " is not an active delivery agent.");
         }
         order.setAssignedAgentId(agentId); // null clears the assignment (back to pool)
         return toDto(order, false);

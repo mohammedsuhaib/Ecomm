@@ -14,4 +14,7 @@ interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     /** Active users of a role, name-sorted (e.g. delivery agents for dispatch). */
     List<UserEntity> findByRoleAndActiveTrueOrderByNameAsc(Role role);
+
+    /** True if the id refers to an active user with the given role (dispatch validation). */
+    boolean existsByIdAndRoleAndActiveTrue(Long id, Role role);
 }

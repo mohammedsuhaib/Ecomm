@@ -78,14 +78,24 @@ class AnalyticsServiceImpl implements AnalyticsService {
     @Override
     public List<DailySummaryDto> getDailySummary(Long storeId, int days) {
         // Gross profit = revenue − COGS (cost_price is stored per order_item).
+        // COGS is pre-aggregated per order in a CTE BEFORE joining to orders, so
+        // each order contributes exactly one row: SUM(o.total) is the true revenue
+        // (not multiplied by the order's line-item count) and SUM(oc.cogs) is the
+        // matching cost. A plain JOIN to order_items here would fan out one row per
+        // item and inflate revenue by the basket size.
         String sql = """
+                WITH order_cogs AS (
+                  SELECT order_id, SUM(qty * cost_price) AS cogs
+                  FROM orders.order_items
+                  GROUP BY order_id
+                )
                 SELECT
                   (o.placed_at AT TIME ZONE 'Asia/Kolkata')::date AS day,
-                  COUNT(DISTINCT o.id)                             AS orders,
-                  COALESCE(SUM(o.total), 0)                       AS revenue,
-                  COALESCE(SUM(oi.qty * oi.cost_price), 0)        AS cogs
+                  COUNT(*)                                         AS orders,
+                  COALESCE(SUM(o.total), 0)                        AS revenue,
+                  COALESCE(SUM(oc.cogs), 0)                        AS cogs
                 FROM orders.orders o
-                JOIN orders.order_items oi ON oi.order_id = o.id
+                LEFT JOIN order_cogs oc ON oc.order_id = o.id
                 WHERE o.store_id = :storeId
                   AND o.status != 'CANCELLED'
                   AND o.placed_at >= NOW() - INTERVAL '1 day' * :days
