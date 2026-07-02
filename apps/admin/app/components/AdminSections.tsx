@@ -1,17 +1,26 @@
 'use client';
 
 import { useState } from 'react';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import Catalogue from './Catalogue';
+import InventoryPanel from './InventoryPanel';
 import OrderQueue from './OrderQueue';
 
-type Section = 'orders' | 'catalogue';
+type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue';
+
+const TABS: { value: Section; label: string }[] = [
+  { value: 'orders', label: 'Orders' },
+  { value: 'analytics', label: 'Analytics' },
+  { value: 'inventory', label: 'Inventory' },
+  { value: 'catalogue', label: 'Catalogue' },
+];
 
 /**
- * In-page section switcher for the admin surface. Reuses the queue's pill-tab
- * styling for an Orders | Catalogue toggle, defaulting to Orders so the live
- * queue (M3) keeps its place. Both sections stay mounted-on-demand (only the
- * active one renders), so the order queue's SSE subscription is torn down when
- * staff move to the catalogue and re-established on return.
+ * In-page section switcher for the admin surface.
+ * Orders: live order queue (SSE, M3).
+ * Analytics: GMV dashboard, top products, gross profit, low-stock alerts.
+ * Inventory: stock level listing + physical-count corrections.
+ * Catalogue: category/product/variant CRUD (M5).
  */
 export default function AdminSections() {
   const [section, setSection] = useState<Section>('orders');
@@ -23,27 +32,24 @@ export default function AdminSections() {
         role="tablist"
         aria-label="Admin section"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === 'orders'}
-          className={`queue-tab ${section === 'orders' ? 'active' : ''}`}
-          onClick={() => setSection('orders')}
-        >
-          Orders
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={section === 'catalogue'}
-          className={`queue-tab ${section === 'catalogue' ? 'active' : ''}`}
-          onClick={() => setSection('catalogue')}
-        >
-          Catalogue
-        </button>
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="tab"
+            aria-selected={section === tab.value}
+            className={`queue-tab ${section === tab.value ? 'active' : ''}`}
+            onClick={() => setSection(tab.value)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {section === 'orders' ? <OrderQueue /> : <Catalogue />}
+      {section === 'orders' && <OrderQueue />}
+      {section === 'analytics' && <AnalyticsDashboard />}
+      {section === 'inventory' && <InventoryPanel />}
+      {section === 'catalogue' && <Catalogue />}
     </>
   );
 }

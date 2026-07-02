@@ -22,11 +22,18 @@ import {
 import type {
   AdminProduct,
   AdminVariant,
+  AnalyticsSummary,
   AuthResponse,
   Category,
+  DailySummary,
+  DeliveryAgent,
+  LowStockItem,
   Order,
   Page,
+  StockCorrectionRequest,
+  StockLevel,
   TokenPair,
+  TopProduct,
   TransitionRequest,
 } from './types';
 
@@ -301,6 +308,20 @@ export function transitionOrder(
   );
 }
 
+/** GET /admin/delivery-agents — active delivery agents for dispatch. */
+export function getDeliveryAgents(): Promise<DeliveryAgent[]> {
+  return apiFetch<DeliveryAgent[]>('/admin/delivery-agents');
+}
+
+/** POST /admin/orders/{id}/assign — dispatch to an agent (agentId=null clears it). */
+export function assignOrder(id: string, agentId: number | null): Promise<Order> {
+  return apiMutate<Order>(
+    'POST',
+    `/admin/orders/${encodeURIComponent(id)}/assign`,
+    { agentId },
+  );
+}
+
 /**
  * URL for the admin order SSE stream (GET /admin/orders/stream). Consumed with
  * `new EventSource(...)`, so it uses the public (browser-reachable) base URL.
@@ -513,5 +534,55 @@ export function deleteVariant(
   return apiMutate<null>(
     'DELETE',
     `${CATALOG_BASE}/products/${productId}/variants/${variantId}`,
+  );
+}
+
+// ---- Analytics (admin) -----------------------------------------------------
+
+/** GET /admin/analytics/summary — today's GMV, order counts, pending queue. */
+export function getAnalyticsSummary(storeId = 1): Promise<AnalyticsSummary> {
+  return apiFetch<AnalyticsSummary>('/admin/analytics/summary', { storeId });
+}
+
+/** GET /admin/analytics/daily — daily revenue + gross profit for last N days. */
+export function getDailySummary(storeId = 1, days = 30): Promise<DailySummary[]> {
+  return apiFetch<DailySummary[]>('/admin/analytics/daily', { storeId, days });
+}
+
+/** GET /admin/analytics/top-products — top-selling variants by qty. */
+export function getTopProducts(
+  storeId = 1,
+  days = 30,
+  limit = 10,
+): Promise<TopProduct[]> {
+  return apiFetch<TopProduct[]>('/admin/analytics/top-products', { storeId, days, limit });
+}
+
+/** GET /admin/analytics/low-stock — variants at or below their low-stock threshold. */
+export function getLowStockItems(storeId = 1): Promise<LowStockItem[]> {
+  return apiFetch<LowStockItem[]>('/admin/analytics/low-stock', { storeId });
+}
+
+// ---- Admin Inventory --------------------------------------------------------
+
+/** GET /admin/inventory/stock — paged stock levels with product names. */
+export function getStockLevels(
+  storeId = 1,
+  page = 0,
+  size = 100,
+): Promise<Page<StockLevel>> {
+  return apiFetch<Page<StockLevel>>('/admin/inventory/stock', { storeId, page, size });
+}
+
+/** POST /admin/inventory/stock/{variantId}/correction — set on_hand to absolute value. */
+export async function correctStock(
+  variantId: number,
+  req: StockCorrectionRequest,
+  storeId = 1,
+): Promise<void> {
+  await apiMutate<null>(
+    'POST',
+    `/admin/inventory/stock/${encodeURIComponent(variantId)}/correction?storeId=${storeId}`,
+    req,
   );
 }

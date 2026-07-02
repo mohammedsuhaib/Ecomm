@@ -5,6 +5,7 @@ import com.townbasket.cart.CartItemDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.VariantView;
+import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.orders.AddressDto;
@@ -39,6 +40,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,6 +66,7 @@ class OrderServiceImpl implements OrderService {
     private final ServiceabilityService serviceabilityService;
     private final InventoryService inventoryService;
     private final PaymentService paymentService;
+    private final AuthService authService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
@@ -73,6 +76,7 @@ class OrderServiceImpl implements OrderService {
                      ServiceabilityService serviceabilityService,
                      InventoryService inventoryService,
                      PaymentService paymentService,
+                     AuthService authService,
                      ApplicationEventPublisher events,
                      Clock clock) {
         this.orders = orders;
@@ -81,6 +85,7 @@ class OrderServiceImpl implements OrderService {
         this.serviceabilityService = serviceabilityService;
         this.inventoryService = inventoryService;
         this.paymentService = paymentService;
+        this.authService = authService;
         this.events = events;
         this.clock = clock;
     }
@@ -293,6 +298,47 @@ class OrderServiceImpl implements OrderService {
         return toDto(orders.findById(orderId).orElseThrow(), false);
     }
 
+    @Override
+    public OrderDto assignAgent(Long orderId, Long agentId) {
+        OrderEntity order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+        OrderStatus status = order.getStatus();
+        if (status == OrderStatus.DELIVERED || status == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException(
+                    "Cannot change the delivery agent on a " + status + " order.");
+        }
+        // A non-null assignment must be an existing, active DELIVERY_AGENT —
+        // otherwise the order would silently drop out of every agent's queue and
+        // could never be confirmed via the agent path. null clears the assignment.
+        if (agentId != null && !authService.isActiveDeliveryAgent(agentId)) {
+            throw new BusinessRuleException(
+                    "Agent " + agentId + " is not an active delivery agent.");
+        }
+        order.setAssignedAgentId(agentId); // null clears the assignment (back to pool)
+        return toDto(order, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<OrderDto> listAgentOrders(Long agentId, String status, Pageable pageable) {
+        var page = (status == null || status.isBlank())
+                ? orders.findByAssignedAgentIdOrderByPlacedAtDescIdDesc(agentId, pageable)
+                : orders.findByAssignedAgentIdAndStatusOrderByPlacedAtDescIdDesc(
+                        agentId, parseStatus(status), pageable);
+        // Agent surface: never expose the OTP — they collect it from the customer.
+        return PagedResponse.of(page, o -> toDto(o, false));
+    }
+
+    @Override
+    public OrderDto confirmDelivery(Long orderId, Long agentId, String otp) {
+        OrderEntity order = orders.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
+        if (order.getAssignedAgentId() == null || !order.getAssignedAgentId().equals(agentId)) {
+            throw new AccessDeniedException("This order is not assigned to you.");
+        }
+        return transition(orderId, new TransitionRequest("DELIVERED", otp, null));
+    }
+
     /** Mark an order CONFIRMED and record the timeline entry (called within checkout). */
     private void confirm(OrderEntity order) {
         order.setStatus(OrderStatus.CONFIRMED);
@@ -421,6 +467,7 @@ class OrderServiceImpl implements OrderService {
                 o.getTotal(),
                 deliveryOtp,
                 o.getPlacedAt(),
-                timeline);
+                timeline,
+                o.getAssignedAgentId());
     }
 }

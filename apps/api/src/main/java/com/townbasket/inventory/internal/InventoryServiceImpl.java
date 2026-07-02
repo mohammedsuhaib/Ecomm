@@ -4,7 +4,10 @@ import com.townbasket.inventory.InsufficientStockException;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.shared.events.StockLow;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,6 +82,21 @@ class InventoryServiceImpl implements InventoryService {
         return stockLevels.findFirstByVariantIdOrderByIdAsc(variantId)
                 .map(StockLevelEntity::available)
                 .orElse(0);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Integer> availability(Collection<Long> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Integer> result = new HashMap<>();
+        for (StockLevelEntity s : stockLevels.findByVariantIdIn(variantIds)) {
+            // Single-store MVP keeps one row per variant; if a variant ever has
+            // rows at multiple stores, surface the largest available count.
+            result.merge(s.getVariantId(), s.available(), Math::max);
+        }
+        return result;
     }
 
     private void emitStockLowIfNeeded(Long storeId, Long variantId) {

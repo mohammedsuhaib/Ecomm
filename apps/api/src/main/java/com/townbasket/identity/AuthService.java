@@ -83,4 +83,16 @@ public interface AuthService {
      * @throws com.townbasket.shared.ResourceNotFoundException if not found / not owned
      */
     void deleteAddress(Long userId, Long addressId);
+
+    /** Admin: all active delivery agents (for dispatching/assigning orders). */
+    List<UserDto> listDeliveryAgents();
+
+    /**
+     * True if {@code userId} is an existing, active user with the
+     * {@code DELIVERY_AGENT} role. Used by the orders module to validate a
+     * dispatch assignment before persisting it, so an order can't be assigned to
+     * a non-existent / deactivated / non-agent id and silently fall out of every
+     * agent's queue.
+     */
+    boolean isActiveDeliveryAgent(Long userId);
 }

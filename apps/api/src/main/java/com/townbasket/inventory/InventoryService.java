@@ -1,6 +1,8 @@
 package com.townbasket.inventory;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Published API of the inventory module. Called synchronously by the
@@ -28,4 +30,12 @@ public interface InventoryService {
 
     /** Currently-available units ({@code on_hand - reserved}) for a variant at any store; 0 if unknown. */
     int availability(Long variantId);
+
+    /**
+     * Batch variant availability — currently-available units keyed by variant id.
+     * Variants with no stock row are simply absent from the map (callers should
+     * treat a missing key as 0). Lets the catalog enrich a whole product page with
+     * a single query instead of one lookup per variant.
+     */
+    Map<Long, Integer> availability(Collection<Long> variantIds);
 }

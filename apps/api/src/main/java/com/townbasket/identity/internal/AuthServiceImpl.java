@@ -263,6 +263,21 @@ class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserDto> listDeliveryAgents() {
+        return users.findByRoleAndActiveTrueOrderByNameAsc(Role.DELIVERY_AGENT).stream()
+                .map(AuthServiceImpl::toUserDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isActiveDeliveryAgent(Long userId) {
+        return userId != null
+                && users.existsByIdAndRoleAndActiveTrue(userId, Role.DELIVERY_AGENT);
+    }
+
     private static UserDto toUserDto(UserEntity u) {
         return new UserDto(u.getId(), u.getRole().name(), u.getName(), u.getPhone(), u.getEmail());
     }

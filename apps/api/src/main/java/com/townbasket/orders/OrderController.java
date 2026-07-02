@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,9 +42,11 @@ class OrderController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final OrderService orderService;
+    private final InvoiceService invoiceService;
 
-    OrderController(OrderService orderService) {
+    OrderController(OrderService orderService, InvoiceService invoiceService) {
         this.orderService = orderService;
+        this.invoiceService = invoiceService;
     }
 
     @PostMapping
@@ -69,6 +73,21 @@ class OrderController {
     ResponseEntity<OrderDto> trackOrder(@PathVariable UUID token) {
         return orderService.getOrderByToken(token)
                 .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/track/{token}/invoice.pdf")
+    @Operation(summary = "Download a PDF invoice for an order, fetched by its tracking token (public-by-token).")
+    ResponseEntity<byte[]> invoice(@PathVariable UUID token) {
+        return orderService.getOrderByToken(token)
+                .map(order -> {
+                    byte[] pdf = invoiceService.renderInvoicePdf(order);
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.APPLICATION_PDF)
+                            .header(HttpHeaders.CONTENT_DISPOSITION,
+                                    "attachment; filename=\"townbasket-invoice-" + order.id() + ".pdf\"")
+                            .body(pdf);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

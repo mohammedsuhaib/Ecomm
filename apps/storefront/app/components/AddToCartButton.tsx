@@ -27,7 +27,8 @@ export default function AddToCartButton({
 
   const qty = qtyOf(variant.id);
 
-  if (!variant.available) {
+  // Out of stock = store toggled it off OR inventory has nothing sellable left.
+  if (!variant.available || variant.availableStock <= 0) {
     return (
       <button type="button" className="btn" disabled>
         {t('outOfStock')}

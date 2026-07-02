@@ -397,6 +397,16 @@ export function orderStreamUrl(id: string): string {
   return `${API_BASE_URL.replace(/\/$/, '')}/orders/${encodeURIComponent(id)}/stream`;
 }
 
+/**
+ * URL for the order's PDF invoice (GET /orders/track/{token}/invoice.pdf). The
+ * endpoint streams a PDF with a Content-Disposition: attachment header, so a
+ * plain link triggers a download. Public-by-token, like order tracking — must
+ * use the browser-reachable base URL.
+ */
+export function orderInvoiceUrl(token: string): string {
+  return `${API_BASE_URL.replace(/\/$/, '')}/orders/track/${encodeURIComponent(token)}/invoice.pdf`;
+}
+
 // ---- Auth endpoints (M4, PUBLIC, browser-side) --------------------------
 
 /**

@@ -19,3 +19,8 @@ api.town-basket.com {
 		flush_interval -1
 	}
 }
+
+delivery.town-basket.com {
+	encode gzip zstd
+	reverse_proxy delivery:3002
+}

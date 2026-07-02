@@ -24,6 +24,10 @@ next-env.d.ts
 !.env.example
 *.local
 
+# ───── Local Docker Compose overrides (per-machine, never committed) ─────
+docker-compose.override.yml
+**/docker-compose.override.yml
+
 # ───── Editors / OS ─────
 .idea/
 .vscode/
