@@ -7,6 +7,7 @@ import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.VariantView;
 import com.townbasket.inventory.InventoryService;
+import com.townbasket.shared.BusinessRuleException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,14 @@ class CartServiceImpl implements CartService {
         }
         if (variantId == null) {
             throw new IllegalArgumentException("variantId is required");
+        }
+        // Reject a variant the catalog doesn't know about (deleted/never existed):
+        // otherwise it would sit in the cart resolving to ₹0 with a null name. An
+        // existing-but-unavailable variant is still allowed in — it's flagged as
+        // unavailable at read time and rejected at checkout, so the customer can
+        // see and remove it rather than being blocked at "Add".
+        if (catalog.findVariant(variantId).isEmpty()) {
+            throw new BusinessRuleException("This item is no longer available.");
         }
         CartEntity cart = require(cartId);
         cart.getItems().stream()

@@ -434,7 +434,9 @@ class CatalogServiceImpl implements CatalogService {
     public AdminVariantDto updateVariant(Long productId, Long variantId, UpdateVariantRequest request) {
         ProductVariantEntity variant = requireVariant(productId, variantId);
         variant.setLabel(requireText(request.label(), "Variant label must not be blank."));
-        variant.setSellingPrice(requireNonNegative(request.sellingPrice(), "Selling price"));
+        BigDecimal sellingPrice = requireNonNegative(request.sellingPrice(), "Selling price");
+        validateVariantPricing(sellingPrice, request.mrp());
+        variant.setSellingPrice(sellingPrice);
         variant.setCostPrice(requireNonNegative(request.costPrice(), "Cost price"));
         variant.setMrp(request.mrp());
         if (request.available() != null) {
@@ -474,6 +476,7 @@ class CatalogServiceImpl implements CatalogService {
         String label = requireText(request.label(), "Variant label must not be blank.");
         BigDecimal sellingPrice = requireNonNegative(request.sellingPrice(), "Selling price");
         BigDecimal costPrice = requireNonNegative(request.costPrice(), "Cost price");
+        validateVariantPricing(sellingPrice, request.mrp());
         boolean available = request.available() == null || request.available();
         int sortOrder = request.sortOrder() != null ? request.sortOrder() : 0;
         return ProductVariantEntity.create(label, sellingPrice, costPrice, request.mrp(), available, sortOrder);
@@ -526,6 +529,21 @@ class CatalogServiceImpl implements CatalogService {
             throw new BusinessRuleException(field + " must not be negative.");
         }
         return value;
+    }
+
+    /**
+     * MRP, when present, is the printed maximum retail price: it must not be below
+     * the selling price (that would mean selling ABOVE MRP and render a nonsensical
+     * strikethrough/negative discount on the storefront). Equal is allowed — it
+     * just means no discount is shown. Cost price is intentionally NOT constrained
+     * against selling price: selling below cost (clearance / loss leader) is a
+     * legitimate business decision.
+     */
+    private static void validateVariantPricing(BigDecimal sellingPrice, BigDecimal mrp) {
+        if (mrp != null && sellingPrice != null && mrp.compareTo(sellingPrice) < 0) {
+            throw new BusinessRuleException(
+                    "MRP must be greater than or equal to the selling price.");
+        }
     }
 
     private static String trimToNull(String value) {

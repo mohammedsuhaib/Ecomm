@@ -250,7 +250,12 @@ export default function ProductForm({
         });
       } else {
         const id = productId as number;
-        // 1) Product's own fields.
+        // The edit path is several calls (PUT product, DELETE removed, POST/PUT
+        // variants) and is NOT a single transaction, so it must be RETRY-SAFE: if
+        // it fails partway and the user hits Save again, it must not double-delete
+        // or create duplicate variants.
+        //
+        // 1) Product's own fields (idempotent PUT — safe to repeat).
         await updateProduct(id, {
           name: name.trim(),
           nameKn: nameKn.trim() === '' ? null : nameKn.trim(),
@@ -261,17 +266,41 @@ export default function ProductForm({
           available,
           featured,
         });
-        // 2) Removed variants.
-        for (const variantId of removedIds) {
-          await deleteVariant(id, variantId);
+        // 2) Removed variants. Tolerate 404 (already deleted on a prior partial
+        //    attempt); shrink removedIds as we go so a retry only re-tries the rest.
+        for (let i = 0; i < removedIds.length; i++) {
+          const variantId = removedIds[i];
+          try {
+            await deleteVariant(id, variantId);
+          } catch (err) {
+            if (!(err instanceof ApiError && err.status === 404)) {
+              setRemovedIds(removedIds.slice(i)); // keep this one + the rest
+              throw err;
+            }
+          }
         }
+        setRemovedIds([]);
         // 3) Added (no id) → POST; existing → PUT (covers availability, prices…).
-        for (const row of rowsToSave) {
-          const write = rowToWrite(row);
-          if (row.id == null) {
-            await createVariant(id, write);
-          } else {
-            await updateVariant(id, row.id, write);
+        //    Remember each newly-created id against its row so a retry PUTs the row
+        //    instead of creating a SECOND variant.
+        const created = new Map<VariantRow, number>();
+        try {
+          for (const row of rowsToSave) {
+            const write = rowToWrite(row);
+            if (row.id == null) {
+              const saved = await createVariant(id, write);
+              created.set(row, saved.id);
+            } else {
+              await updateVariant(id, row.id, write);
+            }
+          }
+        } finally {
+          if (created.size > 0) {
+            setVariants((rows) =>
+              rows.map((r) =>
+                created.has(r) ? { ...r, id: created.get(r) as number } : r,
+              ),
+            );
           }
         }
       }

@@ -115,6 +115,21 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void sameCartCannotBeOrderedTwice() {
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, 5);
+        orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "dup-key-1", null);
+
+        // A second checkout of the SAME cart under a DIFFERENT idempotency key is
+        // rejected because the cart is now checked out. (The DB unique index on
+        // orders.cart_id is the backstop for the concurrent-race variant, where
+        // both requests pass the in-transaction checkedOut check before committing.)
+        assertThatThrownBy(() -> orderService.placeOrder(
+                request(cart.cartId(), PaymentMethod.COD), "dup-key-2", null))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
     void belowMinimumOrderValueIsRejected() {
         // Cheapest single unit (≤ ₹40) is well below the ₹299 minimum.
         ProductVariantDto cheap = catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content().stream()

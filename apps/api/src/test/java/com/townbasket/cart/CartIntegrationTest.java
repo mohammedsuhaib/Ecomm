@@ -1,11 +1,13 @@
 package com.townbasket.cart;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.townbasket.AbstractIntegrationTest;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
+import com.townbasket.shared.BusinessRuleException;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -71,5 +73,15 @@ class CartIntegrationTest extends AbstractIntegrationTest {
     @Test
     void getCartIsEmptyForUnknownId() {
         assertThat(cartService.getCart(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void addItemRejectsUnknownVariant() {
+        UUID cartId = cartService.createCart().cartId();
+        // A variant id the catalog doesn't know about must be rejected at "Add"
+        // rather than silently sitting in the cart as a ₹0 / null line.
+        assertThatThrownBy(() -> cartService.addItem(cartId, 9_999_999L, 1))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(cartService.getCart(cartId).orElseThrow().items()).isEmpty();
     }
 }
