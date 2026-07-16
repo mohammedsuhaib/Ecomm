@@ -291,7 +291,13 @@
     "connPollingTitle": "Updating every few seconds",
     "connConnectingTitle": "Connecting…",
     "lastUpdated": "updated {time}",
-    "downloadInvoice": "⬇ Download invoice (PDF)"
+    "downloadInvoice": "⬇ Download invoice (PDF)",
+    "cancelOrderWithSeconds": "Cancel order ({seconds}s)",
+    "cancelling": "Cancelling…",
+    "cancelConfirm": "Cancel this order? Your items will be released and any payment refunded per the refund policy.",
+    "cancelWindowHint": "You can cancel free of charge within 1 minute of placing the order.",
+    "cancelWindowClosed": "The cancellation window has passed or the order is already being prepared. Please contact support.",
+    "cancelFailed": "Could not cancel the order. Please try again or contact support."
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

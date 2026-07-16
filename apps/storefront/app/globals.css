@@ -1353,3 +1353,21 @@ a:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- Customer self-cancel (order tracking page) ---- */
+.cancel-window {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.cancel-order-btn {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-variant-numeric: tabular-nums; /* steady countdown digits */
+}
+.cancel-window-hint {
+  font-size: 0.8rem;
+  margin: 0;
+}

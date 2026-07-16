@@ -388,6 +388,15 @@ export function getOrder(token: string): Promise<Order> {
 }
 
 /**
+ * Customer self-service cancel (public-by-token, same capability model as
+ * getOrder). Server enforces the policy window: within 1 minute of placing,
+ * before packing starts. 422 = window passed / already being prepared.
+ */
+export function cancelOrder(token: string): Promise<Order> {
+  return apiMutate<Order>('POST', `/orders/track/${encodeURIComponent(token)}/cancel`);
+}
+
+/**
  * URL for the per-order SSE stream (GET /orders/{id}/stream). The numeric id is
  * only known after the order is fetched by token; the stream carries non-PII
  * status pings. Consumed by the tracking page with `new EventSource(...)`, so it

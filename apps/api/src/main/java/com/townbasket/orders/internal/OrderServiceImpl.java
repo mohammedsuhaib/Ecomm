@@ -33,6 +33,8 @@ import com.townbasket.shared.events.OrderStatusChanged;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,13 @@ import org.springframework.transaction.annotation.Transactional;
 class OrderServiceImpl implements OrderService {
 
     private static final SecureRandom OTP_RANDOM = new SecureRandom();
+
+    /**
+     * Customer self-service cancellation window, measured from placed_at. Keep
+     * in sync with the published refund policy ("within 1 minute of placing",
+     * holding-site/refund.html) — the policy is the customer-facing contract.
+     */
+    private static final Duration CUSTOMER_CANCEL_WINDOW = Duration.ofMinutes(1);
 
     private final OrderRepository orders;
     private final CartService cartService;
@@ -222,6 +231,33 @@ class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Optional<OrderDto> getOrderByToken(UUID trackingToken) {
         return orders.findByPublicToken(trackingToken).map(o -> toDto(o, true));
+    }
+
+    @Override
+    public OrderDto cancelByToken(UUID trackingToken) {
+        OrderEntity order = orders.findByPublicToken(trackingToken)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        OrderStatus status = order.getStatus();
+        if (status == OrderStatus.CANCELLED) {
+            return toDto(order, true); // idempotent — double-tap / retry safe
+        }
+        // Fulfilment started (PACKING onwards): the published policy routes the
+        // customer to support instead of self-service.
+        if (status != OrderStatus.PLACED && status != OrderStatus.CONFIRMED) {
+            throw new BusinessRuleException(
+                    "This order is already being prepared and can no longer be cancelled online. "
+                            + "Please contact support.");
+        }
+        Instant deadline = order.getPlacedAt().plus(CUSTOMER_CANCEL_WINDOW);
+        if (Instant.now(clock).isAfter(deadline)) {
+            throw new BusinessRuleException(
+                    "The " + CUSTOMER_CANCEL_WINDOW.toSeconds()
+                            + "-second cancellation window has passed. Please contact support.");
+        }
+        // Reuse the state machine: releases reserved stock via OrderCancelled.
+        return transition(order.getId(),
+                new TransitionRequest(OrderStatus.CANCELLED.name(), null, "Cancelled by customer"));
     }
 
     @Override
