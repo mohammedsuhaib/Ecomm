@@ -4,4 +4,5 @@
 packages:
   - 'apps/storefront'
   - 'apps/admin'
+  - 'apps/delivery'
   - 'packages/*'

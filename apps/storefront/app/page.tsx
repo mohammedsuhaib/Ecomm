@@ -51,6 +51,9 @@ export default async function Home({
         )}
       </section>
 
+      {/* Page-level h1 for the document outline; section titles are h2s. */}
+      <h1 className="sr-only">{t('bannerTitle')}</h1>
+
       {featured.length > 0 && (
         <>
           <h2 className="section-title">{t('popularPicks')}</h2>
@@ -62,7 +65,7 @@ export default async function Home({
         </>
       )}
 
-      <h1 className="section-title">{t('shopByCategory')}</h1>
+      <h2 className="section-title">{t('shopByCategory')}</h2>
       {categories.length > 0 ? (
         <div className="category-grid">
           {categories.map((c) => (

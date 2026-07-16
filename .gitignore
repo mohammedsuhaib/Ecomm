@@ -5,6 +5,10 @@ target/
 out/
 bin/
 
+# ───── Python (skill scripts) ─────
+__pycache__/
+*.pyc
+
 # ───── Node / Next.js ─────
 node_modules/
 .next/
@@ -23,6 +27,10 @@ next-env.d.ts
 .env.*
 !.env.example
 *.local
+
+# ───── Local Docker Compose overrides (per-machine, never committed) ─────
+docker-compose.override.yml
+**/docker-compose.override.yml
 
 # ───── Editors / OS ─────
 .idea/

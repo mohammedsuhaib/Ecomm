@@ -18,4 +18,9 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Page<OrderEntity> findByStatusOrderByPlacedAtDescIdDesc(OrderStatus status, Pageable pageable);
 
     Page<OrderEntity> findByUserIdOrderByPlacedAtDescIdDesc(Long userId, Pageable pageable);
+
+    Page<OrderEntity> findByAssignedAgentIdOrderByPlacedAtDescIdDesc(Long agentId, Pageable pageable);
+
+    Page<OrderEntity> findByAssignedAgentIdAndStatusOrderByPlacedAtDescIdDesc(
+            Long agentId, OrderStatus status, Pageable pageable);
 }

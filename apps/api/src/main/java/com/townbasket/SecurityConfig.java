@@ -65,6 +65,9 @@ class SecurityConfig {
                         // Admin surface — staff/admin only.
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("STORE_STAFF", "ADMIN")
 
+                        // Delivery surface — delivery agents and admin only.
+                        .requestMatchers("/api/v1/delivery/**").hasAnyRole("DELIVERY_AGENT", "ADMIN")
+
                         // Authenticated (any valid token). These are listed BEFORE the
                         // public catalog/cart/orders rules so the more specific paths win.
                         .requestMatchers("/api/v1/me", "/api/v1/me/**").authenticated()

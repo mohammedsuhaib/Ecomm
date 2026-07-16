@@ -61,4 +61,26 @@ public interface OrderService {
      * for the terminal transitions (which drive stock commit / release).
      */
     OrderDto transition(Long orderId, TransitionRequest request);
+
+    /**
+     * Admin dispatch: assign an order to a delivery agent (or pass {@code null}
+     * to clear the assignment). Rejected once the order is terminal
+     * (DELIVERED/CANCELLED).
+     */
+    OrderDto assignAgent(Long orderId, Long agentId);
+
+    /**
+     * Delivery: orders assigned to {@code agentId}, optionally filtered by status
+     * (newest first). The delivery OTP is never included (the agent collects it
+     * from the customer at handover).
+     */
+    PagedResponse<OrderDto> listAgentOrders(Long agentId, String status, Pageable pageable);
+
+    /**
+     * Delivery: confirm delivery by OTP, verifying the order is assigned to this
+     * agent first.
+     *
+     * @throws org.springframework.security.access.AccessDeniedException if the order is not assigned to {@code agentId}
+     */
+    OrderDto confirmDelivery(Long orderId, Long agentId, String otp);
 }

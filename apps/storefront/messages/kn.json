@@ -22,7 +22,8 @@
     "increase": "ಪ್ರಮಾಣ ಹೆಚ್ಚಿಸಿ",
     "previous": "← ಹಿಂದಿನವು",
     "next": "ಮುಂದಿನವು →",
-    "goBack": "ಹಿಂದೆ ಹೋಗಿ"
+    "goBack": "ಹಿಂದೆ ಹೋಗಿ",
+    "skipToContent": "ಮುಖ್ಯ ವಿಷಯಕ್ಕೆ ಹೋಗಿ"
   },
   "veg": {
     "vegetarian": "ಸಸ್ಯಾಹಾರಿ",
@@ -95,6 +96,8 @@
   },
   "product": {
     "currentlyUnavailable": "ಸದ್ಯಕ್ಕೆ ಲಭ್ಯವಿಲ್ಲ",
+    "outOfStock": "ಸ್ಟಾಕ್ ಇಲ್ಲ",
+    "outOfStockNotice": "ಈ ಉತ್ಪನ್ನ ಸದ್ಯಕ್ಕೆ ಸ್ಟಾಕ್‌ನಲ್ಲಿ ಇಲ್ಲ.",
     "unavailableNotice": "ಈ ಉತ್ಪನ್ನ ಸದ್ಯಕ್ಕೆ ಲಭ್ಯವಿಲ್ಲ.",
     "availableSizes": "ಲಭ್ಯವಿರುವ ಗಾತ್ರಗಳು",
     "noSizes": "ಯಾವುದೇ ಗಾತ್ರಗಳು ಲಭ್ಯವಿಲ್ಲ."
@@ -287,7 +290,8 @@
     "connLiveTitle": "ಲೈವ್ ನವೀಕರಣಗಳು",
     "connPollingTitle": "ಪ್ರತಿ ಕೆಲವು ಸೆಕೆಂಡುಗಳಿಗೆ ನವೀಕರಿಸಲಾಗುತ್ತಿದೆ",
     "connConnectingTitle": "ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ…",
-    "lastUpdated": "{time} ಕ್ಕೆ ನವೀಕರಿಸಲಾಗಿದೆ"
+    "lastUpdated": "{time} ಕ್ಕೆ ನವೀಕರಿಸಲಾಗಿದೆ",
+    "downloadInvoice": "⬇ ಇನ್‌ವಾಯ್ಸ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ (PDF)"
   },
   "search": {
     "prompt": "ದಿನಸಿ ಹುಡುಕಲು ಮೇಲಿನ ಹುಡುಕಾಟ ಪಟ್ಟಿಯಲ್ಲಿ ಉತ್ಪನ್ನದ ಹೆಸರು ಟೈಪ್ ಮಾಡಿ.",

@@ -19,6 +19,7 @@ services:
       - api
       - storefront
       - admin
+      - delivery
 
   api:
     image: ${REGISTRY}/town-basket-api:${TAG:-latest}
@@ -58,6 +59,14 @@ services:
       NEXT_PUBLIC_API_BASE_URL: https://api.town-basket.com/api/v1
     expose:
       - "3001"
+
+  delivery:
+    image: ${REGISTRY}/town-basket-delivery:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: https://api.town-basket.com/api/v1
+    expose:
+      - "3002"
 
   # Optional self-hosted Postgres (fallback to DO Managed Database).
   # Uncomment only for a cost-sensitive single-box deployment.

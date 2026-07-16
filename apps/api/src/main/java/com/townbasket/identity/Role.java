@@ -9,5 +9,6 @@ package com.townbasket.identity;
 public enum Role {
     CUSTOMER,
     STORE_STAFF,
+    DELIVERY_AGENT,
     ADMIN
 }

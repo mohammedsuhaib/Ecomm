@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, getOrder, orderStreamUrl } from '@/app/lib/api';
+import { ApiError, getOrder, orderInvoiceUrl, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { useCart } from '@/app/components/CartProvider';
 import type { Order, OrderStatus } from '@/app/lib/types';
@@ -292,6 +292,15 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             </span>
           </div>
         </div>
+        <a
+          className="btn btn-outline btn-block"
+          href={orderInvoiceUrl(trackingToken)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ marginTop: '0.75rem' }}
+        >
+          {t('downloadInvoice')}
+        </a>
       </section>
 
       <section className="order-address">

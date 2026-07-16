@@ -21,6 +21,11 @@ export default function ProductCard({ product }: { product: Product }) {
     (min, v) => (min == null || v.sellingPrice < min.sellingPrice ? v : min),
     null,
   );
+  // Out of stock = product is on, has variants, but none are sellable right now.
+  const outOfStock =
+    product.available &&
+    variants.length > 0 &&
+    !variants.some((v) => v.available && v.availableStock > 0);
 
   return (
     <Link
@@ -46,9 +51,11 @@ export default function ProductCard({ product }: { product: Product }) {
             mrp={cheapest.mrp}
           />
         ) : null}
-        {!product.available && (
+        {!product.available ? (
           <span className="unavailable-tag">{t('currentlyUnavailable')}</span>
-        )}
+        ) : outOfStock ? (
+          <span className="unavailable-tag">{t('outOfStock')}</span>
+        ) : null}
       </div>
     </Link>
   );

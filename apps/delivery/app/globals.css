@@ -1,0 +1,468 @@
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --clr-bg: #f4f6f8;
+  --clr-surface: #ffffff;
+  --clr-border: #e2e8f0;
+  --clr-primary: #1a56db;
+  --clr-primary-hover: #1646c4;
+  --clr-text: #111827;
+  /* 7:1 on --clr-bg — agents read this on sunlit phone screens (was #6b7280 at 4.4:1). */
+  --clr-muted: #4b5563;
+  --clr-danger: #dc2626;
+  --clr-success: #16a34a;
+  --clr-warn: #d97706;
+  --clr-cod: #7c3aed;
+  --clr-upi: #059669;
+  --radius: 12px;
+  --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  color: var(--clr-text);
+  background: var(--clr-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 10px 18px;
+  min-height: 44px; /* touch target minimum */
+  transition: background .15s, opacity .15s;
+  white-space: nowrap;
+  touch-action: manipulation; /* no double-tap-zoom latency */
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: var(--clr-primary); color: #fff; }
+.btn-primary:hover:not(:disabled),
+.btn-primary:active:not(:disabled) { background: var(--clr-primary-hover); }
+.btn-ghost { background: transparent; color: var(--clr-text); }
+.btn-ghost:hover:not(:disabled),
+.btn-ghost:active:not(:disabled) { background: rgba(0,0,0,.06); }
+/* Compact look but never below the 44px touch minimum. */
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 44px; }
+
+/* ── Field / error ─────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; font-weight: 500; }
+.field input {
+  border: 1.5px solid var(--clr-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 16px; /* ≥16px prevents iOS auto-zoom on focus */
+  transition: border-color .15s;
+  background: #fff;
+}
+.field input:focus { border-color: var(--clr-primary); }
+.field-error {
+  font-size: 13px;
+  color: var(--clr-danger);
+  padding: 6px 10px;
+  background: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+/* ── Login page ────────────────────────────────────────────── */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.login-card {
+  background: var(--clr-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.login-logo { font-size: 28px; }
+.login-sub { font-size: 14px; color: var(--clr-muted); }
+.login-hint { font-size: 12px; color: var(--clr-muted); }
+
+/* ── Queue wrap ────────────────────────────────────────────── */
+.queue-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+.dheader {
+  background: var(--clr-primary);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.dheader-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dheader-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.dheader-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dheader-agent {
+  font-size: 14px;
+  opacity: .9;
+}
+.dheader .btn-ghost {
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,.4);
+}
+.dheader .btn-ghost:hover { background: rgba(255,255,255,.15); }
+
+/* ── Queue main ────────────────────────────────────────────── */
+.queue-main {
+  flex: 1;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Status bar ────────────────────────────────────────────── */
+.queue-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.badge-pending {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.badge-clear {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #34d399;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.queue-updated {
+  font-size: 12px;
+  color: var(--clr-muted);
+  margin-left: auto;
+}
+.queue-error {
+  margin-top: 0;
+}
+
+/* ── Empty states ──────────────────────────────────────────── */
+.queue-empty {
+  text-align: center;
+  color: var(--clr-muted);
+  padding: 40px 16px;
+  font-size: 15px;
+}
+.queue-empty-state {
+  text-align: center;
+  padding: 60px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.queue-empty-icon { font-size: 48px; }
+.queue-empty-state p { color: var(--clr-muted); font-size: 15px; }
+.queue-empty-sub { font-size: 13px !important; }
+
+/* ── Card list ─────────────────────────────────────────────── */
+.dcard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Delivery card ─────────────────────────────────────────── */
+.dcard {
+  background: var(--clr-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1.5px solid var(--clr-border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color .2s;
+}
+.dcard-active {
+  border-color: var(--clr-primary);
+}
+.dcard-done {
+  opacity: .55;
+}
+.dcard-done-msg {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--clr-success);
+  padding: 12px 0;
+}
+
+/* Card header row */
+.dcard-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dcard-id {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--clr-muted);
+  font-family: monospace;
+}
+.dcard-time {
+  font-size: 13px;
+  color: var(--clr-muted);
+}
+.dcard-pay {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.dcard-pay.cod {
+  background: #f3f0ff;
+  color: var(--clr-cod);
+  border: 1px solid #c4b5fd;
+}
+.dcard-pay.upi {
+  background: #ecfdf5;
+  color: var(--clr-upi);
+  border: 1px solid #6ee7b7;
+}
+
+/* Customer */
+.dcard-customer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dcard-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+/* Calling the customer is the most critical field action — full 44px target. */
+.dcard-phone {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  margin: 0 -10px;
+  font-size: 14px;
+  color: var(--clr-primary);
+  text-decoration: none;
+  font-weight: 500;
+  touch-action: manipulation;
+}
+.dcard-phone:hover,
+.dcard-phone:active { text-decoration: underline; }
+
+/* Address */
+.dcard-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dcard-addr-text {
+  font-size: 14px;
+  color: var(--clr-text);
+  flex: 1;
+  min-width: 0;
+}
+.dcard-maps {
+  font-size: 13px;
+  color: var(--clr-primary);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dcard-maps:hover { text-decoration: underline; }
+
+/* Items toggle */
+.dcard-items-toggle {
+  background: #f8fafc;
+  border: 1.5px solid var(--clr-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  color: var(--clr-text);
+  touch-action: manipulation;
+}
+.dcard-items-toggle:hover,
+.dcard-items-toggle:active { background: #f1f5f9; }
+.dcard-chevron { margin-left: auto; font-size: 11px; }
+
+/* Items list */
+.dcard-items {
+  list-style: none;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.dcard-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.dcard-item-label {
+  font-size: 12px;
+  color: var(--clr-muted);
+}
+
+/* Deliver button */
+.dcard-deliver-btn { width: 100%; font-size: 15px; padding: 13px; }
+
+/* OTP area */
+.dcard-otp-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  padding: 14px;
+  border: 1.5px solid #bfdbfe;
+}
+.dcard-otp-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--clr-primary);
+}
+.dcard-otp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dcard-otp-input {
+  border: 1.5px solid var(--clr-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  width: 120px;
+  text-align: center;
+  background: #fff;
+}
+.dcard-otp-input:focus { border-color: var(--clr-primary); }
+
+/* ── Responsive (phones) ───────────────────────────────────── */
+@media (max-width: 480px) {
+  .dheader-inner { padding: 10px 12px; }
+  .dheader-brand { font-size: 15px; }
+  .queue-main { padding: 12px 12px 32px; }
+  .dcard { padding: 14px 12px; }
+  .dcard-otp-input { font-size: 20px; width: 100px; }
+}
+
+/* ── Accessibility & polish (UI/UX audit) ─────────────────── */
+
+/* Visible keyboard focus on all interactive elements. */
+:focus-visible {
+  outline: 3px solid var(--clr-primary);
+  outline-offset: 2px;
+}
+
+/* Queue loading skeleton — reserves card space, no layout jump. */
+.skeleton-card {
+  height: 180px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--clr-border);
+  background: linear-gradient(90deg, var(--clr-surface) 25%, #e9edf2 50%, var(--clr-surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Offline banner — agents move through dead zones; make state explicit. */
+.offline-banner {
+  background: #7f1d1d;
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

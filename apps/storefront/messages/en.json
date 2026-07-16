@@ -22,7 +22,8 @@
     "increase": "Increase quantity",
     "previous": "← Previous",
     "next": "Next →",
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "skipToContent": "Skip to main content"
   },
   "veg": {
     "vegetarian": "Vegetarian",
@@ -95,6 +96,8 @@
   },
   "product": {
     "currentlyUnavailable": "Currently unavailable",
+    "outOfStock": "Out of stock",
+    "outOfStockNotice": "This product is out of stock right now.",
     "unavailableNotice": "This product is currently unavailable.",
     "availableSizes": "Available sizes",
     "noSizes": "No sizes available."
@@ -287,7 +290,8 @@
     "connLiveTitle": "Live updates",
     "connPollingTitle": "Updating every few seconds",
     "connConnectingTitle": "Connecting…",
-    "lastUpdated": "updated {time}"
+    "lastUpdated": "updated {time}",
+    "downloadInvoice": "⬇ Download invoice (PDF)"
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

@@ -272,7 +272,8 @@ export default function CheckoutPage() {
           </div>
           {savedAddresses.length > 0 && (
             <div className="field">
-              <label>{t('savedAddresses')}</label>
+              {/* Not a <label>: it wraps no control (a11y dead label). */}
+              <span className="field-label">{t('savedAddresses')}</span>
               <div className="saved-address-picks">
                 {savedAddresses.map((a) => {
                   const active =
@@ -309,7 +310,8 @@ export default function CheckoutPage() {
             />
           </div>
           <div className="field">
-            <label>{t('deliveryLocation')}</label>
+            {/* Not a <label>: it wraps no control (a11y dead label). */}
+            <span className="field-label">{t('deliveryLocation')}</span>
             <LocationPicker
               lat={lat}
               lng={lng}

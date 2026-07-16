@@ -46,6 +46,17 @@ export interface Order {
   deliveryOtp: string | null;
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
+  // identity.users id of the assigned delivery agent; null = unassigned (pool).
+  assignedAgentId: number | null;
+}
+
+/** A delivery agent that an order can be dispatched to. */
+export interface DeliveryAgent {
+  id: number;
+  role: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 // Spring Data style page envelope used by list endpoints.
@@ -130,4 +141,63 @@ export interface Category {
   slug: string;
   imageUrl: string | null;
   sortOrder: number;
+}
+
+// ---- Analytics (admin) -------------------------------------------------------
+
+/** Today's GMV, order counts, and pending queue depth. */
+export interface AnalyticsSummary {
+  todayRevenue: number;
+  todayOrders: number;
+  todayDelivered: number;
+  pendingOrders: number;
+  weekRevenue: number;
+  weekOrders: number;
+}
+
+/** Revenue, order count, and gross profit for a single calendar day. */
+export interface DailySummary {
+  date: string; // yyyy-MM-dd
+  revenue: number;
+  orders: number;
+  grossProfit: number;
+}
+
+/** Top-selling variant for the analytics period. */
+export interface TopProduct {
+  productName: string;
+  variantLabel: string;
+  totalQty: number;
+  totalRevenue: number;
+}
+
+/** A variant at or below its low-stock threshold. */
+export interface LowStockItem {
+  variantId: number;
+  productId: number;
+  productName: string;
+  variantLabel: string;
+  available: number;
+  threshold: number;
+}
+
+// ---- Admin Inventory --------------------------------------------------------
+
+/** Stock level for one variant — admin view includes product/variant names. */
+export interface StockLevel {
+  id: number;
+  variantId: number;
+  productId: number;
+  productName: string;
+  variantLabel: string;
+  sellingPrice: number;
+  onHand: number;
+  reserved: number;
+  available: number;
+  lowStockThreshold: number;
+}
+
+export interface StockCorrectionRequest {
+  newOnHand: number;
+  reason: string;
 }

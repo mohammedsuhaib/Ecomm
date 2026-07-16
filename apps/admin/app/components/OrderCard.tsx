@@ -1,22 +1,34 @@
 'use client';
 
 import { useState } from 'react';
-import { ApiError, AuthRequiredError, transitionOrder } from '@/app/lib/api';
+import {
+  ApiError,
+  AuthRequiredError,
+  assignOrder,
+  transitionOrder,
+} from '@/app/lib/api';
 import { formatRupees, formatTime } from '@/app/lib/format';
 import { STATUS_LABELS, canCancel, nextStatus } from '@/app/lib/status';
-import type { Order } from '@/app/lib/types';
+import type { DeliveryAgent, Order } from '@/app/lib/types';
+
+function agentLabel(a: DeliveryAgent): string {
+  return a.name || a.email || a.phone || `Agent #${a.id}`;
+}
 
 /**
  * One order in the admin queue: customer/contact/address/items/total, plus
  * one-tap status advance. The DELIVERED transition requires the customer's
  * delivery OTP (proof of delivery / COD safeguard, ARCHITECTURE §3.5), so the
  * advance button reveals an OTP prompt before sending. Cancel asks for a reason.
+ * A rider dropdown dispatches the order to a delivery agent.
  */
 export default function OrderCard({
   order,
+  agents,
   onUpdated,
 }: {
   order: Order;
+  agents: DeliveryAgent[];
   onUpdated: (o: Order) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -25,6 +37,27 @@ export default function OrderCard({
   const [otp, setOtp] = useState('');
 
   const next = nextStatus(order.status);
+  const terminal = order.status === 'DELIVERED' || order.status === 'CANCELLED';
+  const assignedAgent =
+    agents.find((a) => a.id === order.assignedAgentId) ?? null;
+
+  async function onAssign(value: string) {
+    const agentId = value === '' ? null : Number(value);
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await assignOrder(order.id, agentId);
+      onUpdated(updated);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        setError('Session expired — please log in again.');
+      } else {
+        setError('Could not update the assignment. Please try again.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function advance(otpValue?: string) {
     if (!next) return;
@@ -104,6 +137,31 @@ export default function OrderCard({
         <strong>{order.customerName}</strong>
         <a href={`tel:${order.phone}`}>{order.phone}</a>
         <span className="muted">{order.address.line}</span>
+      </div>
+
+      <div className="order-assign">
+        <label htmlFor={`assign-${order.id}`}>Rider</label>
+        {terminal ? (
+          <span className="muted">
+            {assignedAgent ? agentLabel(assignedAgent) : 'Unassigned'}
+          </span>
+        ) : (
+          <select
+            id={`assign-${order.id}`}
+            value={order.assignedAgentId ?? ''}
+            disabled={busy || agents.length === 0}
+            onChange={(e) => onAssign(e.target.value)}
+          >
+            <option value="">
+              {agents.length === 0 ? 'No agents available' : 'Unassigned'}
+            </option>
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {agentLabel(a)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <ul className="order-card-items">
