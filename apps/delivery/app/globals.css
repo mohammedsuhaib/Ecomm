@@ -8,7 +8,8 @@
   --clr-primary: #1a56db;
   --clr-primary-hover: #1646c4;
   --clr-text: #111827;
-  --clr-muted: #6b7280;
+  /* 7:1 on --clr-bg — agents read this on sunlit phone screens (was #6b7280 at 4.4:1). */
+  --clr-muted: #4b5563;
   --clr-danger: #dc2626;
   --clr-success: #16a34a;
   --clr-warn: #d97706;
@@ -39,15 +40,20 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   padding: 10px 18px;
+  min-height: 44px; /* touch target minimum */
   transition: background .15s, opacity .15s;
   white-space: nowrap;
+  touch-action: manipulation; /* no double-tap-zoom latency */
 }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn-primary { background: var(--clr-primary); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--clr-primary-hover); }
+.btn-primary:hover:not(:disabled),
+.btn-primary:active:not(:disabled) { background: var(--clr-primary-hover); }
 .btn-ghost { background: transparent; color: var(--clr-text); }
-.btn-ghost:hover:not(:disabled) { background: rgba(0,0,0,.06); }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-ghost:hover:not(:disabled),
+.btn-ghost:active:not(:disabled) { background: rgba(0,0,0,.06); }
+/* Compact look but never below the 44px touch minimum. */
+.btn-sm { padding: 6px 12px; font-size: 13px; min-height: 44px; }
 
 /* ── Field / error ─────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; font-size: 14px; font-weight: 500; }
@@ -291,13 +297,21 @@ html, body {
   font-size: 16px;
   font-weight: 700;
 }
+/* Calling the customer is the most critical field action — full 44px target. */
 .dcard-phone {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  margin: 0 -10px;
   font-size: 14px;
   color: var(--clr-primary);
   text-decoration: none;
   font-weight: 500;
+  touch-action: manipulation;
 }
-.dcard-phone:hover { text-decoration: underline; }
+.dcard-phone:hover,
+.dcard-phone:active { text-decoration: underline; }
 
 /* Address */
 .dcard-address {
@@ -328,6 +342,7 @@ html, body {
   border: 1.5px solid var(--clr-border);
   border-radius: 8px;
   padding: 8px 12px;
+  min-height: 44px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -337,8 +352,10 @@ html, body {
   width: 100%;
   text-align: left;
   color: var(--clr-text);
+  touch-action: manipulation;
 }
-.dcard-items-toggle:hover { background: #f1f5f9; }
+.dcard-items-toggle:hover,
+.dcard-items-toggle:active { background: #f1f5f9; }
 .dcard-chevron { margin-left: auto; font-size: 11px; }
 
 /* Items list */

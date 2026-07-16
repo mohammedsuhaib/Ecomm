@@ -11,7 +11,8 @@
   --accent: #c2185b;       /* festive pink accent */
   --accent-dark: #9d1450;
   --text: #3a2a14;
-  --muted: #8a7a55;
+  /* 5.7:1 on --bg / 5.9:1 on --surface (was #8a7a55 at ~4:1, failing AA). */
+  --muted: #6f6244;
   --bg: #fff8ec;
   --surface: #fffdf7;
   --border: #ece0c8;
@@ -45,7 +46,9 @@ a {
   text-decoration: none;
 }
 a:hover {
-  color: var(--green);
+  /* Keep the readable dark tone on hover — #f9a825 is 1.9:1 on white. */
+  color: var(--green-dark);
+  text-decoration: underline;
 }
 
 .wrap {
@@ -174,7 +177,7 @@ a:hover {
   font-size: 0.95rem;
 }
 .search-form button:hover {
-  background: #14471a;
+  background: #9a4207; /* darker marigold ink (was leftover forest green) */
 }
 
 /* ---- Sections ---- */
@@ -329,11 +332,13 @@ a:hover {
   border: none;
   border-radius: var(--radius);
   padding: 0.6rem 1rem;
+  min-height: 44px; /* touch target minimum */
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   background: var(--green);
   color: var(--on-primary);
+  touch-action: manipulation; /* no double-tap-zoom latency */
 }
 .btn:hover {
   background: var(--green-dark);
@@ -370,8 +375,8 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px; /* touch target minimum */
+  height: 44px;
   border: 1px solid var(--green);
   border-radius: 50%;
   background: #fff;
@@ -381,6 +386,7 @@ a:hover {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  touch-action: manipulation;
 }
 .quick-add:hover {
   background: var(--green-light);
@@ -402,14 +408,15 @@ a:hover {
   border: none;
   background: var(--green-light);
   color: var(--green-dark);
-  width: 30px;
-  height: 32px;
+  width: 40px; /* touch target (was 30x32) */
+  height: 44px;
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
 }
 .quick-add-stepper button:hover {
-  background: #d7eddb;
+  background: #ffe9b8; /* marigold tint (was leftover mint green) */
 }
 .quick-add-stepper button:disabled {
   opacity: 0.5;
@@ -454,12 +461,13 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 44px; /* touch target minimum (was 34px) */
+  height: 44px;
   border: none;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   color: #fff;
+  touch-action: manipulation;
   font-size: 1.3rem;
   line-height: 1;
   cursor: pointer;
@@ -702,14 +710,15 @@ a:hover {
   border: none;
   background: var(--green-light);
   color: var(--green-dark);
-  width: 36px;
-  height: 36px;
+  width: 44px; /* touch target minimum (was 36px) */
+  height: 44px;
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
 }
 .qty-stepper button:hover {
-  background: #d7eddb;
+  background: #ffe9b8; /* marigold tint (was leftover mint green) */
 }
 .qty-stepper button:disabled {
   opacity: 0.5;
@@ -927,7 +936,7 @@ a:hover {
   vertical-align: middle;
 }
 .live-dot.on {
-  color: var(--green);
+  color: var(--green-dark); /* #f9a825 is 1.9:1 on the page bg — unreadable */
 }
 
 .status-timeline {
@@ -1189,7 +1198,7 @@ a:hover {
   flex-wrap: wrap;
 }
 .order-stamp-status.delivered {
-  color: var(--green);
+  color: var(--green-dark); /* readable success tone (marigold fails contrast) */
 }
 .order-stamp-status.cancelled {
   color: var(--danger);
@@ -1260,5 +1269,7 @@ a:hover {
   color: var(--muted);
 }
 .breadcrumb a:hover {
-  color: var(--green);
+  /* Keep the readable dark tone on hover — #f9a825 is 1.9:1 on white. */
+  color: var(--green-dark);
+  text-decoration: underline;
 }

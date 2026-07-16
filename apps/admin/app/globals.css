@@ -7,7 +7,8 @@
   --on-primary: #3a2a14;   /* dark ink for text on light primary */
   --accent: #c2185b;       /* festive pink accent */
   --text: #3a2a14;
-  --muted: #8a7a55;
+  /* 5.7:1 on --bg / 5.9:1 on --surface (was #8a7a55 at ~4:1, failing AA). */
+  --muted: #6f6244;
   --bg: #fff8ec;
   --surface: #fffdf7;
   --border: #ece0c8;
@@ -110,11 +111,13 @@ a {
   border: none;
   border-radius: var(--radius);
   padding: 0.6rem 1rem;
+  min-height: 44px; /* touch target minimum (tablet use) */
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   background: var(--green);
   color: var(--on-primary);
+  touch-action: manipulation;
 }
 .btn:hover {
   background: var(--green-dark);
@@ -254,7 +257,7 @@ a {
   color: var(--muted);
 }
 .live-dot.on {
-  color: var(--green);
+  color: var(--green-dark); /* #f9a825 is ~1.9:1 on the page bg — unreadable */
 }
 .queue-empty {
   text-align: center;
@@ -524,13 +527,19 @@ a {
   max-width: none;
 }
 .pw-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px; /* touch target (was ~24×20px) */
+  min-height: 44px;
   background: none;
   border: none;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
   color: var(--muted);
-  padding: 0 0.25rem;
+  padding: 0;
+  touch-action: manipulation;
 }
 .pw-modal-close:hover {
   color: var(--green-dark);
@@ -1010,13 +1019,14 @@ a {
 }
 .bar-fill {
   width: 100%;
-  background: var(--green);
+  /* Data elements need ≥3:1 vs surface; #f9a825 is ~1.9:1, --green-dark is ~4.9:1. */
+  background: var(--green-dark);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
   transition: background 0.15s;
 }
 .bar-col:hover .bar-fill {
-  background: var(--green-dark);
+  background: #7c3a06; /* darker step of --green-dark for hover emphasis */
 }
 .bar-label {
   font-size: 0.55rem;

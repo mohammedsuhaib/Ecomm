@@ -122,12 +122,13 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
           <div className="dcard-otp-row">
             <input
               id={`otp-${order.id}`}
-              type="number"
+              type="text"
               inputMode="numeric"
               pattern="[0-9]*"
+              autoComplete="one-time-code"
               className="dcard-otp-input"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="1234"
               autoFocus
               maxLength={6}
