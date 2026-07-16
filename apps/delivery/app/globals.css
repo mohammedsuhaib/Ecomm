@@ -61,8 +61,7 @@ html, body {
   border: 1.5px solid var(--clr-border);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 15px;
-  outline: none;
+  font-size: 16px; /* ≥16px prevents iOS auto-zoom on focus */
   transition: border-color .15s;
   background: #fff;
 }
@@ -412,7 +411,6 @@ html, body {
   letter-spacing: 4px;
   width: 120px;
   text-align: center;
-  outline: none;
   background: #fff;
 }
 .dcard-otp-input:focus { border-color: var(--clr-primary); }
@@ -424,4 +422,47 @@ html, body {
   .queue-main { padding: 12px 12px 32px; }
   .dcard { padding: 14px 12px; }
   .dcard-otp-input { font-size: 20px; width: 100px; }
+}
+
+/* ── Accessibility & polish (UI/UX audit) ─────────────────── */
+
+/* Visible keyboard focus on all interactive elements. */
+:focus-visible {
+  outline: 3px solid var(--clr-primary);
+  outline-offset: 2px;
+}
+
+/* Queue loading skeleton — reserves card space, no layout jump. */
+.skeleton-card {
+  height: 180px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--clr-border);
+  background: linear-gradient(90deg, var(--clr-surface) 25%, #e9edf2 50%, var(--clr-surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Offline banner — agents move through dead zones; make state explicit. */
+.offline-banner {
+  background: #7f1d1d;
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

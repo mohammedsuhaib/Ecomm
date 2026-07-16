@@ -22,7 +22,8 @@
     "increase": "Increase quantity",
     "previous": "← Previous",
     "next": "Next →",
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "skipToContent": "Skip to main content"
   },
   "veg": {
     "vegetarian": "Vegetarian",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ApiError, changePassword } from '@/app/lib/api';
 
 const MIN_LEN = 8;
@@ -23,6 +23,8 @@ export default function ChangePassword() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   function reset() {
     setCurrent('');
@@ -38,6 +40,48 @@ export default function ChangePassword() {
       return !o;
     });
   }
+
+  const dirty = current.length > 0 || next.length > 0 || confirm.length > 0;
+
+  /** Close only when nothing typed would be lost (backdrop / Escape path). */
+  function requestClose() {
+    if (dirty && !window.confirm('Discard the passwords you typed?')) return;
+    toggle();
+  }
+
+  // While open: close on Escape, keep Tab cycling inside the dialog, and
+  // restore focus to the trigger button when the dialog closes.
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        requestClose();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusables = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      triggerRef.current?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, dirty]);
 
   const mismatch = confirm.length > 0 && next !== confirm;
   const tooShort = next.length > 0 && next.length < MIN_LEN;
@@ -87,6 +131,7 @@ export default function ChangePassword() {
     <>
       <button
         type="button"
+        ref={triggerRef}
         className="btn btn-ghost admin-logout"
         onClick={toggle}
         aria-haspopup="dialog"
@@ -102,15 +147,15 @@ export default function ChangePassword() {
           role="dialog"
           aria-modal="true"
           aria-label="Change password"
-          onClick={toggle}
+          onClick={requestClose}
         >
-          <div className="pw-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="pw-modal" ref={modalRef} onClick={(e) => e.stopPropagation()}>
             <div className="pw-modal-head">
               <h2 className="account-panel-title">Change password</h2>
               <button
                 type="button"
                 className="pw-modal-close"
-                onClick={toggle}
+                onClick={requestClose}
                 aria-label="Close"
               >
                 ×

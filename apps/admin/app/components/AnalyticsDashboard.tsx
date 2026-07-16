@@ -76,14 +76,13 @@ export default function AnalyticsDashboard() {
 
   return (
     <section className="analytics">
-      {/* Period selector */}
-      <div className="queue-tabs" role="tablist" aria-label="Analytics period">
+      {/* Period selector — aria-pressed toggles, not half-implemented ARIA tabs. */}
+      <div className="queue-tabs" aria-label="Analytics period">
         {PERIOD_OPTIONS.map((opt) => (
           <button
             key={opt.days}
             type="button"
-            role="tab"
-            aria-selected={period === opt.days}
+            aria-pressed={period === opt.days}
             className={`queue-tab ${period === opt.days ? 'active' : ''}`}
             onClick={() => setPeriod(opt.days)}
           >
@@ -128,22 +127,53 @@ export default function AnalyticsDashboard() {
 
       {/* Daily revenue chart — full width */}
       <div className="analytics-card">
-        <h3 className="analytics-card-title">Revenue — last {period} days</h3>
+        <h2 className="analytics-card-title">Revenue — last {period} days</h2>
         {daily.length === 0 && !loading ? (
           <p className="muted" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No orders in this period.</p>
         ) : (
-          <div className="bar-chart" role="img" aria-label={`Revenue bar chart, last ${period} days`}>
-            {[...daily].reverse().map((d) => {
-              const heightPct = (d.revenue / maxRevenue) * 100;
-              const gpPct = pct(d.grossProfit, d.revenue);
-              return (
-                <div key={d.date} className="bar-col" title={`${d.date}\nRevenue: ${fmt(d.revenue)}\nOrders: ${d.orders}\nGross profit: ${fmt(d.grossProfit)} (${gpPct})`}>
-                  <div className="bar-fill" style={{ height: `${Math.max(heightPct, 2)}%` }} />
-                  <div className="bar-label">{d.date.slice(5)}</div>
-                </div>
-              );
-            })}
-          </div>
+          <>
+            {/* Bars are focusable buttons: values reachable by keyboard and
+                announced by screen readers (title alone is mouse-only). */}
+            <div
+              className="bar-chart"
+              aria-label={`Daily revenue, last ${period} days: total ${fmt(periodRevenue)}, gross profit ${fmt(periodGrossProfit)}. Values per day follow.`}
+            >
+              {[...daily].reverse().map((d) => {
+                const heightPct = (d.revenue / maxRevenue) * 100;
+                const gpPct = pct(d.grossProfit, d.revenue);
+                const detail = `${d.date}: revenue ${fmt(d.revenue)}, ${d.orders} orders, gross profit ${fmt(d.grossProfit)} (${gpPct})`;
+                return (
+                  <button
+                    key={d.date}
+                    type="button"
+                    className="bar-col"
+                    title={detail}
+                    aria-label={detail}
+                  >
+                    <div className="bar-fill" style={{ height: `${Math.max(heightPct, 2)}%` }} />
+                    <div className="bar-label" aria-hidden>{d.date.slice(5)}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Screen-reader table alternative for the chart data. */}
+            <table className="sr-only">
+              <caption>Daily revenue, orders and gross profit — last {period} days</caption>
+              <thead>
+                <tr><th>Date</th><th>Revenue</th><th>Orders</th><th>Gross profit</th></tr>
+              </thead>
+              <tbody>
+                {daily.map((d) => (
+                  <tr key={d.date}>
+                    <td>{d.date}</td>
+                    <td>{fmt(d.revenue)}</td>
+                    <td>{d.orders}</td>
+                    <td>{fmt(d.grossProfit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
 
@@ -151,7 +181,7 @@ export default function AnalyticsDashboard() {
       <div className="analytics-row">
         {/* Top products */}
         <div className="analytics-card">
-          <h3 className="analytics-card-title">Top Products</h3>
+          <h2 className="analytics-card-title">Top Products</h2>
           {topProducts.length === 0 && !loading ? (
             <p className="muted" style={{ textAlign: 'center', padding: '1rem 0' }}>No sales data.</p>
           ) : (
@@ -181,12 +211,12 @@ export default function AnalyticsDashboard() {
 
         {/* Low stock alerts */}
         <div className="analytics-card">
-          <h3
+          <h2
             className="analytics-card-title"
             style={{ color: lowStock.length > 0 ? 'var(--danger)' : undefined }}
           >
             Low Stock Alerts{lowStock.length > 0 ? ` (${lowStock.length})` : ''}
-          </h3>
+          </h2>
           {lowStock.length === 0 ? (
             <p className="muted" style={{ textAlign: 'center', padding: '1rem 0' }}>
               {loading ? 'Loading…' : 'All items above their threshold.'}

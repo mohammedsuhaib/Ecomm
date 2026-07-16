@@ -316,6 +316,12 @@ a:hover {
 .veg-dot.veg::after {
   background: #2e7d32;
 }
+/* Non-veg differs by SHAPE too (FSSAI-style triangle), not colour alone —
+   green vs red circles are indistinguishable to red-green colourblind users. */
+.veg-dot.nonveg::after {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
 .veg-dot.nonveg {
   border-color: #c62828;
 }
@@ -831,7 +837,8 @@ a:hover {
   gap: 0.3rem;
   margin-bottom: 0.75rem;
 }
-.checkout-section label {
+.checkout-section label,
+.checkout-section .field-label {
   font-size: 0.85rem;
   color: var(--muted);
 }
@@ -1272,4 +1279,77 @@ a:hover {
   /* Keep the readable dark tone on hover — #f9a825 is 1.9:1 on white. */
   color: var(--green-dark);
   text-decoration: underline;
+}
+
+/* ---- Accessibility & polish utilities (UI/UX audit) ---- */
+
+/* Visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link: first tab stop, visible only while focused. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0.75rem;
+  z-index: 1000;
+  padding: 0.6rem 1rem;
+  background: var(--green-dark);
+  color: #fff;
+  border-radius: var(--radius);
+  font-weight: 600;
+}
+.skip-link:focus {
+  top: 0.75rem;
+  color: #fff;
+}
+
+/* Consistent, visible keyboard focus (UA default is faint on marigold). */
+:focus-visible {
+  outline: 2px solid var(--green-dark);
+  outline-offset: 2px;
+}
+
+/* Fixed-width digits so prices/quantities don't shift as values change. */
+.price,
+.mrp,
+.cart-row-total,
+.qty-value,
+.otp-code {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cart loading skeleton — reserves row space to avoid layout jumps. */
+.skeleton-row {
+  height: 64px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--surface) 25%, #f3ecd9 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  margin-bottom: 0.6rem;
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Respect reduced-motion preferences globally. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

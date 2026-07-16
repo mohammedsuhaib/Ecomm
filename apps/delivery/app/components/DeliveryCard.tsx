@@ -70,7 +70,7 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
 
       {/* Customer */}
       <div className="dcard-customer">
-        <div className="dcard-name">{order.customerName}</div>
+        <h2 className="dcard-name">{order.customerName}</h2>
         <a className="dcard-phone" href={`tel:${order.phone}`}>
           📞 {order.phone}
         </a>
@@ -89,13 +89,15 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
         type="button"
         className="dcard-items-toggle"
         onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-controls={`items-${order.id}`}
       >
         {order.items.length} item{order.items.length !== 1 ? 's' : ''} · {fmtAmount(order.total)}
-        <span className="dcard-chevron">{expanded ? '▲' : '▼'}</span>
+        <span className="dcard-chevron" aria-hidden>{expanded ? '▲' : '▼'}</span>
       </button>
 
       {expanded && (
-        <ul className="dcard-items">
+        <ul className="dcard-items" id={`items-${order.id}`}>
           {order.items.map((item, i) => (
             <li key={i} className="dcard-item">
               <span>{item.productName} <span className="dcard-item-label">{item.label}</span> × {item.qty}</span>

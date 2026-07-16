@@ -38,10 +38,15 @@ export default async function RootLayout({
   // Locale + messages resolved from the cookie/Accept-Language (i18n/request.ts).
   const locale = await getLocale();
   const messages = await getMessages();
+  const tc = await getTranslations('common');
 
   return (
     <html lang={locale}>
       <body>
+        {/* Keyboard users skip the header's 7+ tab stops; visible on focus. */}
+        <a href="#main" className="skip-link">
+          {tc('skipToContent')}
+        </a>
         {/* Kannada needs a script-capable webfont; only load it when the active
             language is Kannada so English visitors aren't charged for it. The
             CSS font stack falls through to 'Noto Sans Kannada' for Kannada
@@ -74,7 +79,7 @@ export default async function RootLayout({
                   badge, add-to-cart controls, cart and checkout pages. */}
               <CartProvider>
                 <Header />
-                <main className="wrap">
+                <main id="main" className="wrap">
                   {/* SearchBar/useSearchParams need a Suspense boundary. */}
                   <Suspense fallback={null}>{children}</Suspense>
                 </main>

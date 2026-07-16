@@ -142,13 +142,13 @@ export default function OrderQueue() {
 
   return (
     <section className="queue">
-      <div className="queue-tabs" role="tablist" aria-label="Order status filter">
+      {/* aria-pressed toggles, not a half-implemented ARIA tabs pattern. */}
+      <div className="queue-tabs" aria-label="Order status filter">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value || 'all'}
             type="button"
-            role="tab"
-            aria-selected={status === tab.value}
+            aria-pressed={status === tab.value}
             className={`queue-tab ${status === tab.value ? 'active' : ''}`}
             onClick={() => setStatus(tab.value)}
           >

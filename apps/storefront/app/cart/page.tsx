@@ -70,7 +70,11 @@ export default function CartPage() {
       {error && <p className="notice error">{error}</p>}
 
       {loading && items.length === 0 ? (
-        <p className="empty-state">{t('loading')}</p>
+        <div aria-busy="true" aria-label={t('loading')}>
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+        </div>
       ) : items.length === 0 ? (
         <div className="empty-state">
           <p>{t('empty')}</p>
