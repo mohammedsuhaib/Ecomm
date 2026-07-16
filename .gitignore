@@ -5,6 +5,10 @@ target/
 out/
 bin/
 
+# ───── Python (skill scripts) ─────
+__pycache__/
+*.pyc
+
 # ───── Node / Next.js ─────
 node_modules/
 .next/
