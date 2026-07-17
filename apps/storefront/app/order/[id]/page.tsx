@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, getOrder, orderInvoiceUrl, orderStreamUrl } from '@/app/lib/api';
+import { ApiError, cancelOrder, getOrder, orderInvoiceUrl, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { useCart } from '@/app/components/CartProvider';
 import type { Order, OrderStatus } from '@/app/lib/types';
@@ -59,6 +59,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  // Ticks once a second while the self-cancel window is open so the countdown
+  // and the button's visibility stay live.
+  const [nowMs, setNowMs] = useState(() => Date.now());
   // 'connecting' until the first successful read; then 'live' (SSE open) or
   // 'polling' (SSE unavailable but we're still refreshing every few seconds).
   const [conn, setConn] = useState<'connecting' | 'live' | 'polling'>('connecting');
@@ -160,6 +165,44 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     return stop;
   }, [streamId, trackingToken, applyOrder]);
 
+  // Self-service cancel window (refund policy: within 1 minute of placing,
+  // before packing). Server is the authority; this only drives the UI.
+  const cancelWindowMs = 60_000;
+  const placedAtMs = order ? Date.parse(order.placedAt) : Number.NaN;
+  const cancelSecondsLeft = Number.isNaN(placedAtMs)
+    ? 0
+    : Math.max(0, Math.ceil((placedAtMs + cancelWindowMs - nowMs) / 1000));
+  const cancelEligible =
+    order != null &&
+    (order.status === 'PLACED' || order.status === 'CONFIRMED') &&
+    cancelSecondsLeft > 0;
+
+  // Tick the countdown once a second while the window is open.
+  useEffect(() => {
+    if (!cancelEligible) return;
+    const timer = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [cancelEligible]);
+
+  async function onCancelOrder() {
+    if (!order || cancelBusy) return;
+    if (!window.confirm(t('cancelConfirm'))) return;
+    setCancelBusy(true);
+    setCancelError(null);
+    try {
+      const updated = await cancelOrder(trackingToken);
+      applyOrder(updated);
+    } catch (err) {
+      setCancelError(
+        err instanceof ApiError && err.status === 422
+          ? t('cancelWindowClosed')
+          : t('cancelFailed'),
+      );
+    } finally {
+      setCancelBusy(false);
+    }
+  }
+
   if (error) {
     return (
       <div className="empty-state">
@@ -195,6 +238,22 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             time: formatTime(order.placedAt),
           })}
         </p>
+        {cancelEligible && (
+          <div className="cancel-window">
+            <button
+              type="button"
+              className="btn btn-outline cancel-order-btn"
+              onClick={onCancelOrder}
+              disabled={cancelBusy}
+            >
+              {cancelBusy
+                ? t('cancelling')
+                : t('cancelOrderWithSeconds', { seconds: cancelSecondsLeft })}
+            </button>
+            <p className="muted cancel-window-hint">{t('cancelWindowHint')}</p>
+          </div>
+        )}
+        {cancelError && <p className="notice error">{cancelError}</p>}
       </div>
 
       {order.status === 'OUT_FOR_DELIVERY' && order.deliveryOtp && (

@@ -76,6 +76,12 @@ class OrderController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PostMapping("/track/{token}/cancel")
+    @Operation(summary = "Customer self-service cancel — within 1 minute of placing, before packing (public-by-token).")
+    OrderDto cancelByToken(@PathVariable UUID token) {
+        return orderService.cancelByToken(token);
+    }
+
     @GetMapping("/track/{token}/invoice.pdf")
     @Operation(summary = "Download a PDF invoice for an order, fetched by its tracking token (public-by-token).")
     ResponseEntity<byte[]> invoice(@PathVariable UUID token) {

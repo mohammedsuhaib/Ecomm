@@ -39,6 +39,20 @@ public interface OrderService {
      */
     Optional<OrderDto> getOrderByToken(UUID trackingToken);
 
+    /**
+     * Customer self-service cancellation by tracking token (PUBLIC-by-token,
+     * same capability model as {@link #getOrderByToken}). Allowed only within
+     * the published cancellation window (1 minute of placing — refund policy)
+     * and while the order is still PLACED/CONFIRMED. Cancelling releases the
+     * stock reservation via the normal CANCELLED transition events. Idempotent:
+     * an already-cancelled order is returned as-is.
+     *
+     * @throws com.townbasket.shared.ResourceNotFoundException if the token is unknown
+     * @throws com.townbasket.shared.BusinessRuleException if the window has
+     *     passed or fulfilment has already started (mapped to 422)
+     */
+    OrderDto cancelByToken(UUID trackingToken);
+
     /** A customer's own orders, newest first (AUTHENTICATED). */
     PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable);
 
