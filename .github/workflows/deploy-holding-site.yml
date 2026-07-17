@@ -1,0 +1,86 @@
+# Auto-redeploy the holding site (town-basket.com) when its files change on
+# main. The droplet serves holding-site/ as bind-mounts behind Caddy (see
+# holding-site/deploy/), so a deploy is just: git pull + compose up/restart.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   DROPLET_SSH_KEY  — private key with SSH access to the droplet (PEM/OpenSSH)
+#   DROPLET_HOST     — droplet public IP or hostname
+# Optional:
+#   DROPLET_USER     — SSH user (defaults to root)
+#   DROPLET_REPO_DIR — repo path on the droplet (defaults to Ecomm in $HOME)
+#
+# The job fails fast with a clear message if secrets are missing, and can be
+# run manually from the Actions tab (workflow_dispatch) to test the setup.
+name: Deploy holding site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'holding-site/**'
+      - '.github/workflows/deploy-holding-site.yml'
+  workflow_dispatch:
+
+# Never run two deploys at once; queue instead of cancelling (a deploy is fast).
+concurrency:
+  group: deploy-holding-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy secrets are configured
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
+            echo "::error::DROPLET_SSH_KEY and/or DROPLET_HOST secrets are not set." \
+                 "Add them under Settings → Secrets and variables → Actions to enable auto-deploy."
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER || 'root' }}
+          REPO_DIR: ${{ secrets.DROPLET_REPO_DIR || 'Ecomm' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # accept-new: trust the host key on first contact, pin it afterwards.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 \
+              "$USER@$HOST" REPO_DIR="$REPO_DIR" 'bash -s' <<'REMOTE'
+            set -euo pipefail
+            cd "$HOME/$REPO_DIR"
+            # The droplet may still be on the original feature-branch clone —
+            # deploys always track main.
+            git fetch origin main
+            git checkout main 2>/dev/null || git checkout -b main origin/main
+            git reset --hard origin/main
+            cd holding-site/deploy
+            # up -d picks up compose/Caddyfile changes; restart makes Caddy
+            # re-read a bind-mounted Caddyfile even when the compose file
+            # itself is unchanged.
+            docker compose up -d
+            docker compose restart
+            echo "Deployed $(git -C ../.. rev-parse --short HEAD) to town-basket.com"
+          REMOTE
+
+      - name: Verify site responds
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          # Give Caddy a moment, then check the site actually serves. Uses the
+          # droplet IP with the domain as Host/SNI so DNS is not a dependency.
+          sleep 5
+          code=$(curl -s -o /dev/null -w '%{http_code}' --resolve town-basket.com:443:"$HOST" \
+                 https://town-basket.com/shipping.html || echo 000)
+          echo "shipping.html -> HTTP $code"
+          [ "$code" = "200" ] || { echo "::error::Site not responding with 200 after deploy"; exit 1; }

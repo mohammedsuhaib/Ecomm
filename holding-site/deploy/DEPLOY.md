@@ -65,9 +65,27 @@ Open **https://town-basket.com**. Confirm these load (give these URLs to Razorpa
 - https://town-basket.com/contact.html
 
 ## Updating later (e.g. once the support email is set)
+
+**Automatic (preferred):** any change to `holding-site/**` merged to `main`
+triggers `.github/workflows/deploy-holding-site.yml`, which SSHes to the
+droplet, checks out latest `main`, and restarts Caddy. One-time setup — add
+two repository secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `DROPLET_SSH_KEY` | Private key with SSH access to the droplet |
+| `DROPLET_HOST` | Droplet public IP |
+| `DROPLET_USER` *(optional)* | SSH user, defaults to `root` |
+| `DROPLET_REPO_DIR` *(optional)* | Repo path on the droplet, defaults to `Ecomm` |
+
+Test it from the Actions tab → "Deploy holding site" → Run workflow.
+Note: the deploy checks out **main** on the droplet (the original clone used a
+feature branch; the workflow fixes that on first run).
+
+**Manual (fallback):**
 ```bash
-cd Ecomm && git pull
-cd holding-site/deploy && docker compose restart
+cd Ecomm && git checkout main && git pull
+cd holding-site/deploy && docker compose up -d && docker compose restart
 ```
 
 ## When the real app is ready
