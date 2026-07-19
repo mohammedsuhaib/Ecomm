@@ -1,0 +1,40 @@
+{
+  "packageId": "com.townbasket.app",
+  "host": "shop.town-basket.com",
+  "name": "Town Basket",
+  "launcherName": "Town Basket",
+  "display": "standalone",
+  "themeColor": "#2e7d32",
+  "themeColorDark": "#1b5e20",
+  "navigationColor": "#2e7d32",
+  "navigationColorDark": "#1b5e20",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://shop.town-basket.com/icons/icon-512.png",
+  "maskableIconUrl": "https://shop.town-basket.com/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./town-basket.keystore",
+    "alias": "town-basket"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://shop.town-basket.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://shop.town-basket.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}

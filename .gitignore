@@ -28,6 +28,14 @@ next-env.d.ts
 !.env.example
 *.local
 
+# ───── Android signing / TWA build outputs (never committed) ─────
+*.keystore
+playstore/*.aab
+playstore/*.apk
+playstore/*.idsig
+playstore/build/
+playstore/app/
+
 # ───── Local Docker Compose overrides (per-machine, never committed) ─────
 docker-compose.override.yml
 **/docker-compose.override.yml
