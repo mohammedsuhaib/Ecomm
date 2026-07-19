@@ -20,6 +20,10 @@ town-basket.com, www.town-basket.com {
 		-Server
 	}
 
+	# Correct MIME for the PWA manifest (alpine's mime db may not know it)
+	@manifest path /manifest.webmanifest
+	header @manifest Content-Type application/manifest+json
+
 	# Don't serve repo/deploy files — only the static site
 	@hidden path /deploy/* /README.md /*.py
 	respond @hidden 404
