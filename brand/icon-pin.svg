@@ -2,7 +2,7 @@
   <!-- Concept: location pin = "local groceries here". Green tile, white pin, green basket inside. -->
   <defs>
     <linearGradient id="tilep" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FBB829"/><stop offset="1" stop-color="#F08C00"/>
+      <stop offset="0" stop-color="#2EA561"/><stop offset="1" stop-color="#1B7A43"/>
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tilep)"/>
@@ -10,9 +10,9 @@
   <path d="M256 408 C 196 312, 158 266, 158 202 A 98 98 0 1 1 354 202 C 354 266, 316 312, 256 408 Z" fill="#FFFFFF"/>
   <!-- green basket inside the pin head -->
   <g transform="translate(0,-6)">
-    <path d="M214 196 C 220 166, 292 166, 298 196" fill="none" stroke="#B45309" stroke-width="11" stroke-linecap="round"/>
-    <rect x="200" y="190" width="112" height="15" rx="7.5" fill="#B45309"/>
-    <path d="M210 210 L302 210 L292 258 C 290 265, 285 269, 279 269 L233 269 C 227 269, 222 265, 220 258 Z" fill="#F9A825"/>
+    <path d="M214 196 C 220 166, 292 166, 298 196" fill="none" stroke="#1B7A43" stroke-width="11" stroke-linecap="round"/>
+    <rect x="200" y="190" width="112" height="15" rx="7.5" fill="#1B7A43"/>
+    <path d="M210 210 L302 210 L292 258 C 290 265, 285 269, 279 269 L233 269 C 227 269, 222 265, 220 258 Z" fill="#2EA561"/>
     <g stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity="0.9">
       <line x1="240" y1="214" x2="238" y2="266"/>
       <line x1="272" y1="214" x2="274" y2="266"/>

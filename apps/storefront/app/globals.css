@@ -1,21 +1,18 @@
 /* Town Basket storefront — mobile-first, brand-consistent with holding-site. */
 
 :root {
-  /* Brand: Marigold (palette 16). The --green* names are kept for compatibility
-     but now carry the marigold ramp. The primary is LIGHT, so text on primary
-     surfaces is dark (--on-primary). */
-  --green: #f9a825;        /* marigold — primary brand */
-  --green-dark: #b45309;   /* deep amber — text, links, hover, dark fills */
-  --green-light: #fff3d6;  /* light marigold tint — chips, thumbs, notices */
-  --on-primary: #3a2a14;   /* dark ink for text/icons on the light primary */
-  --accent: #c2185b;       /* festive pink accent */
-  --accent-dark: #9d1450;
-  --text: #3a2a14;
-  /* 5.7:1 on --bg / 5.9:1 on --surface (was #8a7a55 at ~4:1, failing AA). */
-  --muted: #6f6244;
-  --bg: #fff8ec;
-  --surface: #fffdf7;
-  --border: #ece0c8;
+  /* Brand: the original Town Basket green. The primary is DARK, so text on
+     primary surfaces is white (--on-primary). All pairs verified WCAG AA:
+     white on --green 5.1:1, --muted on --bg 5.7:1 / --surface 5.3:1. */
+  --green: #2e7d32;        /* primary brand green */
+  --green-dark: #1b5e20;   /* text, links, hover, dark fills */
+  --green-light: #e8f5e9;  /* light green tint — chips, thumbs, notices */
+  --on-primary: #ffffff;   /* white text/icons on the dark primary */
+  --text: #1f2a24;
+  --muted: #5a6b62;
+  --bg: #ffffff;
+  --surface: #f6f9f7;
+  --border: #e0e6e2;
   --danger: #c62828;
   --max: 960px;
   --radius: 12px;
@@ -46,7 +43,7 @@ a {
   text-decoration: none;
 }
 a:hover {
-  /* Keep the readable dark tone on hover — #f9a825 is 1.9:1 on white. */
+  /* Hover keeps the dark readable tone; underline adds a non-colour cue. */
   color: var(--green-dark);
   text-decoration: underline;
 }
@@ -98,7 +95,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(58, 42, 20, 0.1);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--on-primary);
   border: none;
   border-radius: 999px;
@@ -107,7 +104,7 @@ a:hover {
   cursor: pointer;
 }
 .location-pill:hover {
-  background: rgba(58, 42, 20, 0.18);
+  background: rgba(255, 255, 255, 0.26);
 }
 .header-search {
   flex: 1 1 220px;
@@ -125,7 +122,7 @@ a:hover {
 .lang-switch {
   display: inline-flex;
   align-items: center;
-  background: rgba(58, 42, 20, 0.1);
+  background: rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   padding: 2px;
   flex: none;
@@ -177,7 +174,7 @@ a:hover {
   font-size: 0.95rem;
 }
 .search-form button:hover {
-  background: #9a4207; /* darker marigold ink (was leftover forest green) */
+  background: #14471a; /* darker step of --green-dark */
 }
 
 /* ---- Sections ---- */
@@ -422,7 +419,7 @@ a:hover {
   touch-action: manipulation;
 }
 .quick-add-stepper button:hover {
-  background: #ffe9b8; /* marigold tint (was leftover mint green) */
+  background: #d7eddb; /* deeper tint of --green-light */
 }
 .quick-add-stepper button:disabled {
   opacity: 0.5;
@@ -664,14 +661,14 @@ a:hover {
   align-items: center;
   gap: 0.35rem;
   position: relative;
-  background: rgba(58, 42, 20, 0.1);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--on-primary);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.85rem;
 }
 .cart-pill:hover {
-  background: rgba(58, 42, 20, 0.18);
+  background: rgba(255, 255, 255, 0.26);
   color: var(--on-primary);
 }
 .cart-pill .cart-label {
@@ -724,7 +721,7 @@ a:hover {
   touch-action: manipulation;
 }
 .qty-stepper button:hover {
-  background: #ffe9b8; /* marigold tint (was leftover mint green) */
+  background: #d7eddb; /* deeper tint of --green-light */
 }
 .qty-stepper button:disabled {
   opacity: 0.5;
@@ -943,7 +940,7 @@ a:hover {
   vertical-align: middle;
 }
 .live-dot.on {
-  color: var(--green-dark); /* #f9a825 is 1.9:1 on the page bg — unreadable */
+  color: var(--green-dark); /* dark tone stays readable on the light page bg */
 }
 
 .status-timeline {
@@ -1012,7 +1009,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(58, 42, 20, 0.1);
+  background: rgba(255, 255, 255, 0.16);
   color: var(--on-primary);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
@@ -1020,7 +1017,7 @@ a:hover {
   max-width: 9rem;
 }
 .account-pill:hover {
-  background: rgba(58, 42, 20, 0.18);
+  background: rgba(255, 255, 255, 0.26);
   color: var(--on-primary);
 }
 .account-pill .account-label {
@@ -1276,7 +1273,7 @@ a:hover {
   color: var(--muted);
 }
 .breadcrumb a:hover {
-  /* Keep the readable dark tone on hover — #f9a825 is 1.9:1 on white. */
+  /* Hover keeps the dark readable tone; underline adds a non-colour cue. */
   color: var(--green-dark);
   text-decoration: underline;
 }
@@ -1332,7 +1329,7 @@ a:hover {
 .skeleton-row {
   height: 64px;
   border-radius: var(--radius);
-  background: linear-gradient(90deg, var(--surface) 25%, #f3ecd9 50%, var(--surface) 75%);
+  background: linear-gradient(90deg, var(--surface) 25%, #e6efe9 50%, var(--surface) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   margin-bottom: 0.6rem;

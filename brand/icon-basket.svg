@@ -2,8 +2,8 @@
   <!-- App icon: fresh-green rounded tile with a white shopping basket + sprout -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FBB829"/>
-      <stop offset="1" stop-color="#F08C00"/>
+      <stop offset="0" stop-color="#2EA561"/>
+      <stop offset="1" stop-color="#1B7A43"/>
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#tile)"/>
@@ -20,7 +20,7 @@
   <!-- body -->
   <path d="M160 276 L352 276 L328 374 C 325 388, 314 396, 300 396 L212 396 C 198 396, 187 388, 184 374 Z" fill="#FFFFFF"/>
   <!-- weave gaps (tile-coloured lines over the white body) -->
-  <g stroke="#B45309" stroke-width="9" stroke-linecap="round">
+  <g stroke="#1B7A43" stroke-width="9" stroke-linecap="round">
     <line x1="216" y1="282" x2="210" y2="390"/>
     <line x1="256" y1="282" x2="256" y2="392"/>
     <line x1="296" y1="282" x2="302" y2="390"/>

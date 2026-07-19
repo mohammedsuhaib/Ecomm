@@ -1,19 +1,19 @@
 /* Town Basket admin — mobile/tablet-first, brand-consistent with storefront. */
 
 :root {
-  --green: #f9a825;        /* marigold — primary brand */
-  --green-dark: #b45309;   /* deep amber — text, links, hover, dark fills */
-  --green-light: #fff3d6;  /* light marigold tint */
-  --on-primary: #3a2a14;   /* dark ink for text on light primary */
-  --accent: #c2185b;       /* festive pink accent */
-  --text: #3a2a14;
-  /* 5.7:1 on --bg / 5.9:1 on --surface (was #8a7a55 at ~4:1, failing AA). */
-  --muted: #6f6244;
-  --bg: #fff8ec;
-  --surface: #fffdf7;
-  --border: #ece0c8;
+  /* Brand: the original Town Basket green (dark primary, white on-primary).
+     Pairs verified WCAG AA: white on --green 5.1:1, --muted on --bg 5.2:1. */
+  --green: #2e7d32;        /* primary brand green */
+  --green-dark: #1b5e20;   /* text, links, hover, dark fills */
+  --green-light: #e8f5e9;  /* light green tint */
+  --on-primary: #ffffff;   /* white text on the dark primary */
+  --text: #1f2a24;
+  --muted: #5a6b62;
+  --bg: #f4f7f5;
+  --surface: #ffffff;
+  --border: #e0e6e2;
   --danger: #c62828;
-  --amber: #ef6c00;        /* burnt orange — distinct from marigold primary */
+  --amber: #d9a300;        /* warning accent (original palette) */
   --blue: #1565c0;
   --radius: 12px;
   --max: 1100px;
@@ -258,7 +258,7 @@ a {
   color: var(--muted);
 }
 .live-dot.on {
-  color: var(--green-dark); /* #f9a825 is ~1.9:1 on the page bg — unreadable */
+  color: var(--green-dark); /* dark tone stays readable on the light page bg */
 }
 .queue-empty {
   text-align: center;
@@ -1025,14 +1025,14 @@ a {
 }
 .bar-fill {
   width: 100%;
-  /* Data elements need ≥3:1 vs surface; #f9a825 is ~1.9:1, --green-dark is ~4.9:1. */
+  /* Data elements need ≥3:1 vs surface; --green-dark is ~7.9:1 on white. */
   background: var(--green-dark);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
   transition: background 0.15s;
 }
 .bar-col:hover .bar-fill {
-  background: #7c3a06; /* darker step of --green-dark for hover emphasis */
+  background: #14471a; /* darker step of --green-dark for hover emphasis */
 }
 .bar-label {
   font-size: 0.7rem; /* was 0.55rem (~8.8px) — below legible minimum */

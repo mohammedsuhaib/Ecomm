@@ -155,7 +155,7 @@ export default function InventoryPanel() {
                           <strong style={{ color: 'var(--danger)' }}>0</strong>
                         ) : isLow ? (
                           // #b34700 is 5.2:1 on the .inv-row-low bg (#fff7e6);
-                          // var(--amber) #ef6c00 was ~2.9:1 and failed AA.
+                          // a lighter amber ink here fails AA (~2.9:1); keep the dark warning tone.
                           <span style={{ color: '#b34700', fontWeight: 700 }}>{item.available}</span>
                         ) : (
                           item.available
