@@ -9,7 +9,7 @@
  * Bump CACHE_VERSION on any breaking change; old caches are dropped on
  * activate.
  */
-const CACHE_VERSION = 'tb-holding-v1';
+const CACHE_VERSION = 'tb-holding-v2';
 
 const PRECACHE = [
   '/',
@@ -20,6 +20,8 @@ const PRECACHE = [
   '/shipping.html',
   '/contact.html',
   '/styles.css',
+  '/sw-register.js',
+  '/install.js',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
