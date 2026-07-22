@@ -41,6 +41,12 @@ ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY \
 ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=""
 ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
+# Browser-facing API base URL — inlined into the client bundle at BUILD time
+# (a runtime env only affects SSR). MUST be overridden per environment:
+# local default below, QA/prod pass --build-arg NEXT_PUBLIC_API_BASE_URL=...
+ARG NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api/v1"
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
 RUN pnpm --filter @town-basket/storefront build
 
 # ───── runtime (Next.js standalone) ─────

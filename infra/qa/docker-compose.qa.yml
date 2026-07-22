@@ -1,0 +1,115 @@
+# QA environment — full Town Basket stack built FROM SOURCE on the QA droplet
+# (no container registry needed). Fronted by Caddy with auto-TLS on the qa-*
+# subdomains. Deploy loop:
+#
+#   cd Ecomm && git checkout main && git pull
+#   cd infra/qa
+#   cp .env.example .env   # first time only — then fill it in
+#   docker compose -f docker-compose.qa.yml up -d --build
+#
+# QA intentionally keeps the DEV verifiers: fake phone OTP (dev:<phone>) and
+# the fake UPI gateway, plus the seeded admin/staff/delivery accounts — that is
+# what makes end-to-end testing possible without real money or SMS.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      # Consumed by the Caddyfile's {env.QA_BASIC_AUTH_HASH} placeholder.
+      QA_BASIC_AUTH_HASH: ${QA_BASIC_AUTH_HASH:?set QA_BASIC_AUTH_HASH in .env (caddy hash-password)}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - storefront
+      - admin
+      - delivery
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-townbasket}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: townbasket
+    volumes:
+      - qa_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-townbasket} -d townbasket"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/townbasket
+      DB_USERNAME: ${DB_USERNAME:-townbasket}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (>=32 random bytes)}
+      APP_CORS_ALLOWED_ORIGINS: https://qa.town-basket.com,https://qa-admin.town-basket.com,https://qa-delivery.town-basket.com
+      # QA keeps the offline fake phone verifier (accepts dev:<10-digit-phone>)
+      # by leaving FIREBASE_PROJECT_ID unset, and the fake UPI gateway.
+      CATALOG_TRANSLITERATION_ENABLED: "true"
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  storefront:
+    build:
+      context: ../..
+      dockerfile: apps/storefront/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://qa-api.town-basket.com/api/v1
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    restart: unless-stopped
+    environment:
+      # SSR-side URL (container-to-container).
+      INTERNAL_API_BASE_URL: http://api:8080/api/v1
+    expose:
+      - "3000"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: ../..
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://qa-api.town-basket.com/api/v1
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_BASE_URL: http://api:8080/api/v1
+    expose:
+      - "3001"
+    depends_on:
+      - api
+
+  delivery:
+    build:
+      context: ../..
+      dockerfile: apps/delivery/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://qa-api.town-basket.com/api/v1
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_BASE_URL: http://api:8080/api/v1
+    expose:
+      - "3002"
+    depends_on:
+      - api
+
+volumes:
+  qa_pgdata:
+  caddy_data:
+  caddy_config:

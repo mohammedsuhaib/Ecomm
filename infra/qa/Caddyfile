@@ -1,0 +1,48 @@
+# QA environment reverse proxy — auto-TLS on the qa-* subdomains.
+#
+# The three app hosts sit behind HTTP basic auth so the QA stack (fake
+# payments, seeded accounts) is not publicly browsable. Generate the hash:
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password'
+# and paste it below (keep the {env.*} form and set QA_BASIC_AUTH_HASH in .env,
+# or inline the hash directly).
+#
+# The API host has NO basic auth: the frontends call it from the browser and
+# it protects itself the same way production does (JWT roles). All QA hosts
+# send X-Robots-Tag so search engines never index the test site.
+
+(qa_common) {
+	encode gzip zstd
+	header X-Robots-Tag "noindex, nofollow"
+}
+
+(qa_gate) {
+	basic_auth {
+		qa {env.QA_BASIC_AUTH_HASH}
+	}
+}
+
+qa.town-basket.com {
+	import qa_common
+	import qa_gate
+	reverse_proxy storefront:3000
+}
+
+qa-admin.town-basket.com {
+	import qa_common
+	import qa_gate
+	reverse_proxy admin:3001
+}
+
+qa-delivery.town-basket.com {
+	import qa_common
+	import qa_gate
+	reverse_proxy delivery:3002
+}
+
+qa-api.town-basket.com {
+	import qa_common
+	# SSE (live order tracking + admin queue) needs unbuffered responses.
+	reverse_proxy api:8080 {
+		flush_interval -1
+	}
+}

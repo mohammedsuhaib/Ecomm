@@ -11,6 +11,10 @@ COPY packages ./packages
 RUN pnpm install --filter @town-basket/admin... --frozen-lockfile || \
     pnpm install --filter @town-basket/admin...
 COPY apps/admin apps/admin
+# Browser-facing API base URL — inlined into the client bundle at BUILD time
+# (a runtime env only affects SSR). Override per environment via --build-arg.
+ARG NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api/v1"
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 RUN pnpm --filter @town-basket/admin build
 
 # ───── runtime (Next.js standalone) ─────
