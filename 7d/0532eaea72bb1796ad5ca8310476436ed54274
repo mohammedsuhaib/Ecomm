@@ -1,0 +1,56 @@
+apps/admin/app/components/RidersPanel.tsx
+  s_e5f0bb8fb72092::t_f7a4c03079c12c 40
+  s_e5f0bb8fb72092::t_021bf399aa164c 37-39
+  s_e5f0bb8fb72092::t_cce59f4ebde30a 41-43
+  s_e5f0bb8fb72092::t_253933de7b60b6 1-36,44-202
+apps/api/src/main/java/com/townbasket/identity/AdminDirectoryController.java
+  s_e5f0bb8fb72092::t_6828efcbc236aa 6,8-10,12-13,18-19,23,33-50
+apps/admin/app/lib/types.ts
+  s_e5f0bb8fb72092::t_e5a518c28962e9 58
+apps/api/src/main/java/com/townbasket/identity/internal/AuthServiceImpl.java
+  s_e5f0bb8fb72092::t_0e40d68fcdc793 6-7
+  s_e5f0bb8fb72092::t_b7e458634c5844 270-304,318-320
+  s_e5f0bb8fb72092::t_32e87917dbae89 321
+apps/admin/app/components/OrderCard.tsx
+  s_e5f0bb8fb72092::t_a44affa0a495b0 15
+apps/admin/app/lib/api.ts
+  s_e5f0bb8fb72092::t_ce507bdebfd8a3 311-342
+apps/api/src/main/java/com/townbasket/identity/AuthService.java
+  s_e5f0bb8fb72092::t_0b417a4e4a3831 87-111
+apps/api/src/main/java/com/townbasket/identity/internal/UserRepository.java
+  s_e5f0bb8fb72092::t_c0e7b208677a19 15-16,20-21
+  s_e5f0bb8fb72092::t_e36b29d501299f 22
+apps/api/src/main/java/com/townbasket/identity/internal/UserEntity.java
+  s_e5f0bb8fb72092::t_72fbec7d4a1de7 76-84
+  s_e5f0bb8fb72092::t_f0a6767b4f5421 129-132
+apps/api/src/main/java/com/townbasket/identity/CreateDeliveryAgentRequest.java
+  s_b990b7100bbf18::t_3df951a26ee4f9 1-9
+apps/api/src/main/java/com/townbasket/identity/DeliveryAgentDto.java
+  s_b990b7100bbf18::t_7014c3843f64d5 1-9
+apps/api/src/main/java/com/townbasket/identity/SetActiveRequest.java
+  s_b990b7100bbf18::t_b6e46c63744253 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "7d0532eaea72bb1796ad5ca8310476436ed54274",
+  "prompts": {},
+  "sessions": {
+    "s_b990b7100bbf18": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "80f996c9-a669-4a89-bb3b-7ad32b908191",
+        "model": "unknown"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    },
+    "s_e5f0bb8fb72092": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0894787b-3935-439d-a0c4-28d0287882c7",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
