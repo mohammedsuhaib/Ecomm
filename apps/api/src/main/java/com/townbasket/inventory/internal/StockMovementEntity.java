@@ -41,8 +41,4 @@ class StockMovementEntity {
         this.delta = delta;
         this.reason = reason;
     }
-
-    Long getId() {
-        return id;
-    }
 }

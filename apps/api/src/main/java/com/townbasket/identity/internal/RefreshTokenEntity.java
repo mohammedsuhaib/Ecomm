@@ -56,10 +56,6 @@ class RefreshTokenEntity {
         return userId;
     }
 
-    Instant getExpiresAt() {
-        return expiresAt;
-    }
-
     boolean isRevoked() {
         return revoked;
     }

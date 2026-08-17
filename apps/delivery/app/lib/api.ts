@@ -4,7 +4,7 @@ import type { AuthResponse, Order, Page, TokenPair } from './types';
 const PUBLIC_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
 
-export function getApiBase(): string {
+function getApiBase(): string {
   if (typeof window === 'undefined') {
     return process.env.INTERNAL_API_BASE_URL ?? PUBLIC_BASE;
   }
@@ -131,7 +131,7 @@ async function authPost<T>(path: string, body: unknown): Promise<T> {
 export const staffLogin = (email: string, password: string): Promise<AuthResponse> =>
   authPost<AuthResponse>('/auth/staff/login', { email, password });
 
-export const rotateToken = (refreshToken: string): Promise<TokenPair> =>
+const rotateToken = (refreshToken: string): Promise<TokenPair> =>
   authPost<TokenPair>('/auth/refresh', { refreshToken });
 
 export const apiLogout = async (refreshToken: string): Promise<void> => {

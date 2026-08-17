@@ -45,10 +45,6 @@ class StockLevelEntity {
         return id;
     }
 
-    Long getStoreId() {
-        return storeId;
-    }
-
     Long getVariantId() {
         return variantId;
     }

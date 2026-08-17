@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Optional;
 import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
@@ -43,14 +44,14 @@ class JwtTokenService implements TokenService {
     private final SecureRandom random = new SecureRandom();
 
     JwtTokenService(JwtProperties props) {
-        String secret = props.getSecret();
+        String secret = props.secret();
         if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
             throw new IllegalStateException(
                     "townbasket.security.jwt.secret (JWT_SECRET) must be set and >= 32 bytes for HS256");
         }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.accessTtl = props.getAccessTtl();
-        this.refreshTtl = props.getRefreshTtl();
+        this.accessTtl = props.accessTtl();
+        this.refreshTtl = props.refreshTtl();
     }
 
     @Override
@@ -101,12 +102,7 @@ class JwtTokenService implements TokenService {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder(digest.length * 2);
-            for (byte b : digest) {
-                sb.append(Character.forDigit((b >> 4) & 0xF, 16));
-                sb.append(Character.forDigit(b & 0xF, 16));
-            }
-            return sb.toString();
+            return HexFormat.of().formatHex(digest);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 unavailable", e);
         }

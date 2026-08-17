@@ -45,9 +45,9 @@ export default function SortControl({
         aria-label={t('ariaSort')}
       >
         <option value="">{t('recommended')}</option>
-        {SORT_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {t(o.value)}
+        {SORT_OPTIONS.map((value) => (
+          <option key={value} value={value}>
+            {t(value)}
           </option>
         ))}
       </select>

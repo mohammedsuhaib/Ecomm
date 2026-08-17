@@ -193,10 +193,6 @@ class ProductEntity {
         this.gstRate = gstRate;
     }
 
-    Instant getCreatedAt() {
-        return createdAt;
-    }
-
     List<ProductVariantEntity> getVariants() {
         return variants;
     }

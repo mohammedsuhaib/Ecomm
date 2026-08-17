@@ -4,8 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Profile + saved-address endpoints under {@code /api/v1/me} — AUTHENTICATED
- * (the security layer requires a valid token). The caller's user id is read
- * from the {@code SecurityContext} principal (a plain {@code Long} set by the
- * JWT filter), so every operation is implicitly owner-scoped.
+ * (the security layer requires a valid token). The caller's user id is the
+ * security principal (a plain {@code Long} set by the JWT filter), so every
+ * operation is implicitly owner-scoped.
  */
 @RestController
 @RequestMapping("/api/v1/me")
@@ -35,61 +34,50 @@ class MeController {
 
     @GetMapping
     @Operation(summary = "Current user's profile.")
-    UserDto me() {
-        return authService.currentUser(currentUserId());
+    UserDto me(@AuthenticationPrincipal Long userId) {
+        return authService.currentUser(userId);
     }
 
     @PutMapping
     @Operation(summary = "Update the current user's display name (1..80 chars; 400 otherwise).")
-    UserDto updateProfile(@RequestBody UpdateProfileRequest request) {
-        return authService.updateProfile(currentUserId(), request == null ? null : request.name());
+    UserDto updateProfile(@RequestBody UpdateProfileRequest request, @AuthenticationPrincipal Long userId) {
+        return authService.updateProfile(userId, request == null ? null : request.name());
     }
 
     @PostMapping("/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Change the current user's password (staff/admin only).")
-    void changePassword(@RequestBody ChangePasswordRequest request) {
+    void changePassword(@RequestBody ChangePasswordRequest request, @AuthenticationPrincipal Long userId) {
         authService.changePassword(
-                currentUserId(),
+                userId,
                 request == null ? null : request.currentPassword(),
                 request == null ? null : request.newPassword());
     }
 
     @GetMapping("/addresses")
     @Operation(summary = "List the user's saved addresses (default first, then newest).")
-    List<SavedAddressDto> listAddresses() {
-        return authService.listAddresses(currentUserId());
+    List<SavedAddressDto> listAddresses(@AuthenticationPrincipal Long userId) {
+        return authService.listAddresses(userId);
     }
 
     @PostMapping("/addresses")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Add a saved address.")
-    SavedAddressDto addAddress(@RequestBody AddressInput input) {
-        return authService.addAddress(currentUserId(), input);
+    SavedAddressDto addAddress(@RequestBody AddressInput input, @AuthenticationPrincipal Long userId) {
+        return authService.addAddress(userId, input);
     }
 
     @PutMapping("/addresses/{id}")
     @Operation(summary = "Update one of the user's addresses (404 if not owned).")
-    SavedAddressDto updateAddress(@PathVariable Long id, @RequestBody AddressInput input) {
-        return authService.updateAddress(currentUserId(), id, input);
+    SavedAddressDto updateAddress(@PathVariable Long id, @RequestBody AddressInput input,
+                                  @AuthenticationPrincipal Long userId) {
+        return authService.updateAddress(userId, id, input);
     }
 
     @DeleteMapping("/addresses/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete one of the user's addresses (404 if not owned).")
-    void deleteAddress(@PathVariable Long id) {
-        authService.deleteAddress(currentUserId(), id);
-    }
-
-    /**
-     * The authenticated caller's user id. The security config guarantees a valid
-     * token reached these routes, so the principal is always a {@code Long}.
-     */
-    private static Long currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof Long userId)) {
-            throw new IllegalStateException("No authenticated user in security context");
-        }
-        return userId;
+    void deleteAddress(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        authService.deleteAddress(userId, id);
     }
 }

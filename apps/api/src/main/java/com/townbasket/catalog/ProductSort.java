@@ -1,5 +1,6 @@
 package com.townbasket.catalog;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -27,15 +28,10 @@ public enum ProductSort {
      * Case-insensitive; absent/blank/unknown values yield an empty optional (default order).
      */
     public static Optional<ProductSort> parse(String value) {
-        if (value == null) {
+        try {
+            return Optional.of(valueOf(value.trim().toUpperCase(Locale.ROOT)));
+        } catch (IllegalArgumentException | NullPointerException e) {
             return Optional.empty();
         }
-        return switch (value.trim().toLowerCase()) {
-            case "name" -> Optional.of(NAME);
-            case "price_asc" -> Optional.of(PRICE_ASC);
-            case "price_desc" -> Optional.of(PRICE_DESC);
-            case "discount" -> Optional.of(DISCOUNT);
-            default -> Optional.empty();
-        };
     }
 }

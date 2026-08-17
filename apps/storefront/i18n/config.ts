@@ -45,21 +45,10 @@ export function resolveLocale(
 
 function matchAcceptLanguage(header: string | null | undefined): Locale {
   if (!header) return defaultLocale;
-  // Parse e.g. "kn-IN,kn;q=0.9,en;q=0.8" into base languages ranked by quality.
-  const ranked = header
-    .split(',')
-    .map((part) => {
-      const [tag, ...params] = part.trim().split(';');
-      const q = params.map((p) => p.trim()).find((p) => p.startsWith('q='));
-      const quality = q ? Number.parseFloat(q.slice(2)) : 1;
-      return {
-        base: tag.toLowerCase().split('-')[0],
-        quality: Number.isNaN(quality) ? 0 : quality,
-      };
-    })
-    .sort((a, b) => b.quality - a.quality);
-
-  for (const { base } of ranked) {
+  // Browsers send languages in descending-q order (e.g. "kn-IN,kn;q=0.9,en;q=0.8"),
+  // so take the first supported base language subtag.
+  for (const part of header.split(',')) {
+    const base = part.trim().split(';')[0].toLowerCase().split('-')[0];
     if (isLocale(base)) return base;
   }
   return defaultLocale;

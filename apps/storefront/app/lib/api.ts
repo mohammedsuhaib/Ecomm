@@ -42,15 +42,15 @@ import {
 const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
 
-export function getApiBaseUrl(): string {
+function getApiBaseUrl(): string {
   if (typeof window === 'undefined') {
     return process.env.INTERNAL_API_BASE_URL ?? PUBLIC_API_BASE_URL;
   }
   return PUBLIC_API_BASE_URL;
 }
 
-// Public (browser) base URL — also referenced by the service worker.
-export const API_BASE_URL = PUBLIC_API_BASE_URL;
+// Public (browser) base URL.
+const API_BASE_URL = PUBLIC_API_BASE_URL;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -429,7 +429,7 @@ export function phoneVerify(firebaseIdToken: string): Promise<AuthResponse> {
 }
 
 /** POST /auth/refresh — rotate: revoke the presented token, issue a new pair. */
-export function refreshTokens(refreshToken: string): Promise<TokenPair> {
+function refreshTokens(refreshToken: string): Promise<TokenPair> {
   return apiMutate<TokenPair>('POST', '/auth/refresh', { refreshToken });
 }
 

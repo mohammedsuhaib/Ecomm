@@ -21,10 +21,6 @@ export default function Catalogue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const onAuthExpired = useCallback(() => {
-    refreshAuth();
-  }, [refreshAuth]);
-
   const loadCategories = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -33,14 +29,14 @@ export default function Catalogue() {
       setCategories(list);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        onAuthExpired();
+        refreshAuth();
       } else {
         setError('Could not load categories. Check the connection and retry.');
       }
     } finally {
       setLoading(false);
     }
-  }, [onAuthExpired]);
+  }, [refreshAuth]);
 
   useEffect(() => {
     void loadCategories();
@@ -54,12 +50,12 @@ export default function Catalogue() {
         categories={categories}
         loading={loading}
         onChanged={loadCategories}
-        onAuthExpired={onAuthExpired}
+        onAuthExpired={refreshAuth}
       />
 
       <ProductsPanel
         categories={categories}
-        onAuthExpired={onAuthExpired}
+        onAuthExpired={refreshAuth}
       />
     </section>
   );

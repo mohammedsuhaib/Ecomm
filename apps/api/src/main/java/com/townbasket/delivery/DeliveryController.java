@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,13 +52,14 @@ class DeliveryController {
     PagedResponse<OrderDto> queue(
             @RequestParam(defaultValue = "OUT_FOR_DELIVERY") String status,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size) {
+            @RequestParam(defaultValue = "50") int size,
+            @AuthenticationPrincipal Long userId) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         PageRequest pageable = PageRequest.of(safePage, safeSize);
         return isAdmin()
                 ? orderService.listOrders(status, pageable)
-                : orderService.listAgentOrders(currentUserId(), status, pageable);
+                : orderService.listAgentOrders(userId, status, pageable);
     }
 
     /**
@@ -67,20 +69,12 @@ class DeliveryController {
      */
     @PostMapping("/orders/{id}/deliver")
     @Operation(summary = "Confirm delivery with the customer's OTP (must be assigned to you; ADMIN may override).")
-    OrderDto deliver(@PathVariable Long id, @RequestBody DeliverRequest request) {
+    OrderDto deliver(@PathVariable Long id, @RequestBody DeliverRequest request,
+                     @AuthenticationPrincipal Long userId) {
         if (isAdmin()) {
             return orderService.transition(id, new TransitionRequest("DELIVERED", request.otp(), null));
         }
-        return orderService.confirmDelivery(id, currentUserId(), request.otp());
-    }
-
-    /** The authenticated caller's user id (the security layer guarantees one here). */
-    private static Long currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Long userId) {
-            return userId;
-        }
-        throw new IllegalStateException("No authenticated user in security context");
+        return orderService.confirmDelivery(id, userId, request.otp());
     }
 
     private static boolean isAdmin() {

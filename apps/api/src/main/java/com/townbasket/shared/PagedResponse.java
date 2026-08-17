@@ -15,15 +15,6 @@ public record PagedResponse<T>(
         int size,
         long totalElements) {
 
-    /** Build an envelope from a Spring Data {@link Page} of already-mapped DTOs. */
-    public static <T> PagedResponse<T> of(Page<T> page) {
-        return new PagedResponse<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements());
-    }
-
     /** Build an envelope from a Spring Data {@link Page} of source rows, mapping each element. */
     public static <S, T> PagedResponse<T> of(Page<S> page, java.util.function.Function<S, T> mapper) {
         return new PagedResponse<>(

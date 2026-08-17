@@ -15,7 +15,7 @@
 
 import type { TokenPair, UserDto } from './types';
 
-export const AUTH_KEY = 'tb.auth.v1';
+const AUTH_KEY = 'tb.auth.v1';
 
 export interface StoredAuth {
   accessToken: string;
@@ -73,10 +73,6 @@ export function loadAccessToken(): string | null {
 
 export function loadRefreshToken(): string | null {
   return loadAuth()?.refreshToken ?? null;
-}
-
-export function loadUser(): UserDto | null {
-  return loadAuth()?.user ?? null;
 }
 
 /** Persist a freshly rotated token pair, keeping the cached user. */

@@ -3,12 +3,10 @@ package com.townbasket.inventory.internal;
 import com.townbasket.inventory.InsufficientStockException;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
-import com.townbasket.shared.events.StockLow;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,16 +25,13 @@ class InventoryServiceImpl implements InventoryService {
     private final StockLevelRepository stockLevels;
     private final ReservationRepository reservations;
     private final StockMovementRepository movements;
-    private final ApplicationEventPublisher events;
 
     InventoryServiceImpl(StockLevelRepository stockLevels,
                          ReservationRepository reservations,
-                         StockMovementRepository movements,
-                         ApplicationEventPublisher events) {
+                         StockMovementRepository movements) {
         this.stockLevels = stockLevels;
         this.reservations = reservations;
         this.movements = movements;
-        this.events = events;
     }
 
     @Override
@@ -52,7 +47,6 @@ class InventoryServiceImpl implements InventoryService {
             }
             reservations.save(new ReservationEntity(orderId, line.variantId(), line.qty()));
             movements.save(new StockMovementEntity(line.variantId(), -line.qty(), "RESERVE order " + orderId));
-            emitStockLowIfNeeded(storeId, line.variantId());
         }
     }
 
@@ -97,13 +91,5 @@ class InventoryServiceImpl implements InventoryService {
             result.merge(s.getVariantId(), s.available(), Math::max);
         }
         return result;
-    }
-
-    private void emitStockLowIfNeeded(Long storeId, Long variantId) {
-        stockLevels.findByStoreIdAndVariantId(storeId, variantId).ifPresent(s -> {
-            if (s.available() <= s.getLowStockThreshold()) {
-                events.publishEvent(new StockLow(storeId, variantId, s.available(), s.getLowStockThreshold()));
-            }
-        });
     }
 }

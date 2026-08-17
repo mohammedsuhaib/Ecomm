@@ -129,10 +129,6 @@ class OrderEntity {
         return id;
     }
 
-    UUID getCartId() {
-        return cartId;
-    }
-
     Long getUserId() {
         return userId;
     }

@@ -68,7 +68,7 @@ class RateLimitFilter extends OncePerRequestFilter {
         }
 
         long now = System.currentTimeMillis();
-        long windowMillis = properties.getWindow().toMillis();
+        long windowMillis = properties.window().toMillis();
         evictStale(now, windowMillis);
 
         String key = clientIp(request) + '|' + group;  // bucket per client + endpoint
@@ -80,7 +80,7 @@ class RateLimitFilter extends OncePerRequestFilter {
         });
 
         int used = window.count.incrementAndGet();
-        if (used > properties.getCapacity()) {
+        if (used > properties.capacity()) {
             long retryAfterSeconds = Math.max(1, (windowMillis - (now - window.startMillis) + 999) / 1000);
             reject(request, response, retryAfterSeconds);
             return;
@@ -118,7 +118,7 @@ class RateLimitFilter extends OncePerRequestFilter {
      * request and bypass the per-IP limit entirely.
      */
     private String clientIp(HttpServletRequest request) {
-        if (properties.isTrustForwardedFor()) {
+        if (properties.trustForwardedFor()) {
             String forwarded = request.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isBlank()) {
                 int comma = forwarded.indexOf(',');

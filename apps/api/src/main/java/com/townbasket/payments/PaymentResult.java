@@ -6,7 +6,6 @@ package com.townbasket.payments;
  * for COD).
  */
 public record PaymentResult(
-        Long paymentId,
         PaymentMethod method,
         PaymentStatus status,
         String reference) {

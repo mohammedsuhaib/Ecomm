@@ -67,9 +67,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # NOTE: once the backend exposes its OpenAPI spec (M2+), regenerate the
-      # API client here so contract drift fails the frontend build:
-      #   - run: pnpm --filter @town-basket/api-client generate
       - name: Type-check
         run: pnpm -r --if-present run typecheck
 

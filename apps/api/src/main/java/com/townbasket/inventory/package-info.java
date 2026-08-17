@@ -4,8 +4,7 @@
  * reservations.
  *
  * <p>Checkout reserves stock atomically; reservations commit on order
- * confirmation or release on cancellation/payment timeout. Emits
- * {@code StockLow} / {@code StockChanged} events.
+ * confirmation or release on cancellation/payment timeout.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Inventory")
 package com.townbasket.inventory;

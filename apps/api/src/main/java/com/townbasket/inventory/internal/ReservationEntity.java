@@ -50,24 +50,12 @@ class ReservationEntity {
         this.status = RESERVED;
     }
 
-    Long getId() {
-        return id;
-    }
-
-    Long getOrderId() {
-        return orderId;
-    }
-
     Long getVariantId() {
         return variantId;
     }
 
     int getQty() {
         return qty;
-    }
-
-    String getStatus() {
-        return status;
     }
 
     void setStatus(String status) {

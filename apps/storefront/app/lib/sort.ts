@@ -1,14 +1,14 @@
 import type { ProductSort } from './api';
 
-/** Sort options exposed in the listing dropdown, in display order. */
-export const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
-  { value: 'name', label: 'A–Z' },
-  { value: 'price_asc', label: 'Price: low to high' },
-  { value: 'price_desc', label: 'Price: high to low' },
-  { value: 'discount', label: 'Biggest discount' },
+/** Sort options exposed in the listing dropdown, in display order (labels come from i18n). */
+export const SORT_OPTIONS: readonly ProductSort[] = [
+  'name',
+  'price_asc',
+  'price_desc',
+  'discount',
 ];
 
-const VALID = new Set<string>(SORT_OPTIONS.map((o) => o.value));
+const VALID = new Set<string>(SORT_OPTIONS);
 
 /**
  * Validate a raw `?sort=` value, returning a known ProductSort or undefined

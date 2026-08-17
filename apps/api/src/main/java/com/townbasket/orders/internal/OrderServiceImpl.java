@@ -231,10 +231,7 @@ class OrderServiceImpl implements OrderService {
 
         OrderEntity reloaded = orders.findById(saved.getId()).orElseThrow();
 
-        // OrderPlaced carries the reserved lines so inventory can commit/release later.
-        events.publishEvent(new OrderPlaced(reloaded.getId(), storeId, reservationLines.stream()
-                .map(l -> new OrderPlaced.Line(l.variantId(), l.qty()))
-                .toList()));
+        events.publishEvent(new OrderPlaced(reloaded.getId(), storeId));
         if (reloaded.getStatus() == OrderStatus.CONFIRMED) {
             events.publishEvent(new OrderConfirmed(reloaded.getId(), storeId));
         }

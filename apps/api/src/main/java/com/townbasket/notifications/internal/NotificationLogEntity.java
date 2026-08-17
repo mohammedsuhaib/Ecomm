@@ -42,8 +42,4 @@ class NotificationLogEntity {
         this.channel = channel;
         this.type = type;
     }
-
-    Long getId() {
-        return id;
-    }
 }

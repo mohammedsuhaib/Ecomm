@@ -39,8 +39,8 @@ class PaymentServiceImpl implements PaymentService {
         }
         PaymentProvider.Charge outcome = provider.charge(orderId, amount);
         PaymentStatus status = outcome.status();
-        PaymentEntity saved = payments.save(new PaymentEntity(
+        payments.save(new PaymentEntity(
                 orderId, method.name(), status.name(), amount, outcome.reference()));
-        return new PaymentResult(saved.getId(), method, status, outcome.reference());
+        return new PaymentResult(method, status, outcome.reference());
     }
 }

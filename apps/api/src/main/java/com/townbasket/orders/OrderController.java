@@ -11,8 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,8 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>{@code POST /orders} is AUTHENTICATED (login required — no guest checkout),
  * as are {@code /orders/mine} and {@code /orders/&#42;/reorder}; {@code GET /orders/{id}}
- * stays public for confirmation + tracking. The user id is read from the
- * {@code SecurityContext} principal (a plain {@code Long}); orders does not depend
+ * stays public for confirmation + tracking. The user id is the security
+ * principal (a plain {@code Long} set by the JWT filter); orders does not depend
  * on the identity module for this.
  */
 @RestController
@@ -54,18 +53,20 @@ class OrderController {
     @Operation(summary = "Place an order from a cart (idempotent; AUTHENTICATED — login required, ties to the caller).")
     OrderDto placeOrder(
             @RequestBody PlaceOrderRequest request,
-            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey) {
+            @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+            @AuthenticationPrincipal Long userId) {
         // Login required (no guest checkout) — the security config rejects anonymous
         // POSTs with 401, so a user id is always present here.
-        return orderService.placeOrder(request, idempotencyKey, requireUserId());
+        return orderService.placeOrder(request, idempotencyKey, userId);
     }
 
     @GetMapping("/mine")
     @Operation(summary = "List the caller's own orders, newest first (AUTHENTICATED).")
     PagedResponse<OrderDto> myOrders(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return orderService.listUserOrders(requireUserId(), pageable(page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Long userId) {
+        return orderService.listUserOrders(userId, pageable(page, size));
     }
 
     @GetMapping("/track/{token}")
@@ -100,26 +101,8 @@ class OrderController {
     @PostMapping("/{id}/reorder")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new cart from a past order's still-available items (AUTHENTICATED).")
-    CartDto reorder(@PathVariable Long id) {
-        return orderService.reorder(id, requireUserId());
-    }
-
-    /** The caller's user id, or {@code null} for an unauthenticated (guest) request. */
-    private static Long currentUserIdOrNull() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Long userId) {
-            return userId;
-        }
-        return null;
-    }
-
-    /** The caller's user id; the security config guarantees a token reached these routes. */
-    private static Long requireUserId() {
-        Long userId = currentUserIdOrNull();
-        if (userId == null) {
-            throw new IllegalStateException("No authenticated user in security context");
-        }
-        return userId;
+    CartDto reorder(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        return orderService.reorder(id, userId);
     }
 
     private static Pageable pageable(int page, int size) {

@@ -599,13 +599,10 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     private int nextCategorySortOrder() {
-        return categoryRepository.findAll().stream()
+        var max = categoryRepository.findAll().stream()
                 .mapToInt(CategoryEntity::getSortOrder)
-                .max()
-                .stream()
-                .map(max -> max + SORT_ORDER_GAP)
-                .findFirst()
-                .orElse(0);
+                .max();
+        return max.isEmpty() ? 0 : max.getAsInt() + SORT_ORDER_GAP;
     }
 
     private boolean categorySlugExists(String slug) {
@@ -647,16 +644,7 @@ class CatalogServiceImpl implements CatalogService {
         normalized = DIACRITICS.matcher(normalized).replaceAll("");
         String lowered = normalized.toLowerCase(java.util.Locale.ROOT).trim();
         String hyphenated = NON_ALNUM.matcher(lowered).replaceAll("-");
-        // Strip leading/trailing hyphens.
-        int start = 0;
-        int end = hyphenated.length();
-        while (start < end && hyphenated.charAt(start) == '-') {
-            start++;
-        }
-        while (end > start && hyphenated.charAt(end - 1) == '-') {
-            end--;
-        }
-        return hyphenated.substring(start, end);
+        return hyphenated.replaceAll("^-+|-+$", "");
     }
 
     private static Optional<Long> parseLong(String value) {

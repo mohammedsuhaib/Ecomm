@@ -44,7 +44,7 @@ import type {
 const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
 
-export function getApiBaseUrl(): string {
+function getApiBaseUrl(): string {
   if (typeof window === 'undefined') {
     return process.env.INTERNAL_API_BASE_URL ?? PUBLIC_API_BASE_URL;
   }
@@ -52,7 +52,7 @@ export function getApiBaseUrl(): string {
 }
 
 // Public (browser) base URL — used for EventSource stream URLs.
-export const API_BASE_URL = PUBLIC_API_BASE_URL;
+const API_BASE_URL = PUBLIC_API_BASE_URL;
 
 export class ApiError extends Error {
   readonly status: number;
@@ -541,22 +541,6 @@ export function updateVariant(
     'PUT',
     `${CATALOG_BASE}/products/${productId}/variants/${variantId}`,
     req,
-  );
-}
-
-/**
- * POST /admin/catalog/products/{id}/variants/{variantId}/availability — toggle
- * a single variant's availability.
- */
-export function setVariantAvailability(
-  productId: number,
-  variantId: number,
-  available: boolean,
-): Promise<AdminVariant> {
-  return apiMutate<AdminVariant>(
-    'POST',
-    `${CATALOG_BASE}/products/${productId}/variants/${variantId}/availability`,
-    { available },
   );
 }
 

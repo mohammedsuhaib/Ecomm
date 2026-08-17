@@ -5,8 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -65,24 +64,16 @@ class CartController {
         return cartService.removeItem(cartId, itemId);
     }
 
+    /**
+     * The caller's user id is the security principal (a plain {@code Long} set
+     * by the JWT filter) — the cart module deliberately does not depend on the
+     * identity module for this. The security config guarantees the merge route
+     * is only reached with a valid token.
+     */
     @PostMapping("/{cartId}/merge")
     @Operation(summary = "Merge a guest cart into the caller's active cart (AUTHENTICATED).")
-    CartDto merge(@PathVariable UUID cartId) {
-        return cartService.merge(cartId, currentUserId());
-    }
-
-    /**
-     * The authenticated caller's user id, read from the security principal (a
-     * plain {@code Long} set by the JWT filter). The cart module deliberately
-     * does not depend on the identity module for this. The security config
-     * guarantees the merge route is only reached with a valid token.
-     */
-    private static Long currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !(auth.getPrincipal() instanceof Long userId)) {
-            throw new IllegalStateException("No authenticated user in security context");
-        }
-        return userId;
+    CartDto merge(@PathVariable UUID cartId, @AuthenticationPrincipal Long userId) {
+        return cartService.merge(cartId, userId);
     }
 
     /** Body for adding a cart item. */

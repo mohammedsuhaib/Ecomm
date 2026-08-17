@@ -15,8 +15,7 @@ public interface InventoryService {
      * Atomically reserve all lines for an order at a store. Each line is a single
      * conditional UPDATE ({@code on_hand - reserved >= qty}); if any line cannot
      * be satisfied the whole reservation fails and the transaction rolls back,
-     * so no partial reservation is left behind. Emits {@code StockLow} for any
-     * variant whose available stock falls to/below its threshold.
+     * so no partial reservation is left behind.
      *
      * @throws com.townbasket.inventory.InsufficientStockException if a line cannot be reserved
      */

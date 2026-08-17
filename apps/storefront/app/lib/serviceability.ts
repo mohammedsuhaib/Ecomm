@@ -4,7 +4,7 @@
 
 import type { ServiceabilityResult } from './types';
 
-export const SERVICEABILITY_KEY = 'tb.serviceability.v1';
+const SERVICEABILITY_KEY = 'tb.serviceability.v1';
 
 // Cached serviceable result is trusted for this long before we re-check. Kept
 // short so a customer who moves (or a store radius change) is re-validated soon;
@@ -55,14 +55,5 @@ export function saveServiceability(
     window.localStorage.setItem(SERVICEABILITY_KEY, JSON.stringify(payload));
   } catch {
     /* storage may be unavailable (private mode); gate still works in-session */
-  }
-}
-
-export function clearServiceability(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(SERVICEABILITY_KEY);
-  } catch {
-    /* ignore */
   }
 }

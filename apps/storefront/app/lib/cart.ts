@@ -2,7 +2,7 @@
 // cartId); we only persist the cartId in localStorage so it survives reloads
 // and navigation. A cart is created lazily on the first "add to cart".
 
-export const CART_ID_KEY = 'tb.cartId.v1';
+const CART_ID_KEY = 'tb.cartId.v1';
 
 export function loadCartId(): string | null {
   if (typeof window === 'undefined') return null;

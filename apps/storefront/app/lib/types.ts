@@ -146,11 +146,9 @@ export interface PlaceOrderRequest {
 // own JWTs + this contract; the auth vendor (Firebase) is hidden behind a
 // backend port.
 
-export type UserRole = 'CUSTOMER' | 'STORE_STAFF' | 'ADMIN';
-
 export interface UserDto {
   id: number;
-  role: string; // UserRole, kept as string to mirror the API exactly
+  role: string; // 'CUSTOMER' | 'STORE_STAFF' | 'ADMIN', kept as string to mirror the API exactly
   name: string | null;
   phone: string | null;
   email: string | null;

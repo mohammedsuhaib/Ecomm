@@ -64,7 +64,7 @@ class OrderPaymentFailureIntegrationTest extends AbstractIntegrationTest {
     @Test
     void failedPaymentRollsBackOrderAndReleasesReservation() {
         when(paymentService.charge(any(), eq(PaymentMethod.UPI), any()))
-                .thenReturn(new PaymentResult(1L, PaymentMethod.UPI, PaymentStatus.FAILED, "FAILED-REF"));
+                .thenReturn(new PaymentResult(PaymentMethod.UPI, PaymentStatus.FAILED, "FAILED-REF"));
 
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
