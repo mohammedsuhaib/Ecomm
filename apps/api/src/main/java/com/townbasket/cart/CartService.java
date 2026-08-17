@@ -1,5 +1,6 @@
 package com.townbasket.cart;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,14 @@ public interface CartService {
 
     /** Add a variant (or increase its qty) and return the updated cart. */
     CartDto addItem(UUID cartId, Long variantId, int qty);
+
+    /**
+     * Add many lines in ONE cart load + flush (used by {@code orders} reorder,
+     * where per-line {@link #addItem} is quadratic: each call re-resolves every
+     * existing line). Lines whose variant is missing or currently unavailable
+     * are skipped silently; existing lines have their qty summed.
+     */
+    CartDto addItems(UUID cartId, Map<Long, Integer> qtyByVariantId);
 
     /** Set a line's quantity (0 removes the line) and return the updated cart. */
     CartDto updateItem(UUID cartId, Long itemId, int qty);

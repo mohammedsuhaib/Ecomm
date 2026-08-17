@@ -11,6 +11,7 @@ import com.townbasket.shared.BusinessRuleException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -64,12 +65,30 @@ class CartServiceImpl implements CartService {
             throw new BusinessRuleException("This item is no longer available.");
         }
         CartEntity cart = require(cartId);
-        cart.getItems().stream()
-                .filter(i -> i.getVariantId().equals(variantId))
-                .findFirst()
-                .ifPresentOrElse(
-                        existing -> existing.setQty(existing.getQty() + qty),
-                        () -> cart.getItems().add(new CartItemEntity(cart, variantId, qty)));
+        addLine(cart, variantId, qty);
+        cart.touch();
+        return toDto(carts.saveAndFlush(cart));
+    }
+
+    @Override
+    public CartDto addItems(UUID cartId, Map<Long, Integer> qtyByVariantId) {
+        CartEntity cart = require(cartId);
+        for (Map.Entry<Long, Integer> line : qtyByVariantId.entrySet()) {
+            Long variantId = line.getKey();
+            int qty = line.getValue();
+            if (variantId == null || qty <= 0) {
+                continue;
+            }
+            // Contract: silently skip missing/unavailable variants (reorder
+            // semantics) — unlike addItem, which lets unavailable-but-known in.
+            boolean available = catalog.findVariant(variantId)
+                    .map(VariantView::available)
+                    .orElse(false);
+            if (!available) {
+                continue;
+            }
+            addLine(cart, variantId, qty);
+        }
         cart.touch();
         return toDto(carts.saveAndFlush(cart));
     }
@@ -135,13 +154,7 @@ class CartServiceImpl implements CartService {
         CartEntity userCart = activeUserCart.get();
         if (guestUsable && !guest.getId().equals(userCart.getId())) {
             for (CartItemEntity guestItem : guest.getItems()) {
-                userCart.getItems().stream()
-                        .filter(i -> i.getVariantId().equals(guestItem.getVariantId()))
-                        .findFirst()
-                        .ifPresentOrElse(
-                                existing -> existing.setQty(existing.getQty() + guestItem.getQty()),
-                                () -> userCart.getItems().add(
-                                        new CartItemEntity(userCart, guestItem.getVariantId(), guestItem.getQty())));
+                addLine(userCart, guestItem.getVariantId(), guestItem.getQty());
             }
             guest.setCheckedOut(true);
             carts.save(guest);
@@ -152,6 +165,16 @@ class CartServiceImpl implements CartService {
 
     private CartEntity require(UUID cartId) {
         return carts.findById(cartId).orElseThrow(() -> new CartNotFoundException(cartId));
+    }
+
+    /** Upsert a cart line: bump the existing line's qty for the variant, or add a new line. */
+    private static void addLine(CartEntity cart, Long variantId, int qty) {
+        cart.getItems().stream()
+                .filter(i -> i.getVariantId().equals(variantId))
+                .findFirst()
+                .ifPresentOrElse(
+                        existing -> existing.setQty(existing.getQty() + qty),
+                        () -> cart.getItems().add(new CartItemEntity(cart, variantId, qty)));
     }
 
     private CartDto toDto(CartEntity cart) {

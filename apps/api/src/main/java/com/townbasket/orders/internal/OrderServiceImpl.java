@@ -5,7 +5,6 @@ import com.townbasket.cart.CartItemDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.VariantTaxView;
-import com.townbasket.catalog.VariantView;
 import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
@@ -39,7 +38,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -304,17 +305,13 @@ class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
 
         CartDto cart = cartService.createUserCart(userId);
-        UUID cartId = cart.cartId();
-        // Add each currently catalog-available line; skip unavailable ones.
+        // One bulk call: addItems loads/flushes the cart once and skips lines
+        // that are no longer catalog-available (per-line addItem was quadratic).
+        Map<Long, Integer> lines = new LinkedHashMap<>();
         for (OrderItemEntity item : order.getItems()) {
-            boolean available = catalogService.findVariant(item.getVariantId())
-                    .map(VariantView::available)
-                    .orElse(false);
-            if (available) {
-                cart = cartService.addItem(cartId, item.getVariantId(), item.getQty());
-            }
+            lines.merge(item.getVariantId(), item.getQty(), Integer::sum);
         }
-        return cart;
+        return cartService.addItems(cart.cartId(), lines);
     }
 
     @Override
