@@ -1,0 +1,94 @@
+package.json
+  s_5516af9055481c::t_a63eb49f40fbf9 5
+apps/api/src/main/java/com/townbasket/catalog/internal/CatalogServiceImpl.java
+  s_5516af9055481c::t_a98d268f8058b8 647
+  s_5516af9055481c::t_77dcc0f5578d97 602,604-605
+apps/api/src/main/java/com/townbasket/RateLimitFilter.java
+  s_5516af9055481c::t_960d4a0e25a3fc 71,83,121
+apps/api/src/main/java/com/townbasket/identity/internal/JwtProperties.java
+  s_5516af9055481c::t_5bee254d9930e4 11-14,17-25
+apps/api/src/main/java/com/townbasket/inventory/InventoryService.java
+  s_5516af9055481c::t_80ce94d103debd 18
+apps/storefront/i18n/config.ts
+  s_5516af9055481c::t_db136778cbbf87 48-51
+apps/api/src/main/java/com/townbasket/catalog/ProductSort.java
+  s_5516af9055481c::t_949d4344354865 3
+  s_5516af9055481c::t_6246f423129254 31-33
+apps/api/src/main/java/com/townbasket/orders/internal/OrderServiceImpl.java
+  s_5516af9055481c::t_edf1ecd1304da4 234
+apps/storefront/app/lib/auth.ts
+  s_5516af9055481c::t_2f0cc80df07084 18
+apps/storefront/app/components/SortControl.tsx
+  s_5516af9055481c::t_9f23e991232c46 48-50
+apps/storefront/app/lib/cart.ts
+  s_5516af9055481c::t_9fce1d40cbe190 5
+apps/api/src/main/java/com/townbasket/cart/CartController.java
+  s_5516af9055481c::t_65ec8acbc26861 8
+  s_5516af9055481c::t_167d4e56add5a7 68-71,73-76
+apps/api/src/main/java/com/townbasket/payments/internal/PaymentServiceImpl.java
+  s_5516af9055481c::t_e7cd465c840946 42,44
+apps/api/src/main/java/com/townbasket/RateLimitProperties.java
+  s_5516af9055481c::t_f9cf31242d503a 14-27,30-38
+apps/storefront/app/lib/api.ts
+  s_5516af9055481c::t_511d0da99e2dbb 45,52-53
+  s_5516af9055481c::t_c6753cb8d7c2c6 432
+pnpm-workspace.yaml
+  s_5516af9055481c::t_7e3e4b58074166 1-3
+apps/admin/app/components/Catalogue.tsx
+  s_5516af9055481c::t_6f9af8634e80b9 32,39
+  s_5516af9055481c::t_ab3e8ef862519d 53,58
+apps/api/src/main/java/com/townbasket/shared/events/OrderPlaced.java
+  s_5516af9055481c::t_f26cee975de0a2 10
+apps/delivery/app/lib/api.ts
+  s_5516af9055481c::t_d32f946283d155 7
+  s_5516af9055481c::t_99f552284ddf01 134
+apps/api/src/main/java/com/townbasket/identity/MeController.java
+  s_5516af9055481c::t_258ac5f1edc587 7,20-22,37-38,43-44,50,52,59-60,66-67,72-74,80-81
+apps/storefront/app/lib/serviceability.ts
+  s_5516af9055481c::t_da8c0af413589c 7
+apps/api/src/main/java/com/townbasket/inventory/package-info.java
+  s_5516af9055481c::t_4ec6a1f1a32138 7
+apps/api/src/main/java/com/townbasket/delivery/DeliveryController.java
+  s_5516af9055481c::t_0372eab338ac9e 72-73,77
+  s_5516af9055481c::t_4fdc9d78edd270 11
+  s_5516af9055481c::t_9b95ff3c187b24 55-56,62
+apps/api/src/main/java/com/townbasket/orders/OrderController.java
+  s_5516af9055481c::t_2df41365fe0109 104-105
+  s_5516af9055481c::t_c72b1042f793cc 56-57,60
+  s_5516af9055481c::t_cd2f61850c6719 32-33
+  s_5516af9055481c::t_7bc2897cae54d9 14
+  s_5516af9055481c::t_6d5c3034120b03 67-69
+apps/storefront/app/lib/types.ts
+  s_5516af9055481c::t_51f94fa82fb039 151
+apps/api/src/test/java/com/townbasket/orders/OrderPaymentFailureIntegrationTest.java
+  s_5516af9055481c::t_b3e0f02ea76b48 67
+apps/storefront/app/lib/sort.ts
+  s_5516af9055481c::t_ee9d3d0ee46410 3-8,11
+apps/api/src/main/java/com/townbasket/identity/internal/JwtTokenService.java
+  s_5516af9055481c::t_4dbdcdc08de6e4 18
+  s_5516af9055481c::t_760d60b5427b8e 47
+  s_5516af9055481c::t_53b5281ef4e8b1 53-54
+  s_5516af9055481c::t_c585236192bd7c 105
+apps/api/src/main/java/com/townbasket/inventory/internal/InventoryServiceImpl.java
+  s_5516af9055481c::t_2a5437a0f740e4 31
+apps/storefront/app/lib/format.ts
+  s_5516af9055481c::t_6daf6f0a4f8e14 31-33
+apps/admin/app/lib/api.ts
+  s_5516af9055481c::t_601c0d823942e4 47,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "a13ef7953675b67b6510b75fa21eb8bb9aa03f0d",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
