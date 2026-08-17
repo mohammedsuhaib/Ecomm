@@ -7,7 +7,6 @@ WORKDIR /repo
 FROM base AS build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/delivery/package.json apps/delivery/package.json
-COPY packages ./packages
 RUN pnpm install --filter @town-basket/delivery... --frozen-lockfile || \
     pnpm install --filter @town-basket/delivery...
 COPY apps/delivery apps/delivery

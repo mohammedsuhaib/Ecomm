@@ -8,7 +8,6 @@ WORKDIR /repo
 FROM base AS build
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
 COPY apps/storefront/package.json apps/storefront/package.json
-COPY packages ./packages
 RUN pnpm install --filter @town-basket/storefront... --frozen-lockfile || \
     pnpm install --filter @town-basket/storefront...
 COPY apps/storefront apps/storefront
