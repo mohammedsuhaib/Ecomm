@@ -1,0 +1,22 @@
+CLAUDE.md
+  s_5516af9055481c::t_090817195abaf0 125-130
+  s_5516af9055481c::t_18280229c4974e 122-124
+  s_5516af9055481c::t_6cdd7b880d82e4 131-133
+  s_5516af9055481c::t_aa39fec28bcef0 1-121,134-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "fc3965da2f0ac92b1e5bb705f3ccae2d5f98cdca",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
