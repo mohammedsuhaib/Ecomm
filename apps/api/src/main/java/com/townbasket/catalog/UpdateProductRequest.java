@@ -1,5 +1,7 @@
 package com.townbasket.catalog;
 
+import java.math.BigDecimal;
+
 /**
  * Admin request to update a product. The slug is immutable (not editable), so it
  * is intentionally absent. Variants are managed through the dedicated variant
@@ -13,6 +15,10 @@ package com.townbasket.catalog;
  * @param imageUrl    optional — when {@code null}, the existing value is kept
  * @param available   optional — when {@code null}, the existing value is kept
  * @param featured    optional — when {@code null}, the existing value is kept
+ * @param hsnCode     optional — when {@code null}, the existing value is kept;
+ *                    blank clears it
+ * @param gstRatePercent optional — when {@code null}, the existing value is
+ *                    kept; must be a valid GST slab (0/5/18/40)
  */
 public record UpdateProductRequest(
         String name,
@@ -22,5 +28,7 @@ public record UpdateProductRequest(
         Boolean vegMarker,
         String imageUrl,
         Boolean available,
-        Boolean featured) {
+        Boolean featured,
+        String hsnCode,
+        BigDecimal gstRatePercent) {
 }

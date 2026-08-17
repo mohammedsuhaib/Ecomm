@@ -125,6 +125,8 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   total: number;
+  /** GST already contained in `total` (prices are tax-inclusive); informational. */
+  totalTax: number;
   deliveryOtp: string | null; // present only while OUT_FOR_DELIVERY
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];

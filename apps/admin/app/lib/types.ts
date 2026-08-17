@@ -131,6 +131,10 @@ export interface AdminProduct {
   imageUrl: string | null;
   available: boolean;
   featured: boolean;
+  /** HSN classification printed on GST invoices; null until staff fill it in. */
+  hsnCode: string | null;
+  /** GST slab % (0/5/18/40). Prices are tax-inclusive, so this never changes them. */
+  gstRatePercent: number;
   variants: AdminVariant[];
 }
 

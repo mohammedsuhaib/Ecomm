@@ -4,6 +4,7 @@ import com.townbasket.cart.CartDto;
 import com.townbasket.cart.CartItemDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
+import com.townbasket.catalog.VariantTaxView;
 import com.townbasket.catalog.VariantView;
 import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
@@ -30,6 +31,8 @@ import com.townbasket.shared.events.OrderConfirmed;
 import com.townbasket.shared.events.OrderDelivered;
 import com.townbasket.shared.events.OrderPlaced;
 import com.townbasket.shared.events.OrderStatusChanged;
+import com.townbasket.tax.TaxBreakdown;
+import com.townbasket.tax.TaxService;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -76,6 +79,7 @@ class OrderServiceImpl implements OrderService {
     private final InventoryService inventoryService;
     private final PaymentService paymentService;
     private final AuthService authService;
+    private final TaxService taxService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
@@ -86,6 +90,7 @@ class OrderServiceImpl implements OrderService {
                      InventoryService inventoryService,
                      PaymentService paymentService,
                      AuthService authService,
+                     TaxService taxService,
                      ApplicationEventPublisher events,
                      Clock clock) {
         this.orders = orders;
@@ -95,6 +100,7 @@ class OrderServiceImpl implements OrderService {
         this.inventoryService = inventoryService;
         this.paymentService = paymentService;
         this.authService = authService;
+        this.taxService = taxService;
         this.events = events;
         this.clock = clock;
     }
@@ -178,13 +184,25 @@ class OrderServiceImpl implements OrderService {
                 upi ? "PENDING" : "COD_PENDING",
                 OrderStatus.PLACED, subtotal, subtotal, generateOtp(), key);
 
-        // Snapshot item prices + COGS (cost price fetched separately, never exposed).
+        // Snapshot item prices + COGS (cost price fetched separately, never
+        // exposed) + the GST breakdown. Prices are tax-INCLUSIVE, so the tax is
+        // extracted from each line total, never added to it — the customer pays
+        // exactly the cart total either way. Snapshotting at sale time keeps
+        // later catalog rate edits from mutating issued invoices.
+        BigDecimal totalTax = BigDecimal.ZERO;
         for (CartItemDto item : cart.items()) {
             BigDecimal costPrice = catalogService.costPrice(item.variantId()).orElse(BigDecimal.ZERO);
+            VariantTaxView tax = catalogService.taxInfo(item.variantId())
+                    .orElse(new VariantTaxView(null, BigDecimal.ZERO));
+            TaxBreakdown breakdown = taxService.fromInclusiveAmount(item.lineTotal(), tax.gstRatePercent());
+            totalTax = totalTax.add(breakdown.totalTax());
             order.addItem(new OrderItemEntity(
                     item.variantId(), item.productName(), item.label(),
-                    item.unitPrice(), costPrice, item.qty(), item.lineTotal()));
+                    item.unitPrice(), costPrice, item.qty(), item.lineTotal(),
+                    tax.hsnCode(), tax.gstRatePercent(),
+                    breakdown.taxableValue(), breakdown.cgst(), breakdown.sgst()));
         }
+        order.setTotalTax(totalTax);
         order.addEvent(new OrderEventEntity(null, OrderStatus.PLACED.name(), "Order placed"));
 
         // Persist first to obtain the order id, then reserve against it.
@@ -476,7 +494,9 @@ class OrderServiceImpl implements OrderService {
         List<OrderItemDto> items = o.getItems().stream()
                 // NOTE: cost price (COGS) is intentionally NOT mapped — internal only.
                 .map(i -> new OrderItemDto(i.getProductName(), i.getLabel(),
-                        i.getUnitPrice(), i.getQty(), i.getLineTotal()))
+                        i.getUnitPrice(), i.getQty(), i.getLineTotal(),
+                        i.getHsnCode(), i.getGstRate(),
+                        i.getTaxableValue(), i.getCgst(), i.getSgst()))
                 .toList();
         List<OrderTimelineEntryDto> timeline = o.getEvents().stream()
                 .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt()))
@@ -501,6 +521,7 @@ class OrderServiceImpl implements OrderService {
                 items,
                 o.getSubtotal(),
                 o.getTotal(),
+                o.getTotalTax(),
                 deliveryOtp,
                 o.getPlacedAt(),
                 timeline,

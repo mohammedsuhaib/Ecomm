@@ -42,24 +42,29 @@ class InvoicePdfGenerator implements InvoiceService {
     private static final DateTimeFormatter DATE =
             DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a").withZone(IST);
 
-    // Brand palette (mirrors the admin/storefront marigold theme).
-    private static final Color BRAND = new Color(0xB4, 0x53, 0x09);   // deep amber
+    // Brand palette (mirrors the admin/storefront green theme).
+    private static final Color BRAND = new Color(0x2E, 0x7D, 0x32);   // brand green
     private static final Color INK = new Color(0x1A, 0x1A, 0x1A);
     private static final Color MUTED = new Color(0x6B, 0x72, 0x80);
     private static final Color LINE = new Color(0xE2, 0xE2, 0xE2);
-    private static final Color ZEBRA = new Color(0xFB, 0xF7, 0xEE);
+    private static final Color ZEBRA = new Color(0xF1, 0xF8, 0xF2);   // faint green tint
 
     private final String storeName;
     private final String storeAddress;
     private final String storeContact;
 
+    /** Store GSTIN; shown on the invoice only when configured (blank = hidden). */
+    private final String gstin;
+
     InvoicePdfGenerator(
             @Value("${townbasket.invoice.store-name:Town Basket}") String storeName,
             @Value("${townbasket.invoice.store-address:Mysuru, Karnataka, India}") String storeAddress,
-            @Value("${townbasket.invoice.store-contact:town-basket.com}") String storeContact) {
+            @Value("${townbasket.invoice.store-contact:town-basket.com}") String storeContact,
+            @Value("${townbasket.invoice.gstin:}") String gstin) {
         this.storeName = storeName;
         this.storeAddress = storeAddress;
         this.storeContact = storeContact;
+        this.gstin = gstin == null ? "" : gstin.trim();
     }
 
     @Override
@@ -103,6 +108,9 @@ class InvoicePdfGenerator implements InvoiceService {
         left.addElement(text(storeName, font(20, Font.BOLD, BRAND)));
         left.addElement(text(storeAddress, font(9, Font.NORMAL, MUTED)));
         left.addElement(text(storeContact, font(9, Font.NORMAL, MUTED)));
+        if (!gstin.isEmpty()) {
+            left.addElement(text("GSTIN: " + gstin, font(9, Font.NORMAL, MUTED)));
+        }
         table.addCell(left);
 
         PdfPCell right = borderless();
@@ -144,12 +152,14 @@ class InvoicePdfGenerator implements InvoiceService {
         return table;
     }
 
-    /** Itemised line table: Item | Qty | Unit Price | Amount. */
+    /** Itemised line table: Item | HSN | Qty | GST % | Unit Price | Amount. */
     private PdfPTable itemsTable(OrderDto order, NumberFormat money) {
-        PdfPTable table = fullWidth(new float[] {5f, 1.2f, 2f, 2f});
+        PdfPTable table = fullWidth(new float[] {4.4f, 1.1f, 0.9f, 1.1f, 1.8f, 1.8f});
 
         table.addCell(th("Item", Element.ALIGN_LEFT));
+        table.addCell(th("HSN", Element.ALIGN_CENTER));
         table.addCell(th("Qty", Element.ALIGN_CENTER));
+        table.addCell(th("GST %", Element.ALIGN_CENTER));
         table.addCell(th("Unit Price", Element.ALIGN_RIGHT));
         table.addCell(th("Amount", Element.ALIGN_RIGHT));
 
@@ -161,7 +171,9 @@ class InvoicePdfGenerator implements InvoiceService {
                     ? item.productName()
                     : item.productName() + "  (" + item.label() + ")";
             table.addCell(td(name, Element.ALIGN_LEFT, bg));
+            table.addCell(td(item.hsnCode() == null ? "—" : item.hsnCode(), Element.ALIGN_CENTER, bg));
             table.addCell(td(String.valueOf(item.qty()), Element.ALIGN_CENTER, bg));
+            table.addCell(td(rate(item.gstRatePercent()), Element.ALIGN_CENTER, bg));
             table.addCell(td(money(item.unitPrice(), money), Element.ALIGN_RIGHT, bg));
             table.addCell(td(money(item.lineTotal(), money), Element.ALIGN_RIGHT, bg));
         }
@@ -169,16 +181,30 @@ class InvoicePdfGenerator implements InvoiceService {
         return table;
     }
 
-    /** Right-aligned subtotal/total summary + payment line. */
+    /**
+     * Right-aligned summary + payment line. Prices are tax-INCLUSIVE, so the
+     * taxable value + CGST + SGST rows decompose the total rather than adding
+     * to it — the statutory GST breakdown without changing what was paid.
+     */
     private PdfPTable totals(OrderDto order, NumberFormat money) {
         PdfPTable wrap = fullWidth(new float[] {3f, 2f});
         wrap.addCell(borderless()); // spacer to push the summary right
+
+        BigDecimal cgst = sum(order, OrderItemDto::cgst);
+        BigDecimal sgst = sum(order, OrderItemDto::sgst);
+        BigDecimal taxable = sum(order, OrderItemDto::taxableValue);
 
         PdfPTable sum = new PdfPTable(new float[] {1.4f, 1f});
         sum.setWidthPercentage(100);
         sum.addCell(sumLabel("Subtotal", false));
         sum.addCell(sumValue(money(order.subtotal(), money), false));
-        sum.addCell(sumLabel("Total", true));
+        sum.addCell(sumLabel("Taxable value", false));
+        sum.addCell(sumValue(money(taxable, money), false));
+        sum.addCell(sumLabel("CGST", false));
+        sum.addCell(sumValue(money(cgst, money), false));
+        sum.addCell(sumLabel("SGST", false));
+        sum.addCell(sumValue(money(sgst, money), false));
+        sum.addCell(sumLabel("Total (incl. GST)", true));
         sum.addCell(sumValue(money(order.total(), money), true));
 
         String pay = ("COD".equalsIgnoreCase(order.paymentMethod()) ? "Cash on Delivery" : order.paymentMethod())
@@ -199,7 +225,8 @@ class InvoicePdfGenerator implements InvoiceService {
     private Paragraph footer(OrderDto order) {
         Paragraph p = new Paragraph();
         p.add(new Phrase("Thank you for shopping with " + storeName + "!\n", font(10, Font.BOLD, BRAND)));
-        p.add(new Phrase("This is a computer-generated invoice and does not require a signature.",
+        p.add(new Phrase("All prices are inclusive of GST. "
+                        + "This is a computer-generated invoice and does not require a signature.",
                 font(8, Font.NORMAL, MUTED)));
         p.setSpacingBefore(6f);
         return p;
@@ -209,6 +236,19 @@ class InvoicePdfGenerator implements InvoiceService {
 
     private static String money(BigDecimal value, NumberFormat fmt) {
         return "Rs " + fmt.format(value == null ? BigDecimal.ZERO : value);
+    }
+
+    /** GST rate for display: "5%", or "—" for legacy lines with no snapshot. */
+    private static String rate(BigDecimal percent) {
+        return percent == null ? "—" : percent.stripTrailingZeros().toPlainString() + "%";
+    }
+
+    /** Null-safe sum of a per-line tax field across the order. */
+    private static BigDecimal sum(OrderDto order, java.util.function.Function<OrderItemDto, BigDecimal> field) {
+        return order.items().stream()
+                .map(field)
+                .map(v -> v == null ? BigDecimal.ZERO : v)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private static Font font(float size, int style, Color color) {

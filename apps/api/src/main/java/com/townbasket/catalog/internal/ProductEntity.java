@@ -11,6 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +57,14 @@ class ProductEntity {
     @Column(nullable = false)
     private boolean featured;
 
+    // GST: shelf prices are tax-INCLUSIVE, so these never affect what the
+    // customer pays — orders snapshots them to extract the invoice breakdown.
+    @Column(name = "hsn_code")
+    private String hsnCode;
+
+    @Column(name = "gst_rate", nullable = false)
+    private BigDecimal gstRate;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -79,7 +88,8 @@ class ProductEntity {
      */
     static ProductEntity create(Long categoryId, String name, String nameKn, String slug,
                                 String description, boolean vegMarker, String imageUrl,
-                                boolean available, boolean featured) {
+                                boolean available, boolean featured,
+                                String hsnCode, BigDecimal gstRate) {
         ProductEntity p = new ProductEntity();
         p.categoryId = categoryId;
         p.name = name;
@@ -90,6 +100,8 @@ class ProductEntity {
         p.imageUrl = imageUrl;
         p.available = available;
         p.featured = featured;
+        p.hsnCode = hsnCode;
+        p.gstRate = gstRate;
         return p;
     }
 
@@ -163,6 +175,22 @@ class ProductEntity {
 
     void setFeatured(boolean featured) {
         this.featured = featured;
+    }
+
+    String getHsnCode() {
+        return hsnCode;
+    }
+
+    void setHsnCode(String hsnCode) {
+        this.hsnCode = hsnCode;
+    }
+
+    BigDecimal getGstRate() {
+        return gstRate;
+    }
+
+    void setGstRate(BigDecimal gstRate) {
+        this.gstRate = gstRate;
     }
 
     Instant getCreatedAt() {

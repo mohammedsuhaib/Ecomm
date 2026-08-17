@@ -278,6 +278,7 @@
     "itemLine": "({label}) × {qty}",
     "subtotal": "Subtotal",
     "total": "Total",
+    "includesGst": "Includes GST of {amount}",
     "payment": "Payment",
     "deliveringTo": "Delivering to",
     "notFound": "We couldn’t find this order.",

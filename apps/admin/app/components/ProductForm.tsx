@@ -124,6 +124,10 @@ export default function ProductForm({
   const [imageUrl, setImageUrl] = useState('');
   const [available, setAvailable] = useState(true);
   const [featured, setFeatured] = useState(false);
+  const [hsnCode, setHsnCode] = useState('');
+  // GST slab as a string for the <select>; prices are tax-inclusive, so the
+  // rate only drives the invoice breakdown, never the price.
+  const [gstRate, setGstRate] = useState('0');
 
   // Variants.
   const [variants, setVariants] = useState<VariantRow[]>([blankVariant(0)]);
@@ -149,6 +153,8 @@ export default function ProductForm({
         setImageUrl(p.imageUrl ?? '');
         setAvailable(p.available);
         setFeatured(p.featured);
+        setHsnCode(p.hsnCode ?? '');
+        setGstRate(String(p.gstRatePercent ?? 0));
         const rows = [...p.variants]
           .sort((a, b) => a.sortOrder - b.sortOrder)
           .map(rowFromVariant);
@@ -246,6 +252,8 @@ export default function ProductForm({
           imageUrl: imageUrl.trim() === '' ? null : imageUrl.trim(),
           available,
           featured,
+          hsnCode: hsnCode.trim() === '' ? null : hsnCode.trim(),
+          gstRatePercent: Number(gstRate),
           variants: rowsToSave.map(rowToWrite),
         });
       } else {
@@ -265,6 +273,8 @@ export default function ProductForm({
           imageUrl: imageUrl.trim() === '' ? null : imageUrl.trim(),
           available,
           featured,
+          hsnCode: hsnCode.trim(), // blank clears the stored HSN
+          gstRatePercent: Number(gstRate),
         });
         // 2) Removed variants. Tolerate 404 (already deleted on a prior partial
         //    attempt); shrink removedIds as we go so a retry only re-tries the rest.
@@ -388,6 +398,37 @@ export default function ProductForm({
               />
               <span className="field-hint neutral">
                 A follow-up will add real image upload.
+              </span>
+            </label>
+
+            <label className="login-field" htmlFor="pf-gst">
+              GST slab
+              <select
+                id="pf-gst"
+                value={gstRate}
+                onChange={(e) => setGstRate(e.target.value)}
+              >
+                <option value="0">0% (NIL-rated)</option>
+                <option value="5">5%</option>
+                <option value="18">18%</option>
+                <option value="40">40%</option>
+              </select>
+              <span className="field-hint neutral">
+                Prices stay as entered (tax-inclusive) — this only sets the
+                invoice breakdown.
+              </span>
+            </label>
+
+            <label className="login-field" htmlFor="pf-hsn">
+              HSN code (optional)
+              <input
+                id="pf-hsn"
+                value={hsnCode}
+                onChange={(e) => setHsnCode(e.target.value)}
+                placeholder="e.g. 1905"
+              />
+              <span className="field-hint neutral">
+                Printed on GST invoices. Leave blank if unknown.
               </span>
             </label>
 

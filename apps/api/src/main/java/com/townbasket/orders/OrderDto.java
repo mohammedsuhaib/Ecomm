@@ -30,6 +30,7 @@ public record OrderDto(
         List<OrderItemDto> items,
         BigDecimal subtotal,
         BigDecimal total,
+        BigDecimal totalTax,
         String deliveryOtp,
         Instant placedAt,
         List<OrderTimelineEntryDto> timeline,

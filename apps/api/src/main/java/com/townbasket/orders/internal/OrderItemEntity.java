@@ -54,12 +54,31 @@ class OrderItemEntity {
     @Column(name = "line_total", nullable = false)
     private BigDecimal lineTotal;
 
+    // GST snapshot at sale time. Prices are tax-inclusive, so these decompose
+    // lineTotal (taxableValue + cgst + sgst == lineTotal); never added on top.
+    @Column(name = "hsn_code")
+    private String hsnCode;
+
+    @Column(name = "gst_rate", nullable = false)
+    private BigDecimal gstRate;
+
+    @Column(name = "taxable_value", nullable = false)
+    private BigDecimal taxableValue;
+
+    @Column(nullable = false)
+    private BigDecimal cgst;
+
+    @Column(nullable = false)
+    private BigDecimal sgst;
+
     protected OrderItemEntity() {
         // JPA
     }
 
     OrderItemEntity(Long variantId, String productName, String label,
-                    BigDecimal unitPrice, BigDecimal costPrice, int qty, BigDecimal lineTotal) {
+                    BigDecimal unitPrice, BigDecimal costPrice, int qty, BigDecimal lineTotal,
+                    String hsnCode, BigDecimal gstRate,
+                    BigDecimal taxableValue, BigDecimal cgst, BigDecimal sgst) {
         this.variantId = variantId;
         this.productName = productName;
         this.label = label;
@@ -67,6 +86,11 @@ class OrderItemEntity {
         this.costPrice = costPrice;
         this.qty = qty;
         this.lineTotal = lineTotal;
+        this.hsnCode = hsnCode;
+        this.gstRate = gstRate;
+        this.taxableValue = taxableValue;
+        this.cgst = cgst;
+        this.sgst = sgst;
     }
 
     void setOrder(OrderEntity order) {
@@ -100,5 +124,25 @@ class OrderItemEntity {
     /** INTERNAL ONLY — COGS snapshot; must not be exposed in any API response. */
     BigDecimal getCostPrice() {
         return costPrice;
+    }
+
+    String getHsnCode() {
+        return hsnCode;
+    }
+
+    BigDecimal getGstRate() {
+        return gstRate;
+    }
+
+    BigDecimal getTaxableValue() {
+        return taxableValue;
+    }
+
+    BigDecimal getCgst() {
+        return cgst;
+    }
+
+    BigDecimal getSgst() {
+        return sgst;
     }
 }

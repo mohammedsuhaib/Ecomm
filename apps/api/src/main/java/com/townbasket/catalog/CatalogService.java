@@ -49,6 +49,13 @@ public interface CatalogService {
      */
     Optional<BigDecimal> costPrice(Long variantId);
 
+    /**
+     * HSN code + GST rate for a variant (via its owning product), for the
+     * orders module's per-line tax snapshot at checkout. Empty if no such
+     * variant.
+     */
+    Optional<VariantTaxView> taxInfo(Long variantId);
+
     // ----------------------------------------------------------------------
     // Admin write surface (staff/admin only — secured by SecurityConfig's
     // /api/v1/admin/** matcher). Returns admin DTOs that DO include cost price.

@@ -1,5 +1,6 @@
 package com.townbasket.catalog;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -20,5 +21,7 @@ public record AdminProductDto(
         String imageUrl,
         boolean available,
         boolean featured,
+        String hsnCode,
+        BigDecimal gstRatePercent,
         List<AdminVariantDto> variants) {
 }

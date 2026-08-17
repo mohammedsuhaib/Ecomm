@@ -343,6 +343,13 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             <span>{t('total')}</span>
             <strong>{formatRupees(order.total)}</strong>
           </div>
+          {order.totalTax > 0 && (
+            <div className="cart-summary-row">
+              <span className="muted">
+                {t('includesGst', { amount: formatRupees(order.totalTax) })}
+              </span>
+            </div>
+          )}
           <div className="cart-summary-row">
             <span>{t('payment')}</span>
             <span>

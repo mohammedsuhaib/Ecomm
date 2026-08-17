@@ -29,6 +29,11 @@ DECLARE
     v_pay       text;
     v_paystatus text;
     v_subtotal  numeric(10,2);
+    v_tax       numeric(10,2);
+    v_line      numeric(10,2);
+    v_taxable   numeric(10,2);
+    v_cgst      numeric(10,2);
+    v_sgst      numeric(10,2);
     n_items     int;
     v_qty       int;
     rec         record;
@@ -89,27 +94,36 @@ BEGIN
             -- 1..4 distinct random variants per order.
             n_items := 1 + floor(random() * 4)::int;
             v_subtotal := 0;
+            v_tax := 0;
             FOR rec IN
                 SELECT pv.id AS variant_id, p.name AS product_name, pv.label,
-                       pv.selling_price, pv.cost_price
+                       pv.selling_price, pv.cost_price, p.hsn_code, p.gst_rate
                 FROM catalog.product_variants pv
                 JOIN catalog.products p ON p.id = pv.product_id
                 ORDER BY random()
                 LIMIT n_items
             LOOP
                 v_qty := 1 + floor(random() * 3)::int;     -- 1..3 units
+                -- GST snapshot, mirroring checkout: prices are tax-INCLUSIVE,
+                -- so extract taxable + CGST/SGST from the line total.
+                v_line     := round(rec.selling_price * v_qty, 2);
+                v_taxable  := round(v_line * 100 / (100 + rec.gst_rate), 2);
+                v_cgst     := round((v_line - v_taxable) / 2, 2);
+                v_sgst     := v_line - v_taxable - v_cgst;
                 INSERT INTO orders.order_items (
                     order_id, variant_id, product_name, label,
-                    unit_price, cost_price, qty, line_total)
+                    unit_price, cost_price, qty, line_total,
+                    hsn_code, gst_rate, taxable_value, cgst, sgst)
                 VALUES (
                     v_order_id, rec.variant_id, rec.product_name, rec.label,
-                    rec.selling_price, rec.cost_price, v_qty,
-                    rec.selling_price * v_qty);
-                v_subtotal := v_subtotal + rec.selling_price * v_qty;
+                    rec.selling_price, rec.cost_price, v_qty, v_line,
+                    rec.hsn_code, rec.gst_rate, v_taxable, v_cgst, v_sgst);
+                v_subtotal := v_subtotal + v_line;
+                v_tax      := v_tax + v_cgst + v_sgst;
             END LOOP;
 
             UPDATE orders.orders
-               SET subtotal = v_subtotal, total = v_subtotal
+               SET subtotal = v_subtotal, total = v_subtotal, total_tax = v_tax
              WHERE id = v_order_id;
 
             -- Minimal timeline so the order looks real (PLACED → current status).

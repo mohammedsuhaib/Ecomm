@@ -76,6 +76,11 @@ class OrderEntity {
     @Column(nullable = false)
     private BigDecimal total;
 
+    // GST extracted from the tax-inclusive total (sum of per-line cgst+sgst);
+    // informational — total already includes it.
+    @Column(name = "total_tax", nullable = false)
+    private BigDecimal totalTax;
+
     @Column(name = "delivery_otp", nullable = false)
     private String deliveryOtp;
 
@@ -114,6 +119,7 @@ class OrderEntity {
         this.status = status;
         this.subtotal = subtotal;
         this.total = total;
+        this.totalTax = BigDecimal.ZERO; // set from the line snapshots by placeOrder
         this.deliveryOtp = deliveryOtp;
         this.idempotencyKey = idempotencyKey;
         this.placedAt = Instant.now();
@@ -193,6 +199,14 @@ class OrderEntity {
 
     BigDecimal getTotal() {
         return total;
+    }
+
+    BigDecimal getTotalTax() {
+        return totalTax;
+    }
+
+    void setTotalTax(BigDecimal totalTax) {
+        this.totalTax = totalTax;
     }
 
     String getDeliveryOtp() {

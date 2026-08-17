@@ -84,6 +84,18 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         assertThat(order.timeline()).extracting(OrderTimelineEntryDto::toStatus)
                 .containsExactly("PLACED", "CONFIRMED");
 
+        // GST snapshot: prices are tax-INCLUSIVE, so each line's breakdown
+        // re-adds to its line total and the order total is untouched by tax.
+        assertThat(order.items()).allSatisfy(i -> {
+            assertThat(i.gstRatePercent()).isNotNull();
+            assertThat(i.taxableValue().add(i.cgst()).add(i.sgst()))
+                    .isEqualByComparingTo(i.lineTotal());
+        });
+        BigDecimal itemTax = order.items().stream()
+                .map(i -> i.cgst().add(i.sgst()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(order.totalTax()).isEqualByComparingTo(itemTax);
+
         // Stock reserved -> availability dropped by 5.
         assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5);
     }

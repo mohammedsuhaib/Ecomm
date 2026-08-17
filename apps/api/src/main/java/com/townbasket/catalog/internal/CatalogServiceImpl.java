@@ -13,9 +13,11 @@ import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.catalog.UpdateCategoryRequest;
 import com.townbasket.catalog.UpdateProductRequest;
 import com.townbasket.catalog.UpdateVariantRequest;
+import com.townbasket.catalog.VariantTaxView;
 import com.townbasket.catalog.VariantView;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.tax.TaxService;
 import com.townbasket.shared.PagedResponse;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
@@ -48,6 +50,9 @@ class CatalogServiceImpl implements CatalogService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ProductVariantRepository variantRepository;
+
+    /** Validates admin-supplied GST rates against the legal slabs. */
+    private final TaxService taxService;
 
     /**
      * Inventory lookup so storefront product responses carry the live sellable
@@ -90,11 +95,13 @@ class CatalogServiceImpl implements CatalogService {
                        ProductRepository productRepository,
                        ProductVariantRepository variantRepository,
                        InventoryService inventory,
+                       TaxService taxService,
                        Optional<ProductNameTransliterator> transliterator) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
         this.inventory = inventory;
+        this.taxService = taxService;
         this.transliterator = transliterator;
     }
 
@@ -248,6 +255,17 @@ class CatalogServiceImpl implements CatalogService {
         return variantRepository.findById(variantId).map(ProductVariantEntity::getCostPrice);
     }
 
+    @Override
+    public Optional<VariantTaxView> taxInfo(Long variantId) {
+        if (variantId == null) {
+            return Optional.empty();
+        }
+        // Tax lives on the product; the variant resolves which product that is.
+        return variantRepository.findById(variantId)
+                .flatMap(v -> productRepository.findById(v.getProductId()))
+                .map(p -> new VariantTaxView(p.getHsnCode(), p.getGstRate()));
+    }
+
     // ----------------------------------------------------------------------
     // Admin write surface. All methods here are read-write transactions (the
     // class default is readOnly=true, so each one re-declares @Transactional).
@@ -341,10 +359,16 @@ class CatalogServiceImpl implements CatalogService {
             nameKn = transliterate(name);
         }
 
+        // GST: absent rate defaults to 0 (NIL-rated); a supplied rate must be a
+        // legal slab. Prices are tax-inclusive, so the rate never changes them.
+        BigDecimal gstRate = request.gstRatePercent() == null ? BigDecimal.ZERO : request.gstRatePercent();
+        taxService.requireValidGstRate(gstRate);
+
         ProductEntity product = ProductEntity.create(
                 categoryId, name, nameKn, slug,
                 trimToNull(request.description()), vegMarker,
-                trimToNull(request.imageUrl()), available, featured);
+                trimToNull(request.imageUrl()), available, featured,
+                trimToNull(request.hsnCode()), gstRate);
 
         if (request.variants() != null) {
             for (CreateVariantRequest v : request.variants()) {
@@ -381,6 +405,13 @@ class CatalogServiceImpl implements CatalogService {
         }
         if (request.featured() != null) {
             product.setFeatured(request.featured());
+        }
+        if (request.hsnCode() != null) {
+            product.setHsnCode(trimToNull(request.hsnCode())); // blank clears it
+        }
+        if (request.gstRatePercent() != null) {
+            taxService.requireValidGstRate(request.gstRatePercent());
+            product.setGstRate(request.gstRatePercent());
         }
 
         // name_kn: an explicit value always wins. Otherwise, if the English name
@@ -702,6 +733,8 @@ class CatalogServiceImpl implements CatalogService {
                 e.getImageUrl(),
                 e.isAvailable(),
                 e.isFeatured(),
+                e.getHsnCode(),
+                e.getGstRate(),
                 variants);
     }
 

@@ -56,6 +56,8 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
                 "http://img/p.png",
                 null,                 // available -> default true
                 Boolean.TRUE,         // featured
+                "1905",               // HSN code
+                new BigDecimal("5"),  // GST slab
                 List.of(
                         new CreateVariantRequest("100 g",
                                 new BigDecimal("20.00"), new BigDecimal("12.00"),
@@ -72,6 +74,8 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
         assertThat(product.vegMarker()).isTrue();
         assertThat(product.available()).isTrue();
         assertThat(product.featured()).isTrue();
+        assertThat(product.hsnCode()).isEqualTo("1905");
+        assertThat(product.gstRatePercent()).isEqualByComparingTo("5");
         assertThat(product.variants()).hasSize(2);
 
         // --- GET returns it WITH cost price (admin-only field) + nameKn ---
@@ -104,12 +108,16 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
                 Boolean.FALSE,        // vegMarker -> false
                 null,
                 null,
-                Boolean.FALSE));      // featured -> false
+                Boolean.FALSE,        // featured -> false
+                null,                 // hsnCode null -> kept
+                new BigDecimal("18")));
         assertThat(updated.name()).isEqualTo("Crunchy Wafers Deluxe");
         assertThat(updated.slug()).isEqualTo("crunchy-wafers"); // immutable
         assertThat(updated.vegMarker()).isFalse();
         assertThat(updated.featured()).isFalse();
         assertThat(updated.description()).isEqualTo("Updated description");
+        assertThat(updated.hsnCode()).isEqualTo("1905"); // null kept the old value
+        assertThat(updated.gstRatePercent()).isEqualByComparingTo("18");
 
         // --- toggle product availability ---
         assertThat(catalogService.setProductAvailability(product.id(), false).available()).isFalse();
@@ -177,16 +185,22 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
 
         // Unknown category -> 404.
         assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
-                "Orphan", null, null, 999_999L, null, null, null, null, null, null)))
+                "Orphan", null, null, 999_999L, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         CategoryDto cat = catalogService.createCategory(
                 new CreateCategoryRequest("Valid Cat", null, null, null));
         // Negative selling price -> 422.
         assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
-                "Bad Variant", null, null, cat.id(), null, null, null, null, null,
+                "Bad Variant", null, null, cat.id(), null, null, null, null, null, null, null,
                 List.of(new CreateVariantRequest("x",
                         new BigDecimal("-1.00"), new BigDecimal("0.00"), null, null, null)))))
+                .isInstanceOf(BusinessRuleException.class);
+
+        // GST rate outside the legal slabs (12% was retired in Sept 2025) -> 422.
+        assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
+                "Wrong Slab", null, null, cat.id(), null, null, null, null, null,
+                null, new BigDecimal("12"), null)))
                 .isInstanceOf(BusinessRuleException.class);
 
         catalogService.deleteCategory(cat.id());
@@ -200,7 +214,7 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
         // MRP (40) below selling price (50) is a data error (negative discount /
         // broken strikethrough) -> 422 on create.
         assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
-                "Mispriced", null, null, cat.id(), null, null, null, null, null,
+                "Mispriced", null, null, cat.id(), null, null, null, null, null, null, null,
                 List.of(new CreateVariantRequest("1 kg",
                         new BigDecimal("50.00"), new BigDecimal("30.00"),
                         new BigDecimal("40.00"), null, null)))))
@@ -208,7 +222,7 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
 
         // MRP == selling price is allowed (no discount shown).
         AdminProductDto ok = catalogService.createProduct(new CreateProductRequest(
-                "Priced Right", null, null, cat.id(), null, null, null, null, null,
+                "Priced Right", null, null, cat.id(), null, null, null, null, null, null, null,
                 List.of(new CreateVariantRequest("1 kg",
                         new BigDecimal("50.00"), new BigDecimal("30.00"),
                         new BigDecimal("50.00"), null, null))));

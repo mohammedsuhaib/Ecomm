@@ -384,6 +384,8 @@ export interface ProductCreateRequest {
   imageUrl?: string | null;
   available: boolean;
   featured: boolean;
+  hsnCode?: string | null;
+  gstRatePercent?: number;
   variants: VariantWriteRequest[];
 }
 
@@ -397,6 +399,9 @@ export interface ProductUpdateRequest {
   imageUrl?: string | null;
   available: boolean;
   featured: boolean;
+  /** Blank string clears the stored HSN; undefined keeps it. */
+  hsnCode?: string | null;
+  gstRatePercent?: number;
 }
 
 // -- Categories --------------------------------------------------------------
