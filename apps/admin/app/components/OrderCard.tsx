@@ -12,7 +12,7 @@ import { STATUS_LABELS, canCancel, nextStatus } from '@/app/lib/status';
 import type { DeliveryAgent, Order } from '@/app/lib/types';
 
 function agentLabel(a: DeliveryAgent): string {
-  return a.name || a.email || a.phone || `Agent #${a.id}`;
+  return a.name || a.email || `Agent #${a.id}`;
 }
 
 /**

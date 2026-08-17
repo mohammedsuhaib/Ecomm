@@ -73,6 +73,15 @@ class UserEntity {
         return u;
     }
 
+    /** A fresh delivery agent (email + password login, admin-onboarded). */
+    static UserEntity deliveryAgent(String name, String email, String passwordHash) {
+        UserEntity u = new UserEntity(Role.DELIVERY_AGENT);
+        u.name = name;
+        u.email = email;
+        u.passwordHash = passwordHash;
+        return u;
+    }
+
     Long getId() {
         return id;
     }
@@ -115,6 +124,10 @@ class UserEntity {
 
     boolean isActive() {
         return active;
+    }
+
+    void setActive(boolean active) {
+        this.active = active;
     }
 
     void touch() {

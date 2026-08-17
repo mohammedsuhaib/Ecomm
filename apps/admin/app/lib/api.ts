@@ -308,9 +308,38 @@ export function transitionOrder(
   );
 }
 
-/** GET /admin/delivery-agents — active delivery agents for dispatch. */
-export function getDeliveryAgents(): Promise<DeliveryAgent[]> {
-  return apiFetch<DeliveryAgent[]>('/admin/delivery-agents');
+/**
+ * GET /admin/delivery-agents — delivery agents for dispatch (active-only) or,
+ * with `includeInactive`, the full roster for the rider-management panel.
+ */
+export function getDeliveryAgents(includeInactive = false): Promise<DeliveryAgent[]> {
+  return apiFetch<DeliveryAgent[]>('/admin/delivery-agents', { includeInactive });
+}
+
+/** Request body for onboarding a delivery agent. */
+export interface CreateDeliveryAgentRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+/** POST /admin/delivery-agents — onboard a delivery agent (email + password login). */
+export function createDeliveryAgent(
+  req: CreateDeliveryAgentRequest,
+): Promise<DeliveryAgent> {
+  return apiMutate<DeliveryAgent>('POST', '/admin/delivery-agents', req);
+}
+
+/** POST /admin/delivery-agents/{id}/active — activate or deactivate a delivery agent. */
+export function setDeliveryAgentActive(
+  id: number,
+  active: boolean,
+): Promise<DeliveryAgent> {
+  return apiMutate<DeliveryAgent>(
+    'POST',
+    `/admin/delivery-agents/${encodeURIComponent(id)}/active`,
+    { active },
+  );
 }
 
 /** POST /admin/orders/{id}/assign — dispatch to an agent (agentId=null clears it). */

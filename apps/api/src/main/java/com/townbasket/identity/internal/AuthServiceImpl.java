@@ -3,6 +3,8 @@ package com.townbasket.identity.internal;
 import com.townbasket.identity.AddressInput;
 import com.townbasket.identity.AuthResponse;
 import com.townbasket.identity.AuthService;
+import com.townbasket.identity.CreateDeliveryAgentRequest;
+import com.townbasket.identity.DeliveryAgentDto;
 import com.townbasket.identity.InvalidCredentialsException;
 import com.townbasket.identity.LogoutRequest;
 import com.townbasket.identity.PhoneVerifyRequest;
@@ -265,10 +267,41 @@ class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<UserDto> listDeliveryAgents() {
-        return users.findByRoleAndActiveTrueOrderByNameAsc(Role.DELIVERY_AGENT).stream()
-                .map(AuthServiceImpl::toUserDto)
-                .toList();
+    public List<DeliveryAgentDto> listDeliveryAgents(boolean includeInactive) {
+        List<UserEntity> agents = includeInactive
+                ? users.findByRoleOrderByNameAsc(Role.DELIVERY_AGENT)
+                : users.findByRoleAndActiveTrueOrderByNameAsc(Role.DELIVERY_AGENT);
+        return agents.stream().map(AuthServiceImpl::toDeliveryAgentDto).toList();
+    }
+
+    @Override
+    public DeliveryAgentDto createDeliveryAgent(CreateDeliveryAgentRequest request) {
+        if (request == null || isBlank(request.name())) {
+            throw new IllegalArgumentException("name is required");
+        }
+        if (isBlank(request.email()) || !request.email().contains("@")) {
+            throw new IllegalArgumentException("a valid email is required");
+        }
+        if (request.password() == null || request.password().length() < 8) {
+            throw new IllegalArgumentException("password must be at least 8 characters");
+        }
+        String email = request.email().trim().toLowerCase();
+        if (users.existsByEmail(email)) {
+            throw new BusinessRuleException("That email is already in use");
+        }
+        UserEntity agent = UserEntity.deliveryAgent(
+                request.name().trim(), email, passwordEncoder.encode(request.password()));
+        return toDeliveryAgentDto(users.saveAndFlush(agent));
+    }
+
+    @Override
+    public DeliveryAgentDto setDeliveryAgentActive(Long agentId, boolean active) {
+        UserEntity agent = users.findById(agentId)
+                .filter(u -> u.getRole() == Role.DELIVERY_AGENT)
+                .orElseThrow(() -> new ResourceNotFoundException("Delivery agent not found: " + agentId));
+        agent.setActive(active);
+        agent.touch();
+        return toDeliveryAgentDto(users.saveAndFlush(agent));
     }
 
     @Override
@@ -280,6 +313,10 @@ class AuthServiceImpl implements AuthService {
 
     private static UserDto toUserDto(UserEntity u) {
         return new UserDto(u.getId(), u.getRole().name(), u.getName(), u.getPhone(), u.getEmail());
+    }
+
+    private static DeliveryAgentDto toDeliveryAgentDto(UserEntity u) {
+        return new DeliveryAgentDto(u.getId(), u.getName(), u.getEmail(), u.isActive());
     }
 
     private static SavedAddressDto toAddressDto(AddressEntity a) {

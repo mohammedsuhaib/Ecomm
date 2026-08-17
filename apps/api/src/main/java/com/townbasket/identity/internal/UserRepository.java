@@ -12,8 +12,13 @@ interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     Optional<UserEntity> findByEmail(String email);
 
+    boolean existsByEmail(String email);
+
     /** Active users of a role, name-sorted (e.g. delivery agents for dispatch). */
     List<UserEntity> findByRoleAndActiveTrueOrderByNameAsc(Role role);
+
+    /** All users of a role incl. inactive, name-sorted (admin roster management). */
+    List<UserEntity> findByRoleOrderByNameAsc(Role role);
 
     /** True if the id refers to an active user with the given role (dispatch validation). */
     boolean existsByIdAndRoleAndActiveTrue(Long id, Role role);

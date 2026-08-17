@@ -84,8 +84,31 @@ public interface AuthService {
      */
     void deleteAddress(Long userId, Long addressId);
 
-    /** Admin: all active delivery agents (for dispatching/assigning orders). */
-    List<UserDto> listDeliveryAgents();
+    /**
+     * Admin: delivery agents for the roster/dispatch views. {@code includeInactive}
+     * true returns the full roster (admin rider-management panel); false returns
+     * only active agents (the order-assignment dropdown).
+     */
+    List<DeliveryAgentDto> listDeliveryAgents(boolean includeInactive);
+
+    /**
+     * Admin: onboard a delivery agent (email + password login, same as staff).
+     *
+     * @throws IllegalArgumentException if name/email/password are missing or the
+     *     password is shorter than 8 characters (mapped to 400)
+     * @throws com.townbasket.shared.BusinessRuleException if the email is already
+     *     in use (mapped to 422)
+     */
+    DeliveryAgentDto createDeliveryAgent(CreateDeliveryAgentRequest request);
+
+    /**
+     * Admin: activate or deactivate a delivery agent. Deactivated agents can't log
+     * in and drop out of the order-assignment dropdown.
+     *
+     * @throws com.townbasket.shared.ResourceNotFoundException if {@code agentId}
+     *     doesn't refer to a delivery agent (mapped to 404)
+     */
+    DeliveryAgentDto setDeliveryAgentActive(Long agentId, boolean active);
 
     /**
      * True if {@code userId} is an existing, active user with the

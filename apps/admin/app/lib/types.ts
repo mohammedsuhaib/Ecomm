@@ -53,10 +53,9 @@ export interface Order {
 /** A delivery agent that an order can be dispatched to. */
 export interface DeliveryAgent {
   id: number;
-  role: string;
   name: string | null;
-  phone: string | null;
   email: string | null;
+  active: boolean;
 }
 
 // Spring Data style page envelope used by list endpoints.
