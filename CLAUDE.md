@@ -1,0 +1,142 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+**Town Basket** — a quick-commerce platform for a single supermarket (live at
+town-basket.com). A **Spring Modulith modular monolith** backend serves two
+**Next.js** frontends: a customer-facing installable PWA (storefront) and a
+store-staff dashboard (admin). See `ARCHITECTURE.md` for the full design and
+`README.md` for the milestone roadmap (M1–M6).
+
+> The README still describes a "pre-development" state and a Gradle backend.
+> Both are stale: implementation is well underway and **the backend builds with
+> Maven** (`mvnw`), not Gradle. Trust the code, not the README, on build tooling.
+
+## Monorepo layout
+
+This is a **hybrid monorepo with two independent build systems**:
+
+- **`apps/api/`** — Spring Boot backend, built with **Maven** (`./mvnw`). Deliberately
+  *not* part of the JS workspace.
+- **pnpm workspace** (`pnpm-workspace.yaml`) — `apps/storefront`, `apps/admin`,
+  `packages/*`. Driven by **pnpm** from the repo root.
+- `infra/` — `docker-compose.yml` (local: postgres + api + both frontends) and
+  `infra/deploy/` (prod: Caddy auto-TLS, `docker-compose.prod.yml`, nightly backups).
+- `holding-site/` — a standalone static "coming soon" site; unrelated to the app.
+- `brand/` — logos and icon assets.
+
+## Commands
+
+**Backend (`apps/api/`, run from that directory):**
+```bash
+./mvnw -B -ntp verify          # full build: compile + ALL tests, incl. Modulith boundary check + Testcontainers integration tests
+./mvnw test -Dtest=OrderCheckoutIntegrationTest   # single test class
+./mvnw test -Dtest=ModularityTests                # boundary verification only (no Docker needed)
+./mvnw spring-boot:run         # run the API locally (needs a Postgres at DB_URL)
+```
+Integration tests need Docker running (Testcontainers spins up `postgres:16-alpine`).
+`ModularityTests` is pure static analysis and runs without Docker.
+
+**Frontends / packages (run from repo root):**
+```bash
+pnpm install --frozen-lockfile
+pnpm -r --if-present run typecheck         # type-check every workspace package
+pnpm --filter @town-basket/storefront dev  # storefront on :3000
+pnpm --filter @town-basket/admin dev       # admin on :3001
+pnpm --filter @town-basket/storefront build
+pnpm --filter @town-basket/storefront lint # next lint (per-app)
+```
+
+**Full local stack (Postgres + API + both frontends, with seed data):**
+```bash
+docker compose -f infra/docker-compose.yml up --build
+# storefront :3000   admin :3001   api :8080   postgres :5432
+```
+
+**CI** (`.github/workflows/ci.yml`) runs two jobs: `./mvnw verify` for the API
+(uploads Modulith docs + surefire reports) and pnpm type-check + build for both
+frontends.
+
+## Backend architecture (the part that needs reading multiple files)
+
+The backend is a **Spring Modulith** app (`@Modulith`, `TownBasketApplication.java`)
+under `com.townbasket`. Each module is **one Java package**: `identity`, `catalog`,
+`inventory`, `cart`, `orders`, `payments`, `serviceability`, `notifications`, and
+the OPEN `shared` kernel.
+
+**Module structure convention** — for every module package:
+- The package root holds the module's **public API**: `*Controller`, DTOs,
+  service interfaces, a `*ModuleConfiguration`, and a `package-info.java`
+  annotated `@ApplicationModule(...)`.
+- A `internal/` subpackage holds implementations, JPA `*Entity` classes,
+  `*Repository` interfaces, and module-private config. **Other modules may not
+  reference anything in another module's `internal/`.**
+- `shared` is declared `@ApplicationModule(type = OPEN)` — it is the one module
+  every other module is allowed to depend on (domain event types, `Money`,
+  error model). It contains no business logic.
+
+**Boundary enforcement** — `ModularityTests` calls `ApplicationModules.verify()`,
+which **fails the build** if a module reaches into another module's internals or
+introduces a dependency cycle. This runs in CI. Treat a boundary violation as a
+real failure, not a warning: communicate cross-module only through published
+APIs or domain events.
+
+**Inter-module communication** — modules publish **domain events** (types in
+`shared/events`) through the Spring Modulith **event publication registry**, a
+**transactional outbox** persisted in Postgres (`republish-outstanding-events-on-restart`
+is on). E.g. an order state transition emits an event consumed by `inventory`,
+`payments`, and `notifications`. Prefer this over direct service calls between modules.
+
+**Persistence — schema per module:**
+- Each module owns its **own Postgres schema** and its **own Flyway migration
+  folder** under `src/main/resources/db/migration/<module>/`.
+- Migrations use **per-module version bands**: shared `V1.x`, identity `V2.x`,
+  catalog `V3.x`, inventory `V4.x`, cart `V5.x`, orders `V6.x`, payments `V7.x`,
+  serviceability `V8.x`, notifications `V9.x`. When adding a migration, stay
+  inside the module's band and use the next number (`flyway.out-of-order=true`
+  is enabled precisely so independent module bands don't collide).
+- Flyway tracks history in a dedicated `flyway` schema. JPA is `ddl-auto: validate`
+  — **the schema is owned by migrations, never by Hibernate**. Add a Flyway
+  migration for any schema change; don't rely on entity changes to alter the DB.
+
+**Auth & security** (`SecurityConfig.java` + the `identity` module):
+- The app issues its **own HS256 JWTs** (jjwt). Auth is stateless: a custom
+  `JwtAuthenticationFilter` validates the `Bearer` token (resource-server style).
+  `SecurityConfig` disables httpBasic/formLogin, and Boot's default
+  `UserDetailsServiceAutoConfiguration` is excluded in `application.yml`.
+- Customer login is **phone-OTP via Firebase**. When
+  `townbasket.identity.firebase.project-id` is **unset** (the default, incl.
+  local/docker), a **FAKE verifier** is active that accepts only `dev:<10-digit-phone>`
+  tokens. Setting the project-id activates the real Google-signed-token verifier.
+  Never give that property an empty-string default — empty counts as "present".
+- Access-token TTL 15m, refresh 30d; auth endpoints have an in-memory per-IP
+  fixed-window rate limit (no Redis).
+
+## Frontend architecture
+
+Both apps are **Next.js 14 App Router + TypeScript**. Storefront is an installable
+**PWA** via Serwist (`next.config.js` compiles `app/sw.ts` → `public/sw.js`;
+disabled in dev). Production images use `output: 'standalone'`.
+
+- The REST contract is served under **`/api/v1`**. The frontends resolve it via
+  `NEXT_PUBLIC_API_BASE_URL` (browser) / `INTERNAL_API_BASE_URL` (SSR inside Docker).
+- **API access is a hand-written typed fetch client per app** (e.g.
+  `apps/storefront/app/lib/api.ts` + `app/lib/types.ts`, `app/lib/auth.ts`).
+  A generated client (springdoc-openapi → `openapi-typescript`, regenerated in
+  CI to catch contract drift) is planned but does not exist yet — the old
+  `packages/api-client` placeholder was deleted rather than left rotting. When
+  touching API types, update each app's hand-written client.
+
+## Conventions worth knowing
+
+- Java package root: `com.townbasket`. Keep new backend code inside an existing
+  module package and respect the API-vs-`internal` split.
+- New integration tests extend `AbstractIntegrationTest` (shared singleton
+  Testcontainers Postgres — see its Javadoc for why the container is static and
+  never stopped per-class). `ModularityTests` deliberately does **not** extend it.
+- Config is env-var driven so one image runs both locally and in prod
+  (`DB_URL`, `JWT_SECRET`, `APP_CORS_ALLOWED_ORIGINS`, `FIREBASE_PROJECT_ID`, …).
+  The dev defaults in `application.yml`/compose (JWT secret, Maps key) are clearly
+  marked dev-only — override them in real deployments.
