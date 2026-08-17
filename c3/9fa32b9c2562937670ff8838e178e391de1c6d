@@ -1,0 +1,33 @@
+apps/api/src/main/java/com/townbasket/cart/internal/CartServiceImpl.java
+  s_5516af9055481c::t_8a6741dcfb9028 157
+  s_5516af9055481c::t_f755cd82e97d33 90
+  s_5516af9055481c::t_7797dc695446f2 68
+  s_5516af9055481c::t_e64e1465e41894 170-177
+  s_5516af9055481c::t_4c6d212477f8dc 74-89,91
+  s_5516af9055481c::t_706ee0e30c78a6 14
+  s_5516af9055481c::t_1123bcfcbe9790 69-73
+  s_5516af9055481c::t_584922d00628de 178-179
+apps/api/src/main/java/com/townbasket/orders/internal/OrderServiceImpl.java
+  s_5516af9055481c::t_79c7155a598fe4 41,43
+  s_5516af9055481c::t_59672ae05d7968 308-310,312,314
+apps/api/src/main/java/com/townbasket/cart/CartService.java
+  s_5516af9055481c::t_f3ca8f26a0bb3a 26-32
+  s_5516af9055481c::t_480882c48f337a 3
+  s_5516af9055481c::t_d69a966e9e91c7 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "c39fa32b9c2562937670ff8838e178e391de1c6d",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
