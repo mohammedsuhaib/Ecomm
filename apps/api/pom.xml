@@ -28,6 +28,11 @@
         <jjwt.version>0.12.6</jjwt.version>
         <!-- OpenPDF — pure-Java PDF generation for customer invoices (no native deps). -->
         <openpdf.version>1.3.43</openpdf.version>
+        <!-- Newer than Boot 3.3's managed 1.19.x for current-Docker-Desktop
+             compatibility. Daemons that enforce a minimum Docker API version
+             also need ~/.docker-java.properties with api.version=1.44 (the
+             shaded client requests /v1.32/ by default). -->
+        <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
     <dependencies>
