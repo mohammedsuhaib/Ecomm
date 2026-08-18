@@ -1,0 +1,22 @@
+apps/admin/app/components/RidersPanel.tsx
+  s_5516af9055481c::t_80b27786d50417 188
+apps/admin/app/globals.css
+  s_5516af9055481c::t_01b9a13ed3fdc7 938-955,958-959,964
+  s_5516af9055481c::t_a177e321926c21 956-957
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "1b5383a3f33dd9369d774f765e79ec2a049b1cde",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
