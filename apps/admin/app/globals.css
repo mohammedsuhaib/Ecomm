@@ -923,9 +923,23 @@ a {
   gap: 0.5rem;
 }
 
+.rider-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+.rider-form .btn {
+  /* Match the inputs' height so the button sits on their baseline row. */
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}
+
 @media (max-width: 640px) {
   .cat-form-grid,
-  .pf-grid {
+  .pf-grid,
+  .rider-form {
     grid-template-columns: 1fr;
   }
   .pf-variant-row {
