@@ -9,6 +9,7 @@ import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.orders.AddressDto;
+import com.townbasket.orders.AgentDeliveryStat;
 import com.townbasket.orders.OrderDto;
 import com.townbasket.orders.OrderItemDto;
 import com.townbasket.orders.OrderService;
@@ -344,6 +345,14 @@ class OrderServiceImpl implements OrderService {
 
         // Admin surface: never expose the delivery OTP.
         return toDto(orders.findById(orderId).orElseThrow(), false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AgentDeliveryStat> deliveryStatsByAgent() {
+        return orders.countDeliveredByAgentAndDay().stream()
+                .map(r -> new AgentDeliveryStat(r.getAgentId(), r.getDay(), r.getDeliveries()))
+                .toList();
     }
 
     @Override

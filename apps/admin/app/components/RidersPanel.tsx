@@ -6,12 +6,34 @@ import {
   AuthRequiredError,
   createDeliveryAgent,
   getDeliveryAgents,
+  getDeliveryStats,
   setDeliveryAgentActive,
 } from '@/app/lib/api';
-import type { DeliveryAgent } from '@/app/lib/types';
+import type { AgentDeliveryStat, DeliveryAgent } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
 const MIN_PASSWORD = 8;
+
+/**
+ * Total deliveries for one rider, expandable (native <details>) into the
+ * per-date counts. Rows arrive newest-date-first from the API.
+ */
+function RiderDeliveries({ rows }: { rows: AgentDeliveryStat[] }) {
+  const total = rows.reduce((sum, r) => sum + r.deliveries, 0);
+  if (total === 0) return <span className="muted">0</span>;
+  return (
+    <details className="rider-stats">
+      <summary>{total} total</summary>
+      <ul>
+        {rows.map((r) => (
+          <li key={r.date}>
+            <span className="muted">{r.date}</span> × {r.deliveries}
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 /**
  * Delivery-agent (rider) management: list the roster, onboard a new rider
@@ -22,6 +44,7 @@ const MIN_PASSWORD = 8;
 export default function RidersPanel() {
   const { refresh: refreshAuth } = useAuth();
   const [agents, setAgents] = useState<DeliveryAgent[]>([]);
+  const [stats, setStats] = useState<AgentDeliveryStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +60,12 @@ export default function RidersPanel() {
     setLoading(true);
     setError(null);
     try {
-      setAgents(await getDeliveryAgents(true));
+      const [roster, deliveryStats] = await Promise.all([
+        getDeliveryAgents(true),
+        getDeliveryStats(),
+      ]);
+      setAgents(roster);
+      setStats(deliveryStats);
     } catch (err) {
       if (err instanceof AuthRequiredError) refreshAuth();
       else setError('Could not load riders.');
@@ -163,6 +191,7 @@ export default function RidersPanel() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Status</th>
+                <th>Deliveries</th>
                 <th className="actions-col">Action</th>
               </tr>
             </thead>
@@ -175,6 +204,9 @@ export default function RidersPanel() {
                     <span className={`rider-badge ${a.active ? 'on' : 'off'}`}>
                       {a.active ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+                  <td>
+                    <RiderDeliveries rows={stats.filter((s) => s.agentId === a.id)} />
                   </td>
                   <td className="actions-col">
                     <button

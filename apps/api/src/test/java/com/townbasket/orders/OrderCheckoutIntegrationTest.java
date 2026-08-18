@@ -9,6 +9,8 @@ import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
+import com.townbasket.identity.AuthService;
+import com.townbasket.identity.CreateDeliveryAgentRequest;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.shared.BusinessRuleException;
@@ -39,6 +41,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     CatalogService catalogService;
     @Autowired
     InventoryService inventoryService;
+    @Autowired
+    AuthService authService;
 
     /** A variant whose selling price * qty clears the ₹299 minimum. */
     private ProductVariantDto pickPricyVariant() {
@@ -175,6 +179,10 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", null);
 
         Long id = order.id();
+        // Assign a rider so the delivery lands in the per-agent stats.
+        Long agentId = authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
+                "Stats Rider", "stats-rider@townbasket.local", "password123")).id();
+        orderService.assignAgent(id, agentId);
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
@@ -195,6 +203,13 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         // OrderDelivered is consumed by inventory (async, after commit) to COMMIT
         // the reservation: on_hand drops, so available stays reduced by 5.
         eventually(() -> assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5));
+
+        // The delivery shows up in the per-agent date-wise stats.
+        assertThat(orderService.deliveryStatsByAgent())
+                .anySatisfy(s -> {
+                    assertThat(s.agentId()).isEqualTo(agentId);
+                    assertThat(s.deliveries()).isGreaterThanOrEqualTo(1);
+                });
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.townbasket.orders;
 
 import com.townbasket.cart.CartDto;
 import com.townbasket.shared.PagedResponse;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
@@ -67,6 +68,12 @@ public interface OrderService {
 
     /** Admin: list orders newest-first, optionally filtered by status. */
     PagedResponse<OrderDto> listOrders(String status, Pageable pageable);
+
+    /**
+     * Admin reporting: delivered-order counts per agent per date, newest date
+     * first. Only DELIVERED orders with an assigned agent are counted.
+     */
+    List<AgentDeliveryStat> deliveryStatsByAgent();
 
     /**
      * Admin: apply a state-machine transition. Enforces the allowed transitions;

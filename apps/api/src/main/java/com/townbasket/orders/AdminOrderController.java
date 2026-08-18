@@ -3,6 +3,7 @@ package com.townbasket.orders;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +42,12 @@ class AdminOrderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return orderService.listOrders(status, pageable(page, size));
+    }
+
+    @GetMapping("/delivery-stats")
+    @Operation(summary = "Delivered-order counts per agent per date, newest date first.")
+    List<AgentDeliveryStat> deliveryStats() {
+        return orderService.deliveryStatsByAgent();
     }
 
     @PostMapping("/{id}/transitions")

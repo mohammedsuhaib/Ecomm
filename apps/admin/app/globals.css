@@ -935,6 +935,18 @@ a {
   padding-top: 0.6rem;
   padding-bottom: 0.6rem;
 }
+.rider-stats summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--green-dark);
+}
+.rider-stats ul {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
 
 @media (max-width: 640px) {
   .cat-form-grid,

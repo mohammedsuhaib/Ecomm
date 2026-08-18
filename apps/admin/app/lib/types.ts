@@ -58,6 +58,13 @@ export interface DeliveryAgent {
   active: boolean;
 }
 
+/** Delivered-order count for one agent on one date (yyyy-mm-dd). */
+export interface AgentDeliveryStat {
+  agentId: number;
+  date: string;
+  deliveries: number;
+}
+
 // Spring Data style page envelope used by list endpoints.
 export interface Page<T> {
   content: T[];

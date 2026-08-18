@@ -21,6 +21,7 @@ import {
 } from './auth';
 import type {
   AdminProduct,
+  AgentDeliveryStat,
   AdminVariant,
   AnalyticsSummary,
   AuthResponse,
@@ -331,6 +332,11 @@ export function createDeliveryAgent(
 }
 
 /** POST /admin/delivery-agents/{id}/active — activate or deactivate a delivery agent. */
+/** GET /admin/orders/delivery-stats — per-agent per-date delivered counts, newest first. */
+export function getDeliveryStats(): Promise<AgentDeliveryStat[]> {
+  return apiFetch<AgentDeliveryStat[]>('/admin/orders/delivery-stats');
+}
+
 export function setDeliveryAgentActive(
   id: number,
   active: boolean,
