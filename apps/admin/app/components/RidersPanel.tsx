@@ -185,7 +185,7 @@ export default function RidersPanel() {
         <p className="queue-empty">No riders yet. Add one above.</p>
       ) : (
         <div className="prod-table-wrap">
-          <table className="prod-table">
+          <table className="prod-table rider-table">
             <thead>
               <tr>
                 <th>Name</th>

@@ -935,10 +935,33 @@ a {
   padding-top: 0.6rem;
   padding-bottom: 0.6rem;
 }
+.rider-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.rider-badge.on {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+.rider-badge.off {
+  background: #fdecea;
+  color: var(--danger);
+}
+.prod-table tr.rider-inactive td {
+  opacity: 0.6;
+}
+/* Rider rows hold a button and a pill — centre cells so text doesn't ride high. */
+.rider-table td {
+  vertical-align: middle;
+}
 .rider-stats summary {
   cursor: pointer;
   font-weight: 600;
   color: var(--green-dark);
+  white-space: nowrap;
 }
 .rider-stats ul {
   margin: 0.35rem 0 0;
