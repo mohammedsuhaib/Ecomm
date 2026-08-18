@@ -43,6 +43,12 @@ class AdminCatalogController {
         this.catalogService = catalogService;
     }
 
+    @GetMapping("/hsn-suggestions")
+    @Operation(summary = "GST-rate prefill for an HSN code: the catalog's own rate + curated candidates.")
+    HsnRateSuggestionsDto hsnSuggestions(@RequestParam String hsn) {
+        return catalogService.hsnRateSuggestions(hsn);
+    }
+
     // ---- categories -----------------------------------------------------
 
     @GetMapping("/categories")

@@ -1,5 +1,6 @@
 package com.townbasket.catalog.internal;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,15 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     Page<ProductEntity> findByFeaturedTrue(Pageable pageable);
 
     Page<ProductEntity> findByCategoryIdAndFeaturedTrue(Long categoryId, Pageable pageable);
+
+    /** GST rates already in use for an HSN code, most common first. */
+    @Query("""
+            SELECT p.gstRate FROM ProductEntity p
+            WHERE p.hsnCode = :hsnCode
+            GROUP BY p.gstRate
+            ORDER BY COUNT(p) DESC
+            """)
+    List<BigDecimal> gstRatesForHsn(String hsnCode);
 
     Optional<ProductEntity> findBySlug(String slug);
 

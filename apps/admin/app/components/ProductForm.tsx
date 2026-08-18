@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   ApiError,
   AuthRequiredError,
@@ -8,11 +8,12 @@ import {
   createVariant,
   deleteVariant,
   getAdminProduct,
+  getHsnSuggestions,
   updateProduct,
   updateVariant,
   type VariantWriteRequest,
 } from '@/app/lib/api';
-import type { AdminProduct, Category } from '@/app/lib/types';
+import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
 
 // A variant row in the editor. `id` is present for variants that already exist
 // on the server (edit mode); null for rows added in the form (need a POST). All
@@ -128,6 +129,28 @@ export default function ProductForm({
   // GST slab as a string for the <select>; prices are tax-inclusive, so the
   // rate only drives the invoice breakdown, never the price.
   const [gstRate, setGstRate] = useState('0');
+  // HSN → rate prefill: curated candidates shown under the HSN field, and the
+  // catalog's own rate auto-fills the slab UNLESS staff already picked one
+  // (touched starts true in edit mode so a loaded product is never clobbered).
+  const [hsnSuggestions, setHsnSuggestions] = useState<HsnSuggestion[]>([]);
+  const gstTouched = useRef(isEdit);
+
+  async function onHsnBlur() {
+    const hsn = hsnCode.trim();
+    if (!hsn) {
+      setHsnSuggestions([]);
+      return;
+    }
+    try {
+      const res = await getHsnSuggestions(hsn);
+      setHsnSuggestions(res.suggestions);
+      if (res.catalogRate != null && !gstTouched.current) {
+        setGstRate(String(res.catalogRate));
+      }
+    } catch {
+      setHsnSuggestions([]); // suggestion aid only — never block the form
+    }
+  }
 
   // Variants.
   const [variants, setVariants] = useState<VariantRow[]>([blankVariant(0)]);
@@ -406,7 +429,10 @@ export default function ProductForm({
               <select
                 id="pf-gst"
                 value={gstRate}
-                onChange={(e) => setGstRate(e.target.value)}
+                onChange={(e) => {
+                  gstTouched.current = true;
+                  setGstRate(e.target.value);
+                }}
               >
                 <option value="0">0% (NIL-rated)</option>
                 <option value="5">5%</option>
@@ -425,11 +451,37 @@ export default function ProductForm({
                 id="pf-hsn"
                 value={hsnCode}
                 onChange={(e) => setHsnCode(e.target.value)}
+                onBlur={() => void onHsnBlur()}
                 placeholder="e.g. 1905"
               />
               <span className="field-hint neutral">
                 Printed on GST invoices. Leave blank if unknown.
               </span>
+              {hsnSuggestions.length > 0 && (
+                <div className="hsn-suggest">
+                  {hsnSuggestions.map((s) => (
+                    <div key={s.hsn} className="hsn-suggest-row">
+                      <span className="muted">
+                        {s.hsn} {s.description}:
+                      </span>
+                      {s.options.map((o) => (
+                        <button
+                          key={`${s.hsn}-${o.ratePercent}-${o.qualifier}`}
+                          type="button"
+                          className="hsn-suggest-chip"
+                          title={o.qualifier}
+                          onClick={() => {
+                            gstTouched.current = true;
+                            setGstRate(String(o.ratePercent));
+                          }}
+                        >
+                          {o.ratePercent}% — {o.qualifier}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </label>
 
             <label className="login-field pf-wide" htmlFor="pf-desc">

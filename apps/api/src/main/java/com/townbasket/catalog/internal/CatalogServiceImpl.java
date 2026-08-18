@@ -7,6 +7,7 @@ import com.townbasket.catalog.CategoryDto;
 import com.townbasket.catalog.CreateCategoryRequest;
 import com.townbasket.catalog.CreateProductRequest;
 import com.townbasket.catalog.CreateVariantRequest;
+import com.townbasket.catalog.HsnRateSuggestionsDto;
 import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductSort;
 import com.townbasket.catalog.ProductVariantDto;
@@ -270,6 +271,18 @@ class CatalogServiceImpl implements CatalogService {
     // Admin write surface. All methods here are read-write transactions (the
     // class default is readOnly=true, so each one re-declares @Transactional).
     // ----------------------------------------------------------------------
+
+    @Override
+    public HsnRateSuggestionsDto hsnRateSuggestions(String hsnCode) {
+        String hsn = trimToNull(hsnCode);
+        if (hsn == null) {
+            return new HsnRateSuggestionsDto(null, List.of());
+        }
+        BigDecimal catalogRate = productRepository.gstRatesForHsn(hsn).stream()
+                .findFirst()
+                .orElse(null);
+        return new HsnRateSuggestionsDto(catalogRate, taxService.hsnSuggestions(hsn));
+    }
 
     @Override
     @Transactional

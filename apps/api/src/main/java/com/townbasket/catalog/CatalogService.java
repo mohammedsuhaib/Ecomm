@@ -63,6 +63,12 @@ public interface CatalogService {
     // for rule violations; both are mapped by GlobalExceptionHandler.
     // ----------------------------------------------------------------------
 
+    /**
+     * Admin product-form prefill: the GST rate already used by products with
+     * this exact HSN code (most common wins), plus curated candidate rates.
+     */
+    HsnRateSuggestionsDto hsnRateSuggestions(String hsnCode);
+
     /** Admin category list (ordered by sort order, then name). */
     List<CategoryDto> adminListCategories();
 

@@ -1,12 +1,18 @@
 package com.townbasket.tax.internal;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.tax.HsnSuggestion;
 import com.townbasket.tax.TaxBreakdown;
 import com.townbasket.tax.TaxService;
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 /**
@@ -72,5 +78,37 @@ class GstCalculator implements TaxService {
 
     private static BigDecimal zero() {
         return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
+    }
+
+    // ------------------------------------------------------------------
+    // Curated HSN suggestions (tax/hsn-suggestions.json on the classpath).
+    // Grocery-universe candidates with qualifier text; a suggestion aid for
+    // the admin product form, never a compliance authority. Loaded once at
+    // startup — fail fast on a malformed file.
+    // ------------------------------------------------------------------
+
+    private static final int MAX_SUGGESTIONS = 8;
+
+    private final List<HsnSuggestion> curated;
+
+    GstCalculator(ObjectMapper objectMapper) {
+        try (InputStream in = new ClassPathResource("tax/hsn-suggestions.json").getInputStream()) {
+            this.curated = objectMapper.readValue(in, new TypeReference<List<HsnSuggestion>>() {
+            });
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot load tax/hsn-suggestions.json", e);
+        }
+    }
+
+    @Override
+    public List<HsnSuggestion> hsnSuggestions(String hsnCode) {
+        String query = hsnCode == null ? "" : hsnCode.replaceAll("\\D", "");
+        if (query.isEmpty()) {
+            return List.of();
+        }
+        return curated.stream()
+                .filter(s -> query.startsWith(s.hsn()) || s.hsn().startsWith(query))
+                .limit(MAX_SUGGESTIONS)
+                .toList();
     }
 }

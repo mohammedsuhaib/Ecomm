@@ -58,6 +58,19 @@ export interface DeliveryAgent {
   active: boolean;
 }
 
+/** One curated HSN entry with its candidate GST rates (qualifier-dependent). */
+export interface HsnSuggestion {
+  hsn: string;
+  description: string;
+  options: { ratePercent: number; qualifier: string }[];
+}
+
+/** GST-rate prefill for an HSN: the catalog's own rate + curated candidates. */
+export interface HsnRateSuggestions {
+  catalogRate: number | null;
+  suggestions: HsnSuggestion[];
+}
+
 /** Delivered-order count for one agent on one date (yyyy-mm-dd). */
 export interface AgentDeliveryStat {
   agentId: number;

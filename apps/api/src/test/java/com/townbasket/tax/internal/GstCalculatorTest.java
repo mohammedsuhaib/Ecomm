@@ -3,10 +3,13 @@ package com.townbasket.tax.internal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.tax.HsnSuggestion;
 import com.townbasket.tax.TaxBreakdown;
 import com.townbasket.tax.TaxService;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -17,7 +20,7 @@ import org.junit.jupiter.api.Test;
  */
 class GstCalculatorTest {
 
-    private final TaxService taxService = new GstCalculator();
+    private final TaxService taxService = new GstCalculator(new ObjectMapper());
 
     @Test
     void extractsFivePercentFromInclusivePrice() {
@@ -69,5 +72,28 @@ class GstCalculatorTest {
     void rejectsNegativeAmounts() {
         assertThatThrownBy(() -> taxService.fromInclusiveAmount(new BigDecimal("-1"), new BigDecimal("5")))
                 .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void hsnSuggestionsMatchByPrefixBothWays() {
+        // A full 8-digit code matches its curated 4-digit heading.
+        List<HsnSuggestion> byFullCode = taxService.hsnSuggestions("04031000");
+        assertThat(byFullCode).anySatisfy(s -> assertThat(s.hsn()).isEqualTo("0403"));
+
+        // A bare 2-digit chapter lists its headings (capped).
+        assertThat(taxService.hsnSuggestions("04"))
+                .isNotEmpty()
+                .allSatisfy(s -> assertThat(s.hsn()).startsWith("04"))
+                .hasSizeLessThanOrEqualTo(8);
+
+        // Non-digits are stripped; every rate offered is a legal slab.
+        assertThat(taxService.hsnSuggestions(" 1101 "))
+                .flatExtracting(HsnSuggestion::options)
+                .allSatisfy(o -> assertThat(
+                        taxService.isValidGstRate(((HsnSuggestion.RateOption) o).ratePercent())).isTrue());
+
+        // Blank and unknown codes yield nothing.
+        assertThat(taxService.hsnSuggestions(null)).isEmpty();
+        assertThat(taxService.hsnSuggestions("9999")).isEmpty();
     }
 }

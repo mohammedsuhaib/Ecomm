@@ -28,6 +28,7 @@ import type {
   Category,
   DailySummary,
   DeliveryAgent,
+  HsnRateSuggestions,
   LowStockItem,
   Order,
   Page,
@@ -491,6 +492,11 @@ export function getAdminProducts(opts?: {
 /** GET /admin/catalog/products/{id} — one product with its variants. */
 export function getAdminProduct(id: number): Promise<AdminProduct> {
   return apiFetch<AdminProduct>(`${CATALOG_BASE}/products/${id}`);
+}
+
+/** GET /admin/catalog/hsn-suggestions — GST-rate prefill for an HSN code. */
+export function getHsnSuggestions(hsn: string): Promise<HsnRateSuggestions> {
+  return apiFetch<HsnRateSuggestions>(`${CATALOG_BASE}/hsn-suggestions`, { hsn });
 }
 
 /** POST /admin/catalog/products — create a product with inline variants. */

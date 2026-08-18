@@ -31,6 +31,15 @@ public interface TaxService {
     void requireValidGstRate(BigDecimal ratePercent);
 
     /**
+     * Curated HSN → candidate-rate suggestions for the grocery universe
+     * (admin product-form prefill). Matches by prefix in both directions
+     * ("0403" matches a full "04031000" code; "04" lists the dairy chapter).
+     * Returns at most a handful of entries; empty for blank/unknown codes.
+     * A suggestion aid only — never a compliance authority.
+     */
+    List<HsnSuggestion> hsnSuggestions(String hsnCode);
+
+    /**
      * Extract GST from a tax-inclusive gross amount.
      *
      * <p>Guarantees {@code taxableValue + cgst + sgst == grossAmount} exactly

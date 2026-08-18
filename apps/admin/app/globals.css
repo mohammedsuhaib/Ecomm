@@ -942,6 +942,34 @@ a {
   box-sizing: border-box;
   height: 2.8rem;
 }
+.hsn-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+.hsn-suggest-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+.hsn-suggest-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--green-dark);
+  cursor: pointer;
+}
+.hsn-suggest-chip:hover {
+  border-color: var(--green);
+}
+
 .rider-badge {
   font-size: 0.75rem;
   font-weight: 700;
