@@ -901,6 +901,13 @@ a {
 }
 .pf-variant-row .login-field {
   font-size: 0.75rem;
+  /* Grid items default to min-width:auto, so fr tracks can't shrink below the
+     inputs' intrinsic ~20ch width and the row overflows the card. */
+  min-width: 0;
+}
+.pf-variant-row .login-field input {
+  width: 100%;
+  min-width: 0;
 }
 .pf-v-check {
   font-size: 0.78rem;
