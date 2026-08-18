@@ -935,6 +935,13 @@ a {
   padding-top: 0.6rem;
   padding-bottom: 0.6rem;
 }
+.rider-form .login-field input {
+  /* Password-manager extensions inject inline margins on email/password
+     inputs; under align-items:end that shifts the whole column up. */
+  margin: 0 !important;
+  box-sizing: border-box;
+  height: 2.8rem;
+}
 .rider-badge {
   font-size: 0.75rem;
   font-weight: 700;
