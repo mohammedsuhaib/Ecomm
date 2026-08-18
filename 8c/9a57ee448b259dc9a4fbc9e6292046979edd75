@@ -1,0 +1,53 @@
+apps/api/src/main/java/com/townbasket/orders/OrderService.java
+  s_5516af9055481c::t_a592fc0dda5073 73-77
+  s_5516af9055481c::t_c5f7e8f0b69755 5
+  s_5516af9055481c::t_699cfdcd0e7204 72
+apps/api/src/main/java/com/townbasket/orders/AdminOrderController.java
+  s_5516af9055481c::t_1ddb30ef976661 47-52
+  s_5516af9055481c::t_47d0bb7e4af08a 6
+apps/api/src/main/java/com/townbasket/orders/AgentDeliveryStat.java
+  s_5516af9055481c::t_9d9b10651e52b7 1-11
+apps/api/src/test/java/com/townbasket/orders/OrderCheckoutIntegrationTest.java
+  s_5516af9055481c::t_05cd0389dc0acb 44-45
+  s_5516af9055481c::t_293ee7aa1415ac 182-185
+  s_5516af9055481c::t_a43ad375345f9f 206-212
+  s_5516af9055481c::t_eb1fda800a3e49 12-13
+apps/admin/app/lib/api.ts
+  s_5516af9055481c::t_e8dd2832f19542 335-339
+  s_5516af9055481c::t_a25cdf6bbbde72 24
+apps/api/src/main/java/com/townbasket/orders/internal/OrderRepository.java
+  s_5516af9055481c::t_ff825d83e14a8c 3-4,10,15-38
+  s_5516af9055481c::t_aaea7617a49b52 39
+apps/admin/app/components/RidersPanel.tsx
+  s_5516af9055481c::t_05c97422bf4bc6 18-37
+  s_5516af9055481c::t_445a7798181c1d 194,208-209
+  s_5516af9055481c::t_546a0c40787cb9 9,12
+  s_5516af9055481c::t_30a61ae9a1e855 63-68
+  s_5516af9055481c::t_4ab8f7d93b5f8e 47
+  s_5516af9055481c::t_645a81895c5f11 17
+  s_5516af9055481c::t_4cd8ffbe3ee434 210
+apps/admin/app/globals.css
+  s_5516af9055481c::t_919e3a07f7eae3 938-949
+apps/api/src/main/java/com/townbasket/orders/internal/OrderServiceImpl.java
+  s_5516af9055481c::t_42e943367c8fee 12
+  s_5516af9055481c::t_3c3ff1940eb23d 351-357
+  s_5516af9055481c::t_dd25595e32931d 350
+apps/admin/app/lib/types.ts
+  s_5516af9055481c::t_7bb5c4624927ac 61-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "8c9a57ee448b259dc9a4fbc9e6292046979edd75",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
