@@ -1,0 +1,56 @@
+apps/api/src/main/java/com/townbasket/tax/TaxService.java
+  s_5516af9055481c::t_4cc753d34adaed 34-41
+  s_5516af9055481c::t_8f0462ba21482c 33
+apps/admin/app/lib/types.ts
+  s_5516af9055481c::t_b4eed4d23511c5 61-73
+apps/api/src/main/resources/tax/hsn-suggestions.json
+  s_5516af9055481c::t_df263c23cfc40a 1-43
+apps/api/src/main/java/com/townbasket/tax/HsnSuggestion.java
+  s_5516af9055481c::t_07e0616891f10e 1-18
+apps/api/src/main/java/com/townbasket/catalog/AdminCatalogController.java
+  s_5516af9055481c::t_18d848ce967a85 46-51
+apps/api/src/main/java/com/townbasket/catalog/HsnRateSuggestionsDto.java
+  s_5516af9055481c::t_e8684e7162c125 1-13
+apps/admin/app/components/ProductForm.tsx
+  s_5516af9055481c::t_93db64c81377e6 3,11,16
+  s_5516af9055481c::t_371e3e676b9460 132-153
+  s_5516af9055481c::t_dd3e2a40a7ce72 432-435
+  s_5516af9055481c::t_a2f988d4fe70df 454,460-484
+apps/admin/app/lib/api.ts
+  s_5516af9055481c::t_bd5b8dde276977 497-501
+  s_5516af9055481c::t_331219bd392ec4 31
+apps/admin/app/globals.css
+  s_5516af9055481c::t_956953cc6f9ff4 945-972
+apps/api/src/main/java/com/townbasket/catalog/CatalogService.java
+  s_5516af9055481c::t_9580807208a746 66-71
+apps/api/src/test/java/com/townbasket/tax/internal/GstCalculatorTest.java
+  s_5516af9055481c::t_0d833e6ef852de 76-98
+  s_5516af9055481c::t_44fb3960226d85 6,8,12
+  s_5516af9055481c::t_15decf5e9310b1 23
+apps/api/src/main/java/com/townbasket/catalog/internal/ProductRepository.java
+  s_5516af9055481c::t_b21c7878ab6fe2 21-29
+  s_5516af9055481c::t_6824ccaeb55874 3
+apps/api/src/main/java/com/townbasket/catalog/internal/CatalogServiceImpl.java
+  s_5516af9055481c::t_87e2f42ebd4537 276-286
+  s_5516af9055481c::t_b824ed550e423e 10
+  s_5516af9055481c::t_c22e1f3c21ff33 275
+apps/api/src/main/java/com/townbasket/tax/internal/GstCalculator.java
+  s_5516af9055481c::t_82760c0b03f71f 82-113
+  s_5516af9055481c::t_b950f0c6097481 3-4,6,9-10,15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ed38031910e1cff66bcab34b01b9ff022c4cfe05",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
