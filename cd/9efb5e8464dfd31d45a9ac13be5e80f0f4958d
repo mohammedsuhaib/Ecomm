@@ -1,0 +1,20 @@
+apps/admin/app/components/AdminSections.tsx
+  s_5516af9055481c::t_b2278ca65a0e2c 8,10,17
+  s_5516af9055481c::t_fb57be684cb851 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "cd9efb5e8464dfd31d45a9ac13be5e80f0f4958d",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
