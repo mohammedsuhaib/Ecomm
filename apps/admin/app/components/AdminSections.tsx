@@ -5,14 +5,16 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import Catalogue from './Catalogue';
 import InventoryPanel from './InventoryPanel';
 import OrderQueue from './OrderQueue';
+import RidersPanel from './RidersPanel';
 
-type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue';
+type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders';
 
 const TABS: { value: Section; label: string }[] = [
   { value: 'orders', label: 'Orders' },
   { value: 'analytics', label: 'Analytics' },
   { value: 'inventory', label: 'Inventory' },
   { value: 'catalogue', label: 'Catalogue' },
+  { value: 'riders', label: 'Riders' },
 ];
 
 const isSection = (v: string | null): v is Section =>
@@ -68,6 +70,7 @@ export default function AdminSections() {
       {section === 'analytics' && <AnalyticsDashboard />}
       {section === 'inventory' && <InventoryPanel />}
       {section === 'catalogue' && <Catalogue />}
+      {section === 'riders' && <RidersPanel />}
     </>
   );
 }
