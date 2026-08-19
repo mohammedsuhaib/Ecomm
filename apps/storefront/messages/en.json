@@ -114,7 +114,8 @@
     "ariaAdd": "Add {product} to cart",
     "ariaQuantity": "Quantity of {product} in cart",
     "couldNotAdd": "Could not add — try again",
-    "addToCart": "Add to cart"
+    "addToCart": "Add to cart",
+    "notEnoughStock": "Not enough stock"
   },
   "home": {
     "bannerTitle": "Fresh groceries, delivered fast.",

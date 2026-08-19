@@ -93,7 +93,8 @@ export default function QuickAddButton({ product }: { product: Product }) {
       </span>
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || qty >= variant.availableStock}
+        title={qty >= variant.availableStock ? t('notEnoughStock') : undefined}
         onClick={(e) => {
           stop(e);
           void run(() => addItem(variant.id, 1));

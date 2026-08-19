@@ -88,7 +88,8 @@ export default function AddToCartButton({
         </span>
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || qty >= variant.availableStock}
+          title={qty >= variant.availableStock ? t('notEnoughStock') : undefined}
           onClick={() => run(() => addItem(variant.id, 1))}
           aria-label={tc('increase')}
         >
