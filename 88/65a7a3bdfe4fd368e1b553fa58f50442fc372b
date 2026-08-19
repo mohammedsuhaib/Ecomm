@@ -1,0 +1,25 @@
+apps/storefront/app/components/QuickAddButton.tsx
+  s_5516af9055481c::t_900cd30488ee55 96-97
+apps/storefront/messages/kn.json
+  s_5516af9055481c::t_e102f862833c43 117-118
+apps/storefront/app/components/AddToCartButton.tsx
+  s_5516af9055481c::t_ab2cc405222b00 91-92
+apps/storefront/messages/en.json
+  s_5516af9055481c::t_e102f862833c43 117-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "8865a7a3bdfe4fd368e1b553fa58f50442fc372b",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
