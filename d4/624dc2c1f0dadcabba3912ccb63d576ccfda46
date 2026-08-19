@@ -1,0 +1,39 @@
+apps/api/src/test/java/com/townbasket/AbstractIntegrationTest.java
+  s_5516af9055481c::t_19937a5244c9aa 61-87
+apps/api/src/main/java/com/townbasket/inventory/internal/InventoryOrderEventListener.java
+  s_5516af9055481c::t_15ec27f19923df 24-26,28,30,32-45
+  s_5516af9055481c::t_54d68119cd89c5 6
+apps/api/src/main/resources/db/migration/inventory/V4_3__backfill_missing_stock_rows.sql
+  s_5516af9055481c::t_545b7c8c723a70 1-13
+apps/api/src/main/java/com/townbasket/inventory/internal/StockLevelEntity.java
+  s_5516af9055481c::t_3b36edac5f9271 44-54
+apps/api/src/test/java/com/townbasket/catalog/ProductCsvImportIntegrationTest.java
+  s_5516af9055481c::t_6ccd566cae07bb 27-28
+  s_5516af9055481c::t_2fce8b9c665823 8-9
+  s_5516af9055481c::t_1dffde5072aaa4 62-71
+apps/api/src/main/java/com/townbasket/shared/events/VariantCreated.java
+  s_5516af9055481c::t_6492efe1ee8cd9 1-10
+apps/api/src/main/java/com/townbasket/catalog/internal/CatalogServiceImpl.java
+  s_5516af9055481c::t_f779b57261abb8 399-402
+  s_5516af9055481c::t_8c26ba43d7d835 21
+  s_5516af9055481c::t_44b1ad67a8903f 74
+  s_5516af9055481c::t_29a22eccb92ee1 481
+  s_5516af9055481c::t_182620b49b4aa3 33
+  s_5516af9055481c::t_1fe4faefdd4377 103-104,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "d4624dc2c1f0dadcabba3912ccb63d576ccfda46",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
