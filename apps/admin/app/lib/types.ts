@@ -58,6 +58,13 @@ export interface DeliveryAgent {
   active: boolean;
 }
 
+/** Outcome of a CSV product import (rows are 1-based file line numbers). */
+export interface ProductImportResult {
+  created: number;
+  skipped: number;
+  errors: { row: number; message: string }[];
+}
+
 /** One curated HSN entry with its candidate GST rates (qualifier-dependent). */
 export interface HsnSuggestion {
   hsn: string;

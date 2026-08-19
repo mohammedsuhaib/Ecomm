@@ -32,6 +32,7 @@ import type {
   LowStockItem,
   Order,
   Page,
+  ProductImportResult,
   StockCorrectionRequest,
   StockLevel,
   TokenPair,
@@ -492,6 +493,47 @@ export function getAdminProducts(opts?: {
 /** GET /admin/catalog/products/{id} — one product with its variants. */
 export function getAdminProduct(id: number): Promise<AdminProduct> {
   return apiFetch<AdminProduct>(`${CATALOG_BASE}/products/${id}`);
+}
+
+/**
+ * POST /admin/catalog/products/import — bulk-create products from CSV text
+ * (one row per variant). `dryRun` validates without writing. Raw text/csv
+ * body, so this mirrors apiMutate's auth + 401-refresh-retry inline.
+ */
+export async function importProductsCsv(
+  csv: string,
+  dryRun: boolean,
+): Promise<ProductImportResult> {
+  const url = buildUrl(`${CATALOG_BASE}/products/import`, { dryRun });
+
+  const run = async (): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: withAuthHeader({
+          Accept: 'application/json',
+          'Content-Type': 'text/csv',
+        }),
+        body: csv,
+        cache: 'no-store',
+      });
+    } catch (cause) {
+      throw new ApiError(0, url, `Network error reaching API: ${String(cause)}`);
+    }
+  };
+
+  let res = await run();
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (!refreshed) throw new AuthRequiredError();
+    res = await run();
+    if (res.status === 401) {
+      clearAuth();
+      throw new AuthRequiredError();
+    }
+  }
+  if (!res.ok) throw await errorFromResponse(res, url);
+  return (await res.json()) as ProductImportResult;
 }
 
 /** GET /admin/catalog/hsn-suggestions — GST-rate prefill for an HSN code. */

@@ -6,13 +6,20 @@ import {
   AuthRequiredError,
   deleteProduct,
   getAdminProducts,
+  importProductsCsv,
   setProductAvailability,
 } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
-import type { AdminProduct, Category } from '@/app/lib/types';
+import type { AdminProduct, Category, ProductImportResult } from '@/app/lib/types';
 import ProductForm from './ProductForm';
 
 const PAGE_SIZE = 50;
+
+// Downloadable starter file for the CSV import (one row per variant).
+const CSV_TEMPLATE =
+  'name,category,variant_label,selling_price,cost_price,mrp,name_kn,description,veg,hsn,gst_rate,image_url\n' +
+  'Amul Butter,dairy,100 g,62,55,65,,Salted butter,Y,0405,5,\n' +
+  'Amul Butter,dairy,500 g,295,270,305,,Salted butter,Y,0405,5,\n';
 
 /** Min–max selling price across variants, e.g. "₹40 – ₹120", or "—" if none. */
 function priceRange(p: AdminProduct): string {
@@ -50,6 +57,49 @@ export default function ProductsPanel({
 
   // Editing state: 'new' for create, a product id for edit, null for the list.
   const [editing, setEditing] = useState<'new' | number | null>(null);
+
+  // CSV import: pick file -> dry-run preview -> confirm -> result.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importPreview, setImportPreview] =
+    useState<{ fileName: string; csv: string; result: ProductImportResult } | null>(null);
+  const [importDone, setImportDone] = useState<ProductImportResult | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  async function onImportFile(file: File) {
+    setImportError(null);
+    setImportDone(null);
+    setImportPreview(null);
+    setImportBusy(true);
+    try {
+      const csv = await file.text();
+      const result = await importProductsCsv(csv, true); // dry-run preview
+      setImportPreview({ fileName: file.name, csv, result });
+    } catch (err) {
+      if (err instanceof AuthRequiredError) onAuthExpired();
+      else if (err instanceof ApiError) setImportError(err.message);
+      else setImportError('Could not read that file.');
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  async function onConfirmImport() {
+    if (!importPreview) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const result = await importProductsCsv(importPreview.csv, false);
+      setImportDone(result);
+      setImportPreview(null);
+      await load();
+    } catch (err) {
+      if (err instanceof AuthRequiredError) onAuthExpired();
+      else setImportError('Import failed. Nothing may have been written — retry.');
+    } finally {
+      setImportBusy(false);
+    }
+  }
 
   // Debounce the search box so each keystroke doesn't fire a request.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -163,20 +213,100 @@ export default function ProductsPanel({
     <section className="prod-panel">
       <div className="cat-panel-head">
         <h2 className="cat-panel-title">Products</h2>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setEditing('new')}
-          disabled={categories.length === 0}
-          title={
-            categories.length === 0
-              ? 'Add a category first'
-              : undefined
-          }
-        >
-          Add product
-        </button>
+        <div className="pf-actions">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ''; // allow re-picking the same file
+              if (file) void onImportFile(file);
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={importBusy || categories.length === 0}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {importBusy ? 'Checking…' : 'Import CSV'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setEditing('new')}
+            disabled={categories.length === 0}
+            title={
+              categories.length === 0
+                ? 'Add a category first'
+                : undefined
+            }
+          >
+            Add product
+          </button>
+        </div>
       </div>
+
+      {importError && <p className="order-error">{importError}</p>}
+      {importPreview && (
+        <div className="import-box">
+          <p>
+            <strong>{importPreview.fileName}</strong>: will create{' '}
+            {importPreview.result.created}, skip {importPreview.result.skipped}{' '}
+            already-existing, {importPreview.result.errors.length} error
+            {importPreview.result.errors.length === 1 ? '' : 's'}. Nothing has
+            been written yet.
+          </p>
+          {importPreview.result.errors.length > 0 && (
+            <ul className="import-errors">
+              {importPreview.result.errors.map((e) => (
+                <li key={`${e.row}-${e.message}`}>
+                  Line {e.row}: {e.message}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="pf-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={importBusy || importPreview.result.created === 0}
+              onClick={() => void onConfirmImport()}
+            >
+              {importBusy
+                ? 'Importing…'
+                : `Import ${importPreview.result.created} product${importPreview.result.created === 1 ? '' : 's'}`}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={importBusy}
+              onClick={() => setImportPreview(null)}
+            >
+              Cancel
+            </button>
+            <a
+              className="link-action"
+              href={`data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`}
+              download="products-template.csv"
+            >
+              Download template
+            </a>
+          </div>
+        </div>
+      )}
+      {importDone && (
+        <p className="account-banner ok">
+          Imported {importDone.created} product
+          {importDone.created === 1 ? '' : 's'} ({importDone.skipped} skipped
+          {importDone.errors.length > 0
+            ? `, ${importDone.errors.length} errors — fix and re-run; existing products are skipped`
+            : ''}
+          ).
+        </p>
+      )}
 
       <div className="prod-filters">
         <input

@@ -1,5 +1,6 @@
 package com.townbasket.catalog;
 
+import com.townbasket.catalog.internal.ProductCsvImporter;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,9 +39,19 @@ class AdminCatalogController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final CatalogService catalogService;
+    private final ProductCsvImporter csvImporter;
 
-    AdminCatalogController(CatalogService catalogService) {
+    AdminCatalogController(CatalogService catalogService, ProductCsvImporter csvImporter) {
         this.catalogService = catalogService;
+        this.csvImporter = csvImporter;
+    }
+
+    @PostMapping(value = "/products/import", consumes = {"text/csv", "text/plain"})
+    @Operation(summary = "Bulk-import products from CSV (one row per variant; dryRun validates without writing).")
+    ProductImportResult importProducts(
+            @RequestBody String csv,
+            @RequestParam(defaultValue = "false") boolean dryRun) {
+        return csvImporter.importCsv(csv, dryRun);
     }
 
     @GetMapping("/hsn-suggestions")

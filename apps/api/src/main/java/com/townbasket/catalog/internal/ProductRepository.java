@@ -32,6 +32,8 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     /** Whether any product references a category — the category-delete guard. */
     boolean existsByCategoryId(Long categoryId);
 
+    boolean existsByNameIgnoreCase(String name);
+
     /** Admin name search (case-insensitive contains), optionally scoped to a category. */
     Page<ProductEntity> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
