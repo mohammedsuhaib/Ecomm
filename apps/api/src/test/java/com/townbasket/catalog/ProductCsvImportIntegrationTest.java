@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.townbasket.AbstractIntegrationTest;
 import com.townbasket.catalog.internal.ProductCsvImporter;
+import com.townbasket.inventory.AdminInventoryService;
+import com.townbasket.inventory.StockLevelDto;
 import com.townbasket.shared.BusinessRuleException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,8 @@ class ProductCsvImportIntegrationTest extends AbstractIntegrationTest {
     ProductCsvImporter importer;
     @Autowired
     CatalogService catalogService;
+    @Autowired
+    AdminInventoryService adminInventoryService;
 
     private static final String HEADER =
             "name,category,variant_label,selling_price,cost_price,mrp,veg,hsn,gst_rate\n";
@@ -54,6 +58,16 @@ class ProductCsvImportIntegrationTest extends AbstractIntegrationTest {
         assertThat(dahi.variants().get(0).label()).isEqualTo("200 g");
         assertThat(dahi.gstRatePercent()).isEqualByComparingTo("5");
         assertThat(dahi.hsnCode()).isEqualTo("0403");
+
+        // The VariantCreated events (async, after commit) open zero-stock rows,
+        // so the imported variants appear in the admin stock list immediately.
+        Long variantId = dahi.variants().get(0).id();
+        eventually(() -> assertThat(
+                adminInventoryService.listStockLevels(1L, 0, 500).content())
+                .anySatisfy(s -> {
+                    assertThat(s.variantId()).isEqualTo(variantId);
+                    assertThat(s.onHand()).isZero();
+                }));
 
         // Re-running the same file skips everything that already exists.
         ProductImportResult rerun = importer.importCsv(csv, false);

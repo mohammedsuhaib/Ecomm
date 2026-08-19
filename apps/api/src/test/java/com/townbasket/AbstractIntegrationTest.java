@@ -58,4 +58,31 @@ public abstract class AbstractIntegrationTest {
             return Clock.fixed(Instant.parse("2024-01-01T06:30:00Z"), ZoneId.of("Asia/Kolkata"));
         }
     }
+
+    /**
+     * Poll an assertion until it passes or a short timeout elapses. For effects
+     * driven by {@code @ApplicationModuleListener} handlers (after-commit, own
+     * transaction), which are not visible synchronously when the call returns.
+     */
+    protected static void eventually(Runnable assertion) {
+        AssertionError last = null;
+        long deadline = System.currentTimeMillis() + 5_000L;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                assertion.run();
+                return;
+            } catch (AssertionError e) {
+                last = e;
+                try {
+                    Thread.sleep(100L);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(ie);
+                }
+            }
+        }
+        if (last != null) {
+            throw last;
+        }
+    }
 }

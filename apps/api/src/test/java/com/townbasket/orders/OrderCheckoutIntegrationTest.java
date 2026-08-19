@@ -240,34 +240,6 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         eventually(() -> assertThat(inventoryService.availability(variant.id())).isEqualTo(before));
     }
 
-    /**
-     * Poll an assertion until it passes or a short timeout elapses. The
-     * inventory commit/release runs in an {@code @ApplicationModuleListener}
-     * (after-commit, in its own transaction), so the effect is not visible
-     * synchronously when the transition call returns.
-     */
-    private static void eventually(Runnable assertion) {
-        AssertionError last = null;
-        long deadline = System.currentTimeMillis() + 5_000L;
-        while (System.currentTimeMillis() < deadline) {
-            try {
-                assertion.run();
-                return;
-            } catch (AssertionError e) {
-                last = e;
-                try {
-                    Thread.sleep(100L);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new IllegalStateException(ie);
-                }
-            }
-        }
-        if (last != null) {
-            throw last;
-        }
-    }
-
     @Test
     void adminListReturnsNewestFirst() {
         ProductVariantDto variant = pickPricyVariant();

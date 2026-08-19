@@ -18,6 +18,7 @@ import com.townbasket.catalog.VariantTaxView;
 import com.townbasket.catalog.VariantView;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.shared.events.VariantCreated;
 import com.townbasket.tax.TaxService;
 import com.townbasket.shared.PagedResponse;
 import com.townbasket.shared.ResourceNotFoundException;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -69,6 +71,7 @@ class CatalogServiceImpl implements CatalogService {
      * name unless the caller supplied one explicitly.
      */
     private final Optional<ProductNameTransliterator> transliterator;
+    private final ApplicationEventPublisher events;
 
     /** Default gap between auto-assigned category sort orders. */
     private static final int SORT_ORDER_GAP = 10;
@@ -97,13 +100,15 @@ class CatalogServiceImpl implements CatalogService {
                        ProductVariantRepository variantRepository,
                        InventoryService inventory,
                        TaxService taxService,
-                       Optional<ProductNameTransliterator> transliterator) {
+                       Optional<ProductNameTransliterator> transliterator,
+                       ApplicationEventPublisher events) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
         this.inventory = inventory;
         this.taxService = taxService;
         this.transliterator = transliterator;
+        this.events = events;
     }
 
     @Override
@@ -391,7 +396,10 @@ class CatalogServiceImpl implements CatalogService {
 
         // saveAndFlush so the cascade-inserted variants' IDENTITY ids are
         // assigned before we map them into the response DTO.
-        return toAdminProductDto(productRepository.saveAndFlush(product));
+        AdminProductDto dto = toAdminProductDto(productRepository.saveAndFlush(product));
+        // Inventory opens a zero-stock row per new variant (after commit).
+        product.getVariants().forEach(v -> events.publishEvent(new VariantCreated(v.getId())));
+        return dto;
     }
 
     @Override
@@ -470,6 +478,7 @@ class CatalogServiceImpl implements CatalogService {
         // save() does an em.merge() which copies the transient variant — the id
         // would land on the copy, leaving our reference's id null.
         productRepository.flush();
+        events.publishEvent(new VariantCreated(variant.getId()));
         return toAdminVariantDto(variant);
     }
 

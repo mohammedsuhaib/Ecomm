@@ -41,6 +41,17 @@ class StockLevelEntity {
         // JPA
     }
 
+    /** A fresh zero-stock row for a newly created variant (threshold matches the schema default). */
+    static StockLevelEntity zeroRow(Long storeId, Long variantId) {
+        StockLevelEntity e = new StockLevelEntity();
+        e.storeId = storeId;
+        e.variantId = variantId;
+        e.onHand = 0;
+        e.reserved = 0;
+        e.lowStockThreshold = 5;
+        return e;
+    }
+
     Long getId() {
         return id;
     }
