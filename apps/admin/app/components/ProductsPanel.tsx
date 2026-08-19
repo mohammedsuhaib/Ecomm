@@ -214,6 +214,14 @@ export default function ProductsPanel({
       <div className="cat-panel-head">
         <h2 className="cat-panel-title">Products</h2>
         <div className="pf-actions">
+          <a
+            className="link-action"
+            style={{ alignSelf: 'center', fontSize: '0.82rem' }}
+            href={`data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`}
+            download="products-template.csv"
+          >
+            Download template
+          </a>
           <input
             ref={fileInputRef}
             type="file"
@@ -287,13 +295,6 @@ export default function ProductsPanel({
             >
               Cancel
             </button>
-            <a
-              className="link-action"
-              href={`data:text/csv;charset=utf-8,${encodeURIComponent(CSV_TEMPLATE)}`}
-              download="products-template.csv"
-            >
-              Download template
-            </a>
           </div>
         </div>
       )}
