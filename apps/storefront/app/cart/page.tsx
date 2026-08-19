@@ -118,7 +118,15 @@ export default function CartPage() {
                     <span className="qty-value">{item.qty}</span>
                     <button
                       type="button"
-                      disabled={busyItem === item.itemId}
+                      disabled={
+                        busyItem === item.itemId ||
+                        item.qty >= item.availableStock
+                      }
+                      title={
+                        item.qty >= item.availableStock
+                          ? t('onlyNLeft', { count: item.availableStock })
+                          : undefined
+                      }
                       onClick={() => change(item, item.qty + 1)}
                       aria-label={tc('increase')}
                     >
