@@ -1,0 +1,44 @@
+apps/admin/app/components/ProductsPanel.tsx
+  s_5516af9055481c::t_83eaced2a0bb69 216-249,252-309
+  s_5516af9055481c::t_7bda5a961b7957 18-23
+  s_5516af9055481c::t_779ab1259b220b 61-103
+  s_5516af9055481c::t_cadb481174763d 9,13
+  s_5516af9055481c::t_e4a10987a87f46 310
+apps/api/src/main/java/com/townbasket/catalog/AdminCatalogController.java
+  s_5516af9055481c::t_a90a9079537ab9 3
+  s_5516af9055481c::t_25c7791ee46229 42,44,46
+  s_5516af9055481c::t_2ec99b49a7b3da 49-54
+  s_5516af9055481c::t_1ca67e72092560 47-48
+apps/admin/app/lib/api.ts
+  s_5516af9055481c::t_4eb4cd07238d44 35
+  s_5516af9055481c::t_9ff605e2783e04 498-538
+apps/api/src/main/java/com/townbasket/catalog/internal/ProductCsvImporter.java
+  s_5516af9055481c::t_7a9705a2d64ff0 98-101
+  s_5516af9055481c::t_f033acce6b7463 1-97,102-269
+apps/api/src/test/java/com/townbasket/catalog/ProductCsvImportIntegrationTest.java
+  s_5516af9055481c::t_2796dd1309e3c0 1-77
+apps/api/src/main/java/com/townbasket/catalog/ProductImportResult.java
+  s_5516af9055481c::t_99774682bd42ea 1-16
+apps/admin/app/globals.css
+  s_5516af9055481c::t_4d3d353f2abe84 945-968
+apps/admin/app/lib/types.ts
+  s_5516af9055481c::t_b213bdbb0cf05c 61-67
+apps/api/src/main/java/com/townbasket/catalog/internal/ProductRepository.java
+  s_5516af9055481c::t_cf168b448aa26a 35-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "973e9309f3e8554a5c9bb6a765cbbed7f78ad6a1",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
