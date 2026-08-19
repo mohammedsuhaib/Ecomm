@@ -1,0 +1,19 @@
+apps/storefront/app/cart/page.tsx
+  s_5516af9055481c::t_f783f3ce5bdc7a 121-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "28b2b59ac064e0a511fcd7c0dd5e5662010ec92a",
+  "prompts": {},
+  "sessions": {
+    "s_5516af9055481c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "79c5f57d-cbf9-4c65-81f4-3c3988f3b8d5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
