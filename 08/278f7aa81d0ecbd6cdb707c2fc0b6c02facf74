@@ -1,0 +1,31 @@
+apps/api/src/main/java/com/townbasket/orders/internal/InvoicePdfGenerator.java
+  s_d920b16e8a26ca::t_0666f34b141935 75-77
+apps/api/src/test/java/com/townbasket/orders/OrderCheckoutIntegrationTest.java
+  s_d920b16e8a26ca::t_f74a26253d735c 246-260
+  s_d920b16e8a26ca::t_51646a52fb73ff 39-40
+  s_2ccdc42b73188a::t_aa3f0a338a9e3e 245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "08278f7aa81d0ecbd6cdb707c2fc0b6c02facf74",
+  "prompts": {},
+  "sessions": {
+    "s_2ccdc42b73188a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e6502e49-7266-4cb2-ac32-204229841be5",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    },
+    "s_d920b16e8a26ca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b88545eb-3d46-465f-8461-dc0a2295241d",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
