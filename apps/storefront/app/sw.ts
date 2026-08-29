@@ -73,3 +73,70 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// ---- Web Push -------------------------------------------------------------
+// Order updates pushed by the API (notifications module). The payload is the
+// JSON built server-side: { title, body, url, orderId, type, status }.
+//
+// A push event MUST result in a visible notification: browsers revoke the push
+// permission from sites that receive pushes silently, so every branch below —
+// including a malformed payload — shows something.
+
+interface PushPayload {
+  title?: string;
+  body?: string;
+  url?: string | null;
+  orderId?: number;
+  type?: string;
+  status?: string;
+}
+
+self.addEventListener('push', (event: PushEvent) => {
+  let payload: PushPayload = {};
+  try {
+    payload = event.data ? (event.data.json() as PushPayload) : {};
+  } catch {
+    // Non-JSON payload — fall through to the generic copy below.
+  }
+
+  const title = payload.title ?? 'Town Basket';
+  const url = payload.url ?? '/account';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: payload.body ?? 'Your order has an update.',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      // Collapse repeat updates for the same order into one notification
+      // rather than stacking a row per status change.
+      tag: payload.orderId ? `tb-order-${payload.orderId}` : 'tb-order',
+      renotify: true,
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+  const target = (event.notification.data?.url as string | undefined) ?? '/account';
+
+  // Focus an already-open tab (and navigate it) instead of piling up new ones.
+  event.waitUntil(
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      for (const client of clientList) {
+        if ('focus' in client) {
+          await client.focus();
+          if ('navigate' in client) {
+            await client.navigate(target).catch(() => undefined);
+          }
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});

@@ -1368,3 +1368,22 @@ a:hover {
   font-size: 0.8rem;
   margin: 0;
 }
+
+/* Push opt-in on the order page — mirrors .cancel-window's stacked layout. */
+.push-optin {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.push-optin-btn[aria-pressed='true'] {
+  border-color: var(--green);
+  color: var(--green-dark);
+}
+.push-optin-hint {
+  font-size: 0.8rem;
+  margin: 0;
+  text-align: center;
+  max-width: 34ch;
+}

@@ -299,7 +299,14 @@
     "cancelConfirm": "Cancel this order? Your items will be released and any payment refunded per the refund policy.",
     "cancelWindowHint": "You can cancel free of charge within 1 minute of placing the order.",
     "cancelWindowClosed": "The cancellation window has passed or the order is already being prepared. Please contact support.",
-    "cancelFailed": "Could not cancel the order. Please try again or contact support."
+    "cancelFailed": "Could not cancel the order. Please try again or contact support.",
+    "notifyEnable": "🔔 Notify me about this order",
+    "notifyEnableHint": "Get a notification when your order is packed and on its way — even with the app closed.",
+    "notifyOn": "🔔 Notifications on",
+    "notifyOnHint": "We'll notify you as this order progresses. Tap to turn off.",
+    "notifyWorking": "Just a moment…",
+    "notifyBlocked": "Notifications are blocked for this site. Enable them in your browser settings to get order updates.",
+    "notifyFailed": "Could not change your notification setting. Please try again."
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

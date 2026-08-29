@@ -575,3 +575,50 @@ export function mergeCart(cartId: string): Promise<Cart> {
     `/carts/${encodeURIComponent(cartId)}/merge`,
   );
 }
+
+// ---- Web Push subscriptions (notifications) -----------------------------
+
+/** What the deployment supports: the VAPID key, or `enabled: false` when unset. */
+export interface PushConfig {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+/** The shape `PushSubscription.toJSON()` produces; posted to the API verbatim. */
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/**
+ * GET /notifications/push-config — public. Returns `enabled: false` when the
+ * server has no VAPID keys, so the UI can hide the opt-in rather than offer a
+ * button that cannot work.
+ */
+export function getPushConfig(): Promise<PushConfig> {
+  return apiFetch<PushConfig>('/notifications/push-config', undefined, {
+    noStore: true,
+  });
+}
+
+/**
+ * POST /notifications/subscriptions — register this browser for order updates.
+ * Authenticated: the subscription is stored against the caller's account so
+ * their order updates reach them.
+ */
+export function subscribeToPush(
+  subscription: PushSubscriptionPayload,
+): Promise<void> {
+  return authMutate<void>('POST', '/notifications/subscriptions', subscription);
+}
+
+/**
+ * DELETE /notifications/subscriptions — stop notifying this browser. Authorised
+ * by the endpoint URL itself (an unguessable capability the browser minted), so
+ * it still works when the session has already been cleared.
+ */
+export function unsubscribeFromPush(endpoint: string): Promise<void> {
+  return apiMutate<void>('DELETE', '/notifications/subscriptions', {
+    endpoint,
+  });
+}

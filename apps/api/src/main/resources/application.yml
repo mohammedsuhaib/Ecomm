@@ -147,3 +147,14 @@ townbasket:
     # production; a blank/malformed value is ignored (falls back to the seeded store).
     # store-lat: 12.9716
     # store-lng: 77.5946
+  notifications:
+    push:
+      # Web Push (browser notifications for order updates). Generate a VAPID key
+      # pair once with `npx web-push generate-vapid-keys` and set both halves via
+      # env — see NOTIFICATIONS.md. The private key is a SECRET; keep it out
+      # of git. Left blank the push channel simply stays off and the app behaves
+      # exactly as before (in-app SSE only), which is the local-dev default.
+      public-key: ${WEB_PUSH_PUBLIC_KEY:}
+      private-key: ${WEB_PUSH_PRIVATE_KEY:}
+      # Contact a push service can use to reach the operator about this sender.
+      subject: ${WEB_PUSH_SUBJECT:mailto:support@town-basket.com}

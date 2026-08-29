@@ -336,7 +336,9 @@ class OrderServiceImpl implements OrderService {
             order.setPaymentStatus("PAID"); // COD cash collected on delivery.
         }
 
-        events.publishEvent(new OrderStatusChanged(order.getId(), order.getStoreId(), from.name(), to.name()));
+        events.publishEvent(new OrderStatusChanged(
+                order.getId(), order.getStoreId(), from.name(), to.name(),
+                order.getUserId(), order.getPublicToken().toString()));
         if (to == OrderStatus.DELIVERED) {
             events.publishEvent(new OrderDelivered(order.getId(), order.getStoreId()));
         } else if (to == OrderStatus.CANCELLED) {

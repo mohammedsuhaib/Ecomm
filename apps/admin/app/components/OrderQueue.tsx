@@ -11,6 +11,7 @@ import { STATUS_TABS } from '@/app/lib/status';
 import type { DeliveryAgent, Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import OrderCard from './OrderCard';
+import { useNewOrderAlert } from './useNewOrderAlert';
 
 /**
  * Live admin order queue. Loads orders for the selected status filter, then
@@ -32,6 +33,13 @@ export default function OrderQueue() {
   // right slice without re-subscribing on every filter change.
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  // Chime + desktop notification when an order arrives. Held in a ref for the
+  // same reason as the filter: the SSE effect must not re-subscribe every time
+  // the alert toggle changes.
+  const alert = useNewOrderAlert();
+  const notifyRef = useRef(alert.notify);
+  notifyRef.current = alert.notify;
 
   // When a call hits an unrecoverable 401, api.ts has already cleared the
   // stored session; re-sync the auth context so <LoginGate> drops to the login
@@ -109,7 +117,12 @@ export default function OrderQueue() {
       try {
         es = new EventSource(adminOrderStreamUrl());
         es.onopen = () => setLive(true);
-        es.addEventListener('order-placed', () => refetch());
+        // Only a genuinely new order alerts; status transitions must not, or a
+        // busy shift becomes a wall of noise.
+        es.addEventListener('order-placed', () => {
+          notifyRef.current('A new order just came in.');
+          refetch();
+        });
         es.addEventListener('order-updated', () => refetch());
         es.onmessage = () => refetch();
         es.onerror = () => setLive(false);
@@ -158,6 +171,19 @@ export default function OrderQueue() {
         <span className={`live-dot ${live ? 'on' : ''}`}>
           {live ? '● live' : '○ reconnecting'}
         </span>
+        <button
+          type="button"
+          className={`queue-alert-toggle ${alert.enabled ? 'on' : ''}`}
+          aria-pressed={alert.enabled}
+          onClick={() => void alert.toggle()}
+          title={
+            alert.enabled
+              ? 'New-order alerts are on for this browser'
+              : 'Play a sound and show a notification when a new order arrives'
+          }
+        >
+          {alert.enabled ? '🔔 Alerts on' : '🔕 Alerts off'}
+        </button>
       </div>
 
       {error && <p className="order-error queue-error">{error}</p>}

@@ -77,6 +77,11 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/reorder").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/carts/*/merge").authenticated()
+                        // A push subscription is stored against the customer's account,
+                        // so registering one requires a login. Removing one is authorised
+                        // by the unguessable endpoint URL itself (see the controller), so
+                        // a signed-out browser can still clean up after itself.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/notifications/subscriptions").authenticated()
 
                         // Everything else is public (catalog, serviceability, the rest of
                         // cart/orders, /auth/**, swagger, actuator health/info, etc.).

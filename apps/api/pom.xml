@@ -33,6 +33,9 @@
              also need ~/.docker-java.properties with api.version=1.44 (the
              shaded client requests /v1.32/ by default). -->
         <testcontainers.version>1.21.3</testcontainers.version>
+        <!-- Web Push (RFC 8291 payload encryption + VAPID) for the push channel. -->
+        <web-push.version>5.1.1</web-push.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
     </properties>
 
     <dependencies>
@@ -82,6 +85,37 @@
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>${openpdf.version}</version>
+        </dependency>
+
+        <!-- Web Push — VAPID signing + RFC 8291 aes128gcm payload encryption for the
+             notifications module's browser-push channel. Two dependencies are excluded
+             deliberately: async-http-client (Netty) is only used by PushAsyncService,
+             which we don't use — we send through the Apache-backed PushService — and
+             pulling Netty in would add a large, dated transitive tree for nothing;
+             jcommander only serves the library's command-line entry point. -->
+        <dependency>
+            <groupId>nl.martijndwars</groupId>
+            <artifactId>web-push</artifactId>
+            <version>${web-push.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.asynchttpclient</groupId>
+                    <artifactId>async-http-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.beust</groupId>
+                    <artifactId>jcommander</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- BouncyCastle — the EC keys + AES-GCM primitives web-push encrypts with.
+             web-push does not declare it (it expects the application to supply the
+             provider), so it is an explicit dependency here rather than transitive. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
         </dependency>
 
         <!-- Spring Modulith — module boundaries + event publication registry (outbox) -->

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, cancelOrder, getOrder, orderInvoiceUrl, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { useCart } from '@/app/components/CartProvider';
+import PushOptIn from '@/app/components/PushOptIn';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
 // Display order + labels for the live status timeline (CANCELLED handled apart).
@@ -317,6 +318,9 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             })}
           </ol>
         )}
+        {/* Offer push only while the order is still in flight — there is
+            nothing left to notify about once it is delivered or cancelled. */}
+        {!cancelled && order.status !== 'DELIVERED' && <PushOptIn />}
       </section>
 
       <section>
