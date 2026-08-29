@@ -153,3 +153,50 @@ export function getDeliveryOrders(
 export function confirmDelivery(orderId: string, otp: string): Promise<Order> {
   return apiPost<Order>(`/delivery/orders/${encodeURIComponent(orderId)}/deliver`, { otp });
 }
+
+// ---- push notifications -----------------------------------------------------
+
+/** What the deployment supports: the VAPID key, or `enabled: false` when unset. */
+export interface PushConfig {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+/** The shape `PushSubscription.toJSON()` produces; posted to the API verbatim. */
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/**
+ * GET /notifications/push-config — public. `enabled: false` means the server has
+ * no VAPID keys, so the opt-in is hidden rather than offered and broken.
+ */
+export function getPushConfig(): Promise<PushConfig> {
+  return apiFetch<PushConfig>('/notifications/push-config');
+}
+
+/**
+ * POST /notifications/subscriptions — register this phone for assignment
+ * alerts. Stored against the signed-in rider, which is how the API knows whose
+ * device to push a new job to.
+ */
+export function subscribeToPush(
+  subscription: PushSubscriptionPayload,
+): Promise<void> {
+  return apiPost<void>('/notifications/subscriptions', subscription);
+}
+
+/**
+ * DELETE /notifications/subscriptions — stop pushing to this phone. Authorised
+ * by the endpoint URL itself (an unguessable capability the browser minted), so
+ * it needs no token and still works after logout.
+ */
+export async function unsubscribeFromPush(endpoint: string): Promise<void> {
+  await fetch(url('/notifications/subscriptions'), {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+    cache: 'no-store',
+  });
+}

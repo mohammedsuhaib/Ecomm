@@ -466,3 +466,42 @@ html, body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- New-delivery alert opt-in ---------------------------------------- */
+.push-row {
+  padding: 8px 12px 0;
+}
+/* Full-width and 44px tall — riders tap this one-handed, often gloved. */
+.push-toggle {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--clr-border);
+  border-radius: var(--radius);
+  background: var(--clr-surface);
+  color: var(--clr-muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.push-toggle:hover:not(:disabled) {
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+}
+.push-toggle.on {
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+  background: #eff4fe;
+}
+.push-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.push-hint {
+  margin: 6px 12px 0;
+  font-size: 13px;
+  color: var(--clr-muted);
+}
+.push-hint.error {
+  color: var(--clr-danger);
+}

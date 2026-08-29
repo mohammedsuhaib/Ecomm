@@ -36,6 +36,11 @@ class SseNotificationChannel implements NotificationChannel {
 
     @Override
     public boolean send(NotificationMessage message) {
+        // Rider messages have no SSE stream to travel on (the delivery app
+        // polls), and must not be replayed into the customer's tracking stream.
+        if (message.audience() == NotificationMessage.Audience.AGENT) {
+            return false;
+        }
         SsePayload payload = new SsePayload(
                 message.orderId(), message.status(), message.type(), message.at());
         // A brand-new order is an admin-queue arrival; everything else is an
@@ -44,9 +49,7 @@ class SseNotificationChannel implements NotificationChannel {
             registry.publishToAdmin("order-placed", payload);
         } else {
             registry.publishToOrder(message.orderId(), "status", payload);
-            if (message.toAdmin()) {
-                registry.publishToAdmin("order-updated", payload);
-            }
+            registry.publishToAdmin("order-updated", payload);
         }
         return true;
     }

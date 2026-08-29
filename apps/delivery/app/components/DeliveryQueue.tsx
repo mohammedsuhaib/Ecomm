@@ -5,6 +5,7 @@ import { AuthRequiredError, getDeliveryOrders } from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import DeliveryCard from './DeliveryCard';
+import PushOptIn from './PushOptIn';
 
 const POLL_MS = 30_000;
 
@@ -103,6 +104,8 @@ export default function DeliveryQueue() {
             <span aria-hidden>↻</span> {loading ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
+
+        <PushOptIn />
 
         {offline && (
           <p className="offline-banner" role="status">

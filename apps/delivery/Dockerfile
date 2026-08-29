@@ -24,5 +24,8 @@ ENV PORT=3002
 ENV HOSTNAME=0.0.0.0
 COPY --from=build /repo/apps/delivery/.next/standalone ./
 COPY --from=build /repo/apps/delivery/.next/static ./apps/delivery/.next/static
+# public/ holds the service worker and PWA icons — without it push registration
+# 404s and the app is not installable.
+COPY --from=build /repo/apps/delivery/public ./apps/delivery/public
 EXPOSE 3002
 CMD ["node", "apps/delivery/server.js"]

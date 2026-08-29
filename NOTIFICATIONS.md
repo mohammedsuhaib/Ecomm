@@ -14,10 +14,14 @@ never block an order transition or another channel.
 | Channel | Reaches | Needs configuring | Status |
 |---|---|---|---|
 | `SSE` | The tracking page and admin queue **while open** | Nothing | Always on |
-| `WEB_PUSH` | The customer's phone **even with the app closed** | A VAPID key pair | On when keys are set |
+| `WEB_PUSH` | A customer's or rider's phone **even with the app closed** | A VAPID key pair | On when keys are set |
 
 Every delivery is recorded in `notifications.notification_log` (order, channel,
 type), so you can answer "was the customer actually told?" after the fact.
+
+Each message carries an **audience** — customer, staff, or rider — and channels
+use it to decide what is theirs to deliver. That is what keeps a rider's job
+(including the customer's address) out of the public order-tracking stream.
 
 Staff get a third thing that isn't a server channel at all: the admin queue
 plays a chime and raises a desktop notification when a new order arrives. It
@@ -27,7 +31,8 @@ unlocks audio on that click, and the choice is remembered).
 
 ## Turning on Web Push
 
-One-time, then it works for every customer who opts in.
+One-time, then it works for every customer **and rider** who opts in — the same
+key pair serves both apps.
 
 1. **Generate a VAPID key pair** (any machine with Node):
    ```bash
@@ -60,6 +65,28 @@ They must be signed in (the subscription is stored against their account) and
 tap the button — the browser then asks permission. From that point, every status
 change on an in-flight order sends one notification: packed, out for delivery,
 delivered, cancelled. Tapping it opens their tracking page.
+
+### What the rider sees
+
+The delivery app has its own installable PWA (blue, so it is never confused with
+the green storefront on a home screen) and its own **🔕 Turn on new-delivery
+alerts** button above the queue. Riders should install it and switch alerts on
+during onboarding — it is the only way they learn about a job without staring at
+the phone.
+
+They are notified at the three moments that change what they do:
+
+| When | They see |
+|---|---|
+| An order they hold goes **out for delivery** | "Delivery ready to collect · Deliver to <address>" |
+| An order **already out for delivery** is assigned to them | "New delivery assigned · Deliver to <address>" |
+| An order they hold is **cancelled** or handed to someone else | "Delivery cancelled" / "Delivery reassigned" |
+
+Deliberately **not** notified: an order assigned to them while it is still being
+packed. Their queue lists out-for-delivery orders only, so buzzing then would
+point at a job they cannot see or collect — the out-for-delivery message covers
+it a moment later. New-job alerts vibrate and stay on screen until tapped;
+cancellations do not vibrate, so they don't startle someone mid-ride.
 
 Notes worth knowing:
 

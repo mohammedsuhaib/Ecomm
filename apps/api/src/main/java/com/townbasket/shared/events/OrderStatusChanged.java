@@ -10,6 +10,12 @@ package com.townbasket.shared.events;
  * customer off-page: the user id selects their Web Push subscriptions, and the
  * token deep-links the notification to their tracking page. {@code userId} is
  * {@code null} for orders placed before login was required.
+ *
+ * <p>{@code assignedAgentId} is the rider currently carrying the order, so the
+ * transitions that change what they do (ready to collect, cancelled) can reach
+ * them; {@code addressLine} makes that notification useful on its own. Both are
+ * only ever delivered to that one rider. {@code assignedAgentId} is
+ * {@code null} when the order has not been assigned.
  */
 public record OrderStatusChanged(
         Long orderId,
@@ -17,5 +23,7 @@ public record OrderStatusChanged(
         String fromStatus,
         String toStatus,
         Long userId,
-        String trackingToken) {
+        String trackingToken,
+        Long assignedAgentId,
+        String addressLine) {
 }

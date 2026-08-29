@@ -26,6 +26,7 @@ import com.townbasket.serviceability.StoreDto;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.PagedResponse;
 import com.townbasket.shared.ResourceNotFoundException;
+import com.townbasket.shared.events.OrderAssigned;
 import com.townbasket.shared.events.OrderCancelled;
 import com.townbasket.shared.events.OrderConfirmed;
 import com.townbasket.shared.events.OrderDelivered;
@@ -42,6 +43,7 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -338,7 +340,8 @@ class OrderServiceImpl implements OrderService {
 
         events.publishEvent(new OrderStatusChanged(
                 order.getId(), order.getStoreId(), from.name(), to.name(),
-                order.getUserId(), order.getPublicToken().toString()));
+                order.getUserId(), order.getPublicToken().toString(),
+                order.getAssignedAgentId(), order.getAddressLine()));
         if (to == OrderStatus.DELIVERED) {
             events.publishEvent(new OrderDelivered(order.getId(), order.getStoreId()));
         } else if (to == OrderStatus.CANCELLED) {
@@ -373,7 +376,16 @@ class OrderServiceImpl implements OrderService {
             throw new BusinessRuleException(
                     "Agent " + agentId + " is not an active delivery agent.");
         }
+        Long previousAgentId = order.getAssignedAgentId();
         order.setAssignedAgentId(agentId); // null clears the assignment (back to pool)
+
+        // Re-saving the same agent is a no-op, not a new job — don't buzz a
+        // rider's phone again for an order they already have.
+        if (!Objects.equals(previousAgentId, agentId)) {
+            events.publishEvent(new OrderAssigned(
+                    order.getId(), order.getStoreId(), agentId, previousAgentId,
+                    status.name(), order.getAddressLine()));
+        }
         return toDto(order, false);
     }
 

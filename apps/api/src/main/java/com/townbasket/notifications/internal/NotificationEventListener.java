@@ -1,5 +1,6 @@
 package com.townbasket.notifications.internal;
 
+import com.townbasket.shared.events.OrderAssigned;
 import com.townbasket.shared.events.OrderCancelled;
 import com.townbasket.shared.events.OrderConfirmed;
 import com.townbasket.shared.events.OrderDelivered;
@@ -30,6 +31,9 @@ import org.springframework.stereotype.Component;
 class NotificationEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
+
+    /** The status at which an order becomes a rider's job to act on. */
+    private static final String OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY";
 
     private final List<NotificationChannel> channels;
     private final NotificationLogRepository logRepository;
@@ -68,6 +72,52 @@ class NotificationEventListener {
                 titleFor(status, event.orderId()),
                 bodyFor(status),
                 event.trackingToken() == null ? null : "/order/" + event.trackingToken()));
+
+        if (event.assignedAgentId() == null) {
+            return;
+        }
+        // The rider's own copy of the two transitions that change what they do.
+        if (OUT_FOR_DELIVERY.equals(status)) {
+            dispatch(NotificationMessage.forAgent(
+                    event.orderId(), event.assignedAgentId(), "ORDER_ASSIGNED", status,
+                    "Delivery ready to collect",
+                    destination(event.addressLine())));
+        } else if ("CANCELLED".equals(status)) {
+            // Otherwise they drive to a delivery that is no longer happening.
+            dispatch(NotificationMessage.forAgent(
+                    event.orderId(), event.assignedAgentId(), "ORDER_CANCELLED", status,
+                    "Delivery cancelled",
+                    "Order #" + event.orderId() + " was cancelled — no need to deliver it."));
+        }
+    }
+
+    /**
+     * A rider gained or lost a job.
+     *
+     * <p>The new rider is only buzzed when the order is already out for
+     * delivery — i.e. collectable right now. Orders are normally assigned while
+     * still being packed, and the rider's queue lists OUT_FOR_DELIVERY orders
+     * only, so notifying at assignment time would point them at a job they
+     * cannot see or start yet; the OUT_FOR_DELIVERY transition below notifies
+     * them at the moment it becomes real.
+     *
+     * <p>Losing a job is always worth telling them, whatever the status — a
+     * rider must not set off for a delivery that is no longer theirs.
+     */
+    @ApplicationModuleListener
+    void on(OrderAssigned event) {
+        if (event.agentId() != null && OUT_FOR_DELIVERY.equals(event.status())) {
+            dispatch(NotificationMessage.forAgent(
+                    event.orderId(), event.agentId(), "ORDER_ASSIGNED", event.status(),
+                    "New delivery assigned",
+                    destination(event.addressLine())));
+        }
+        if (event.previousAgentId() != null) {
+            dispatch(NotificationMessage.forAgent(
+                    event.orderId(), event.previousAgentId(), "ORDER_UNASSIGNED", event.status(),
+                    "Delivery reassigned",
+                    "Order #" + event.orderId() + " is no longer assigned to you."));
+        }
     }
 
     @ApplicationModuleListener
@@ -103,6 +153,13 @@ class NotificationEventListener {
                         channel.name(), message.orderId(), message.type(), e.toString());
             }
         }
+    }
+
+    /** Where the rider is going, or a nudge to open the app when unknown. */
+    private static String destination(String addressLine) {
+        return addressLine == null || addressLine.isBlank()
+                ? "Open the app for the delivery details."
+                : "Deliver to " + addressLine;
     }
 
     private static String titleFor(String status, Long orderId) {

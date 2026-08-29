@@ -5,6 +5,16 @@ import { AuthProvider } from './components/AuthProvider';
 export const metadata: Metadata = {
   title: 'Town Basket Delivery',
   description: 'Delivery agent portal for Town Basket',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    title: 'TB Delivery',
+    statusBarStyle: 'default',
+  },
+  icons: {
+    icon: '/icons/icon-192.png',
+    apple: '/icons/icon-192.png',
+  },
 };
 
 // NOTE: never set maximumScale/userScalable here — blocking pinch-zoom fails
@@ -12,6 +22,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#1a56db',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
