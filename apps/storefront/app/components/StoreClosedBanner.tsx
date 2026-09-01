@@ -34,7 +34,7 @@ export default function StoreClosedBanner() {
         const next = await getStore({ noStore: true });
         if (!cancelled) setStore(next);
       } catch {
-        if (!cancelled) setStore(null); // unknown -> stay quiet
+        if (!cancelled) setStore(null); // unreachable -> stay quiet
       }
     };
 
@@ -46,7 +46,11 @@ export default function StoreClosedBanner() {
     };
   }, []);
 
-  if (!store || store.open) return null;
+  // Only a definite `open: false` shows the banner. An API that predates this
+  // field sends neither `open` nor `opensNextDay`, and treating a missing value
+  // as "closed" would show the banner all day AND always pick the "opens today"
+  // wording — unknown has to mean silence, not closed.
+  if (store?.open !== false) return null;
 
   const opensAt = formatClock(store.openingTime);
 

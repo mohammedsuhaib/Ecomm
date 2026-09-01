@@ -145,6 +145,7 @@ testing possible without real money or SMS.
 | TC-SRV-014 | Edge | Browsing still works when closed | With the banner showing, browse and add items to the cart | Browsing and cart edits work; only order placement is blocked | P2 |
 | TC-SRV-015 | Edge | Closure mid-checkout | Begin checkout while open, close the store, then submit | Rejected with the specific closed message — not the generic "couldn't place this order" | P1 |
 | TC-SRV-016 | Edge | API unreachable | Block the API, then load a page | No banner shown (a false "closed" would cost orders); page still renders | P2 |
+| TC-SRV-017 | Edge | Frontend newer than the API | Run the storefront against an API build that predates the open/closed fields | No banner at all — a missing `open` must read as unknown, never as closed (it would otherwise show all day and always say "opens today") | P1 |
 
 ---
 

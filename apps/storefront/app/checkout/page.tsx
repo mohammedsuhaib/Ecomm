@@ -79,7 +79,9 @@ export default function CheckoutPage() {
     getStore({ noStore: true })
       .then((s) => {
         setMinOrderValue(s.minOrderValue);
-        setStoreClosed(!s.open);
+        // Strictly false only — see StoreClosedBanner: a missing field
+        // (older API) must not block a customer who could order.
+        setStoreClosed(s.open === false);
       })
       .catch(() => {
         setMinOrderValue(null);
@@ -205,7 +207,7 @@ export default function CheckoutPage() {
           // closure that started mid-checkout is named instead of hidden behind
           // the catch-all, then refresh the cart.
           const closedNow = await getStore({ noStore: true })
-            .then((st) => !st.open)
+            .then((st) => st.open === false)
             .catch(() => false);
           setStoreClosed(closedNow);
           setError(closedNow ? t('errorStoreClosed') : t('errorInvalid'));
