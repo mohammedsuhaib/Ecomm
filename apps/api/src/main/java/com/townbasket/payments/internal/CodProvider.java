@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import org.springframework.stereotype.Component;
 
 /**
- * Cash on Delivery provider. No prepayment: the order is confirmed at placement
+ * Pay on Delivery provider. No prepayment: the order is confirmed at placement
  * and cash is collected when the order is marked delivered. Records COD_PENDING.
  */
 @Component

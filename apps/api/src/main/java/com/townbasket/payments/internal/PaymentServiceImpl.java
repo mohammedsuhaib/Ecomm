@@ -48,7 +48,7 @@ class PaymentServiceImpl implements PaymentService {
     public void requireEnabled(PaymentMethod method) {
         if (method == null || !enabledMethods().contains(method)) {
             throw new BusinessRuleException(
-                    "Online payment isn't available yet. Please choose Cash on Delivery.");
+                    "Paying online in advance isn't available yet. Please choose Pay on Delivery.");
         }
     }
 

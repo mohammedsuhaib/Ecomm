@@ -23,7 +23,7 @@ public interface PaymentService {
 
     /**
      * The methods a customer may actually choose on this deployment, in display
-     * order. Cash on Delivery is always present; online UPI appears only once a
+     * order. Pay on Delivery is always present; online UPI appears only once a
      * real gateway is configured.
      */
     List<PaymentMethod> enabledMethods();

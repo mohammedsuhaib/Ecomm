@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Public: the payment methods this deployment accepts.
  *
  * <p>Read before the checkout form renders, so the storefront can only ever
- * show methods the server will actually honour. Cash on Delivery is always
+ * show methods the server will actually honour. Pay on Delivery is always
  * present; online UPI appears once a live gateway is configured.
  */
 @RestController

@@ -60,7 +60,7 @@ class PaymentMethodsIntegrationTest extends AbstractIntegrationTest {
     void choosingUpiIsRefused() {
         assertThatThrownBy(() -> paymentService.requireEnabled(PaymentMethod.UPI))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Cash on Delivery");
+                .hasMessageContaining("Pay on Delivery");
 
         // A null method is not a silent pass either.
         assertThatThrownBy(() -> paymentService.requireEnabled(null))

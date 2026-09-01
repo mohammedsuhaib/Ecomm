@@ -180,7 +180,7 @@ export default function OrderCard({
 
       <div className="order-card-foot">
         <span className="order-pay">
-          {order.paymentMethod === 'COD' ? 'COD' : 'UPI'} · {order.paymentStatus}
+          {order.paymentMethod === 'COD' ? 'Pay on delivery' : 'UPI'} · {order.paymentStatus}
         </span>
         <strong className="order-total">{formatRupees(order.total)}</strong>
       </div>

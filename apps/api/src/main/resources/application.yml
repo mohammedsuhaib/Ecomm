@@ -161,6 +161,6 @@ townbasket:
   payments:
     # Online UPI stays OFF until a real gateway is integrated: the current UPI
     # provider is a FAKE that auto-succeeds, so offering it would mark orders
-    # PAID with no money received. Cash on Delivery is always available.
+    # PAID with no money received. Pay on Delivery is always available.
     # Set UPI_ENABLED=true once a live gateway and its keys are configured.
     upi-enabled: ${UPI_ENABLED:false}

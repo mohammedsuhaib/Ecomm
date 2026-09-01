@@ -153,7 +153,7 @@ testing possible without real money or SMS.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-CHK-001 | Positive | COD order | Cart ≥ ₹299, in-radius address, store open → pay Cash on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
+| TC-CHK-001 | Positive | Pay-on-delivery order | Cart ≥ ₹299, in-radius address, store open → choose Pay on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
 | TC-CHK-002 | Positive | UPI order (fake gateway) | Same cart, choose UPI | Order CONFIRMED; payment PAID (fake provider auto-succeeds) | P1 |
 | TC-CHK-003 | Negative | Below minimum | Cart of ₹150 → checkout | Rejected naming the ₹299 minimum; no order created | P1 |
 | TC-CHK-004 | Negative | Login required | As a guest, try to place an order | Redirected to login — there is no guest checkout | P1 |
@@ -344,17 +344,18 @@ added on top. The customer-facing total must never change because of a GST edit.
 
 ## 14. Payments (`payments`)
 
-> **Live payments are NOT implemented.** Only Cash on Delivery and a fake UPI
+> **Live prepayment is NOT implemented.** Only Pay on Delivery (cash or UPI at
+> the door, settled off-platform) and a fake online UPI
 > provider that always succeeds exist. Every UPI case below tests the fake
 > gateway; real Razorpay acceptance testing is out of scope until integrated.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-PAY-001 | Positive | COD lifecycle | Place COD, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
-| TC-PAY-002 | Positive | Only COD is offered | Open checkout on a default deployment | Cash on Delivery is the only method; a note explains online payment is coming soon | P1 |
-| TC-PAY-002a | Negative | UPI cannot be forced | POST an order with `paymentMethod: "UPI"` directly to the API | Refused ("choose Cash on Delivery"); no order created, cart still usable for COD | P1 |
+| TC-PAY-001 | Positive | Pay-on-delivery lifecycle | Place a COD order, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
+| TC-PAY-002 | Positive | Only pay-on-delivery is offered | Open checkout on a default deployment | "Pay on Delivery" is the only method, its hint says cash or UPI at the door, and a note explains paying online in advance is coming soon | P1 |
+| TC-PAY-002a | Negative | UPI cannot be forced | POST an order with `paymentMethod: "UPI"` directly to the API | Refused ("choose Pay on Delivery"); no order created, cart still usable for COD | P1 |
 | TC-PAY-002b | Positive | Switching UPI on | Set `UPI_ENABLED=true`, restart, reload checkout | UPI appears as a choice and a UPI order completes (fake gateway) | P2 |
-| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Identical in all four places | P2 |
+| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Consistent everywhere and never says "cash only": tracking + invoice read "Pay on Delivery", admin reads "Pay on delivery", the rider card reads "Collect ₹<total>" | P2 |
 | TC-PAY-004 | Edge | Cancelled UPI order | Cancel a PAID UPI order inside the window | Cancellation succeeds; refund handling matches the published refund policy | P1 |
 
 ---
