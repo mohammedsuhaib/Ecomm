@@ -71,7 +71,14 @@ class AuthServiceImpl implements AuthService {
         }
         PhoneTokenVerifier.VerifiedPhone verified = phoneVerifier.verify(request.firebaseIdToken());
 
-        UserEntity user = users.findByPhone(verified.phone())
+        // Both verifiers converge here on one shape. Firebase returns E.164
+        // (+919632500797) and the offline verifier returns bare digits; looking a
+        // user up by the raw value made the same person two accounts when a
+        // deployment switched verifiers, and stored a phone that then failed
+        // checkout's 10-digit validation.
+        String phone = IndianPhone.normalise(verified.phone());
+
+        UserEntity user = users.findByPhone(phone)
                 .map(existing -> {
                     if (existing.getFirebaseUid() == null) {
                         existing.setFirebaseUid(verified.firebaseUid());
@@ -80,7 +87,7 @@ class AuthServiceImpl implements AuthService {
                     return existing;
                 })
                 .orElseGet(() -> users.saveAndFlush(
-                        UserEntity.customer(verified.phone(), verified.firebaseUid())));
+                        UserEntity.customer(phone, verified.firebaseUid())));
 
         return issueAuthResponse(user);
     }

@@ -73,7 +73,7 @@ export default function ProfileEditor({ user }: { user: UserDto }) {
         </div>
         {user.phone && (
           <p className="muted" style={{ margin: 0 }}>
-            +91 {user.phone}
+            +91 {user.phone.replace(/\D/g, '').slice(-10)}
           </p>
         )}
         {user.email && (

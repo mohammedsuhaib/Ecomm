@@ -127,7 +127,10 @@ export default function CheckoutPage() {
     if (!isAuthenticated || !user || prefilled.current) return;
     prefilled.current = true;
     if (user.name) setName(user.name);
-    if (user.phone) setPhone(user.phone);
+    // Last 10 digits, not the raw value: a profile written before phones were
+    // canonicalised holds E.164 (+919632500797), which fails the 10-digit check
+    // below and would leave Place Order dead with no visible reason.
+    if (user.phone) setPhone(user.phone.replace(/\D/g, '').slice(-10));
   }, [isAuthenticated, user]);
 
   useEffect(() => {

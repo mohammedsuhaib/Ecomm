@@ -86,6 +86,8 @@ testing possible without real money or SMS.
 | TC-AUTH-002r | Negative | Dev token is dead | Submit `dev:9876500001` against the real-mode deployment | Rejected; a hand-typed token can never stand in for an SMS | P1 |
 | TC-AUTH-003r | Negative | Wrong code | Request the OTP, then submit a wrong 6-digit code | Rejected with a clear message; not logged in | P1 |
 | TC-AUTH-004r | Edge | Half-switched deployment | Set the API projectId but rebuild the storefront WITHOUT the Firebase build args (or the reverse) | Login fails; this is config drift, not a defect — both halves must move together | P2 |
+| TC-AUTH-006r | Positive | One account across both modes | Log in as `9632500797` under the offline verifier, switch the deployment to real OTP, log in again with the same number | Same account and same order history — NOT a second customer; Account shows `+91 9632500797`, not a doubled prefix | P1 |
+| TC-AUTH-007r | Positive | Checkout after a real-OTP login | Log in via real OTP, go to checkout | Phone prefills as 10 digits and Place Order is enabled — an E.164 prefill would silently fail the 10-digit check | P1 |
 | TC-AUTH-005r | Edge | Blank projectId | Deploy with the projectId env var present but empty | API refuses to boot with a message naming `townbasket.identity.firebase.project-id` — never a silent fall back to the dev verifier | P1 |
 
 ### 2.2 Staff / rider login
