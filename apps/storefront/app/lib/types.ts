@@ -90,6 +90,11 @@ export interface Cart {
 
 export type PaymentMethod = 'COD' | 'UPI';
 
+/** Which methods this deployment accepts — the UI renders exactly these. */
+export interface PaymentMethods {
+  methods: PaymentMethod[];
+}
+
 export type OrderStatus =
   | 'PLACED'
   | 'CONFIRMED'

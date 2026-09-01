@@ -17,6 +17,7 @@ import type {
   Category,
   Order,
   Page,
+  PaymentMethods,
   PlaceOrderRequest,
   Product,
   SavedAddress,
@@ -172,6 +173,15 @@ async function apiMutate<T>(
 }
 
 // ---- Endpoint functions -------------------------------------------------
+
+/**
+ * GET /payments/methods — the methods a customer may choose. Online UPI only
+ * appears once a live gateway is configured, so the UI never offers a method
+ * the server would refuse.
+ */
+export function getPaymentMethods(opts?: FetchOpts): Promise<PaymentMethods> {
+  return apiFetch<PaymentMethods>('/payments/methods', undefined, opts);
+}
 
 /** GET /store — store profile, hours, radius, min order value. */
 export function getStore(opts?: FetchOpts): Promise<Store> {

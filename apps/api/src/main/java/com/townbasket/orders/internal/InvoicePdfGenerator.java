@@ -207,7 +207,7 @@ class InvoicePdfGenerator implements InvoiceService {
         sum.addCell(sumLabel("Total (incl. GST)", true));
         sum.addCell(sumValue(money(order.total(), money), true));
 
-        String pay = ("COD".equalsIgnoreCase(order.paymentMethod()) ? "Cash on Delivery" : order.paymentMethod())
+        String pay = ("COD".equalsIgnoreCase(order.paymentMethod()) ? "Pay on Delivery" : order.paymentMethod())
                 + " — " + order.paymentStatus();
         PdfPCell payCell = sumLabel("Payment: " + pay, false);
         payCell.setColspan(2);

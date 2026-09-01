@@ -5,19 +5,25 @@ import org.springframework.context.annotation.ConditionContext;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 /**
- * Matches only when {@code townbasket.identity.firebase.project-id} is ABSENT
- * or blank. Guards the {@link FakePhoneTokenVerifier} so the dev/fake verifier
- * is strictly the complement of {@link FirebasePhoneTokenVerifier} — exactly one
- * is active, and the fake can never run in a Firebase-configured (prod)
- * deployment. (A plain {@code @ConditionalOnProperty(matchIfMissing=true)} would
- * also match when the property is present, defeating the exclusivity.)
+ * Matches only when {@code townbasket.identity.firebase.project-id} is ABSENT,
+ * guarding {@link FakePhoneTokenVerifier} so the dev/fake verifier is the strict
+ * complement of {@link FirebasePhoneTokenVerifier} — exactly one is ever active,
+ * and the fake can never run in a Firebase-configured (prod) deployment.
+ *
+ * <p>Both conditions route through {@link PhoneVerifierMode}, which rejects a
+ * present-but-blank value. Conditions are evaluated during bean-definition
+ * registration, before any bean is instantiated, so a blank value fails the boot
+ * with a named error rather than an "no unique bean of type PhoneTokenVerifier"
+ * further down.
  */
 class FirebaseNotConfiguredCondition implements Condition {
 
     @Override
     public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        String projectId = context.getEnvironment()
-                .getProperty("townbasket.identity.firebase.project-id");
-        return projectId == null || projectId.isBlank();
+        return PhoneVerifierMode.of(projectId(context)) == PhoneVerifierMode.FAKE;
+    }
+
+    static String projectId(ConditionContext context) {
+        return context.getEnvironment().getProperty("townbasket.identity.firebase.project-id");
     }
 }

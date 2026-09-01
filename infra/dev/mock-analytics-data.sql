@@ -15,6 +15,13 @@
 --   docker compose -f infra/docker-compose.yml exec -T postgres \
 --     psql -U townbasket -d townbasket < infra/dev/mock-analytics-data.sql
 --
+-- On the QA droplet the stack is a DIFFERENT compose project, so the command
+-- above finds no running postgres ("service postgres is not running").
+-- Use the QA compose file from its own directory instead:
+--
+--   cd infra/qa && docker compose -f docker-compose.qa.yml exec -T postgres \
+--     psql -U townbasket -d townbasket < ../dev/mock-analytics-data.sql
+--
 -- Then open the admin app (http://localhost:3001 → Analytics tab).
 -- ============================================================================
 

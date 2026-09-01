@@ -1,5 +1,5 @@
 /**
- * {@code payments} module — UPI (Paytm PG) and Cash on Delivery behind a
+ * {@code payments} module — UPI (Paytm PG) and Pay on Delivery behind a
  * {@code PaymentProvider} port (PaytmProvider + CodProvider + FakeProvider).
  *
  * <p>Online (UPI) orders reach CONFIRMED only after server-verified payment

@@ -26,7 +26,7 @@ testing possible without real money or SMS.
 
 | Role | Credentials | Where |
 |---|---|---|
-| Customer | any 10-digit phone, OTP token `dev:<phone>` | Storefront |
+| Customer | any 10-digit phone, OTP token `dev:<phone>` (offline verifier — the default) | Storefront |
 | Admin | `admin@townbasket.local` / `Admin@12345` | Admin |
 | Store staff | `staff@townbasket.local` / `Staff@12345` | Admin |
 | Delivery rider | `delivery@townbasket.local` / `Delivery@12345` | Delivery |
@@ -61,6 +61,11 @@ testing possible without real money or SMS.
 
 ### 2.1 Customer phone-OTP login — storefront
 
+> **Two verifier modes.** TC-AUTH-001..008 below assume the OFFLINE verifier
+> (`dev:<phone>` tokens), which is the default in local dev and QA. A deployment
+> with a Firebase projectId set runs the REAL SMS path instead — see
+> TC-AUTH-001r..003r, and note that `dev:` tokens must then be rejected.
+
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
 | TC-AUTH-001 | Positive | First-time login | Account → Login → enter `9876500001` → request OTP → submit token `dev:9876500001` | Logged in; name/phone shown on Account; header shows account indicator | P1 |
@@ -71,6 +76,17 @@ testing possible without real money or SMS.
 | TC-AUTH-006 | Edge | Token refresh | Log in, leave idle >15 min, then browse/act | Access token silently refreshes; no forced re-login (refresh valid 30 days) | P2 |
 | TC-AUTH-007 | Negative | Rate limit | Request OTP 12 times in under a minute from one browser | After ~10, further attempts are rejected until the window resets | P2 |
 | TC-AUTH-008 | Positive | Guest cart merges on login | Add 2 items as guest → log in | Cart still holds both items; cart id may change but nothing is lost | P1 |
+
+**Real-OTP mode only** (run these after switching QA to Firebase phone auth per
+`infra/qa/README.md` — use a Firebase *test* phone number so no SMS is billed):
+
+| ID | Type | Scenario | Steps | Expected result | Pri |
+|---|---|---|---|---|---|
+| TC-AUTH-001r | Positive | Real OTP login | Log in with a Firebase test number and its fixed code | Logged in; same post-login state as TC-AUTH-001 | P1 |
+| TC-AUTH-002r | Negative | Dev token is dead | Submit `dev:9876500001` against the real-mode deployment | Rejected; a hand-typed token can never stand in for an SMS | P1 |
+| TC-AUTH-003r | Negative | Wrong code | Request the OTP, then submit a wrong 6-digit code | Rejected with a clear message; not logged in | P1 |
+| TC-AUTH-004r | Edge | Half-switched deployment | Set the API projectId but rebuild the storefront WITHOUT the Firebase build args (or the reverse) | Login fails; this is config drift, not a defect — both halves must move together | P2 |
+| TC-AUTH-005r | Edge | Blank projectId | Deploy with the projectId env var present but empty | API refuses to boot with a message naming `townbasket.identity.firebase.project-id` — never a silent fall back to the dev verifier | P1 |
 
 ### 2.2 Staff / rider login
 
@@ -153,7 +169,7 @@ testing possible without real money or SMS.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-CHK-001 | Positive | COD order | Cart ≥ ₹299, in-radius address, store open → pay Cash on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
+| TC-CHK-001 | Positive | Pay-on-delivery order | Cart ≥ ₹299, in-radius address, store open → choose Pay on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
 | TC-CHK-002 | Positive | UPI order (fake gateway) | Same cart, choose UPI | Order CONFIRMED; payment PAID (fake provider auto-succeeds) | P1 |
 | TC-CHK-003 | Negative | Below minimum | Cart of ₹150 → checkout | Rejected naming the ₹299 minimum; no order created | P1 |
 | TC-CHK-004 | Negative | Login required | As a guest, try to place an order | Redirected to login — there is no guest checkout | P1 |
@@ -344,15 +360,18 @@ added on top. The customer-facing total must never change because of a GST edit.
 
 ## 14. Payments (`payments`)
 
-> **Live payments are NOT implemented.** Only Cash on Delivery and a fake UPI
+> **Live prepayment is NOT implemented.** Only Pay on Delivery (cash or UPI at
+> the door, settled off-platform) and a fake online UPI
 > provider that always succeeds exist. Every UPI case below tests the fake
 > gateway; real Razorpay acceptance testing is out of scope until integrated.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-PAY-001 | Positive | COD lifecycle | Place COD, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
-| TC-PAY-002 | Positive | UPI (fake) | Place a UPI order | PAID immediately; order CONFIRMED | P1 |
-| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Identical in all four places | P2 |
+| TC-PAY-001 | Positive | Pay-on-delivery lifecycle | Place a COD order, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
+| TC-PAY-002 | Positive | Only pay-on-delivery is offered | Open checkout on a default deployment | "Pay on Delivery" is the only method, its hint says cash or UPI at the door, and a note explains paying online in advance is coming soon | P1 |
+| TC-PAY-002a | Negative | UPI cannot be forced | POST an order with `paymentMethod: "UPI"` directly to the API | Refused ("choose Pay on Delivery"); no order created, cart still usable for COD | P1 |
+| TC-PAY-002b | Positive | Switching UPI on | Set `UPI_ENABLED=true`, restart, reload checkout | UPI appears as a choice and a UPI order completes (fake gateway) | P2 |
+| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Consistent everywhere and never says "cash only": tracking + invoice read "Pay on Delivery", admin reads "Pay on delivery", the rider card reads "Collect ₹<total>" | P2 |
 | TC-PAY-004 | Edge | Cancelled UPI order | Cancel a PAID UPI order inside the window | Cancellation succeeds; refund handling matches the published refund policy | P1 |
 
 ---
@@ -490,7 +509,7 @@ behaviour rather than expecting the feature.
 
 | Area | Current state | What to verify instead |
 |---|---|---|
-| Live payments | No real gateway; fake UPI always succeeds | TC-PAY-002 (fake path only) |
+| Live payments | No real gateway. UPI is switched OFF by default (`UPI_ENABLED`) because the only provider is a fake that auto-succeeds | TC-PAY-002 / 002a — COD only, UPI refused |
 | WhatsApp / SMS notifications | Not built — needs a provider account and DLT registration | Nothing; SSE + Web Push are the shipped channels |
 | Product image upload | Admin accepts pasted URLs only | TC-ACAT-009 with a URL |
 | Storefront app icons | Placeholder artwork | TC-PWA-001 checks installability, not artwork quality |
