@@ -130,7 +130,13 @@ In the Firebase console first:
    real SMS to test logins; a QA login loop can burn through quota fast.
 
 Then in `infra/qa/.env`, uncomment the OTP block (one backend var + six
-storefront build args — the file spells them out) and rebuild:
+storefront build args — the file spells them out) and rebuild.
+
+**Copy `projectId` verbatim from the console.** Firebase appends a generated
+suffix to a taken name, so the project you asked to call `town-basket-qa` may
+actually be `town-basket-qa-baf89`. The verifier requires
+`iss = https://securetoken.google.com/<projectId>` and `aud = <projectId>` to
+match exactly, so a shortened id 401s every login.
 
 ```bash
 cd infra/qa
@@ -147,6 +153,35 @@ downgrade a real deployment to a verifier accepting any phone number.
 
 QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
 own endpoints and needs no same-origin callback handler.
+
+### When a login returns 401 "Invalid phone token"
+
+That response is deliberately vague — it never says which check failed. The API
+log does. Read it first:
+
+```bash
+docker compose -f docker-compose.qa.yml logs api | grep -i "Phone-OTP\|Phone token"
+```
+
+One `Phone-OTP:` line is written at startup naming the ACTIVE verifier, and every
+rejection logs its specific cause. The three failures worth knowing:
+
+| Log says | Cause | Fix |
+|---|---|---|
+| `OFFLINE dev verifier active` + `looks like a real Firebase ID token` | Storefront rebuilt with the Firebase config, API never got the projectId | Set `TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID`, then `up -d api` |
+| `received a dev: token while the REAL verifier is active` | The reverse — API switched, storefront still built without the args | `up -d --build storefront` |
+| `rejected while verifying against projectId '...'` | projectId mismatch (usually the missing generated suffix) | Correct it on BOTH sides, rebuild both |
+
+Confirm what the container actually holds rather than what `.env` says:
+
+```bash
+docker compose -f docker-compose.qa.yml exec api env | grep -i firebase
+docker compose -f docker-compose.qa.yml exec storefront \
+  sh -c 'grep -rlo "<your-project-id>" .next | head -1'
+```
+
+An empty first result means the API is on the fake; an empty second means the
+storefront image was built without the Firebase args.
 
 ## Smoke test after deploy
 
