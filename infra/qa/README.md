@@ -72,6 +72,46 @@ Both are re-runnable: each clears only its own `mock-%` orders and rebuilds
 them, leaving orders placed by testers alone. Use the `DB_USERNAME` from `.env`
 if you changed it from the `townbasket` default.
 
+## Connecting a local SQL client to the QA database
+
+QA's postgres publishes NO port — only Caddy binds 80/443, so the database is
+reachable on the Compose network and nowhere else. Keep it that way (an exposed
+5432 with a password is a standing invitation) and tunnel over SSH instead.
+
+SSH resolves the forward's target from the SERVER side, and the droplet can
+route to the container's bridge IP, so no port has to be published anywhere:
+
+```bash
+QA=root@qa.town-basket.com   # or the droplet IP
+
+IP=$(ssh $QA "docker inspect -f \
+  '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' qa-postgres-1")
+
+ssh -N -L 5433:$IP:5432 $QA        # leave this running
+```
+
+Then point the client at `localhost:5433`, database `townbasket`, user
+`DB_USERNAME` (default `townbasket`), password `DB_PASSWORD` from `.env`:
+
+```bash
+psql "postgresql://townbasket@localhost:5433/townbasket"
+```
+
+The container is `qa-postgres-1` — Compose derives the project name from the
+`infra/qa` directory. Its bridge IP changes whenever the container is
+recreated, so re-run the lookup if an established tunnel starts refusing
+connections.
+
+For a one-off query, skip the tunnel:
+
+```bash
+ssh $QA "cd Ecomm/infra/qa && docker compose -f docker-compose.qa.yml \
+  exec -T postgres psql -U townbasket -d townbasket -c 'select count(*) from orders.orders'"
+```
+
+Remember the schema-per-module layout: tables live in `catalog`, `orders`,
+`inventory`, … not `public`. `\dn` lists them.
+
 ## Smoke test after deploy
 
 - https://qa.town-basket.com → basic auth (`qa` / your password) → storefront
