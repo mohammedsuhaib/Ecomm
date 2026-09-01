@@ -55,13 +55,30 @@ cd infra/qa && docker compose -f docker-compose.qa.yml up -d --build
 Only changed images rebuild (Docker layer cache). To wipe QA data and start
 fresh: add `down -v` before the `up`.
 
+## Loading test data
+
+The dev SQL scripts work on QA too, but note the compose file: QA is a separate
+Compose project, so `docker compose -f infra/docker-compose.yml exec postgres`
+answers `service "postgres" is not running` even while QA is up.
+
+```bash
+cd infra/qa
+docker compose -f docker-compose.qa.yml exec -T postgres \
+  psql -U townbasket -d townbasket < ../dev/mock-analytics-data.sql   # analytics panels
+docker compose -f docker-compose.qa.yml exec -T postgres \
+  psql -U townbasket -d townbasket < ../dev/mock-user-orders.sql      # one customer's order history
+```
+Both are re-runnable: each clears only its own `mock-%` orders and rebuilds
+them, leaving orders placed by testers alone. Use the `DB_USERNAME` from `.env`
+if you changed it from the `townbasket` default.
+
 ## Smoke test after deploy
 
 - https://qa.town-basket.com → basic auth (`qa` / your password) → storefront
   loads, green theme
 - Storefront login: any 10-digit phone with OTP token `dev:<phone>`
-- Place a COD order → confirm it appears in qa-admin's queue → assign to the
-  delivery agent → confirm in qa-delivery with the order's OTP
+- Place a pay-on-delivery order → confirm it appears in qa-admin's queue →
+  assign to the delivery agent → confirm in qa-delivery with the order's OTP
 - Admin login: `admin@townbasket.local` / `Admin@12345` (QA-only seed)
 
 ## What QA must NEVER become
