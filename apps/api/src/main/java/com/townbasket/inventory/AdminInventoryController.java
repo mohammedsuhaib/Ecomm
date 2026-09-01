@@ -31,14 +31,15 @@ class AdminInventoryController {
     }
 
     @GetMapping("/stock")
-    @Operation(summary = "Paged list of all stock levels with product/variant names.")
+    @Operation(summary = "Paged list of stock levels with product/variant names, optionally searched.")
     PagedResponse<StockLevelDto> list(
             @RequestParam(defaultValue = "1") Long storeId,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
-        return adminInventoryService.listStockLevels(storeId, safePage, safeSize);
+        return adminInventoryService.listStockLevels(storeId, q, safePage, safeSize);
     }
 
     @PostMapping("/stock/{variantId}/correction")

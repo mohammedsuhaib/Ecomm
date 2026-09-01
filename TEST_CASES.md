@@ -215,6 +215,15 @@ testing possible without real money or SMS.
 | TC-INV-007 | Edge | Reservation committed on delivery | Complete an order to DELIVERED | On-hand permanently reduced; reserved returns to 0 | P1 |
 | TC-INV-008 | Edge | New variant opens at zero | Create a product with a variant in Admin → Catalogue | It appears in Inventory with 0 on-hand (out of stock, not missing) | P2 |
 | TC-INV-009 | Positive | Low-stock threshold edit | Change a threshold, then reduce stock just below it | Row flags as low; appears in the Analytics low-stock panel | P2 |
+| TC-INV-010 | Positive | Search spans the whole store | With >100 variants, search for a product you know is NOT on page 1 | It is found — search is not limited to the page you are viewing | P1 |
+| TC-INV-011 | Positive | Pager describes the search results | Search a term with few matches | Header count and "Page x of y" describe the MATCHES, not the full variant list | P1 |
+| TC-INV-012 | Positive | Search resets to page 1 | Go to page 3, then type a search | Jumps back to page 1 of the results rather than filtering page 3 | P1 |
+| TC-INV-013 | Positive | Search by variant label | Search `500 g` | Matches on the variant label, not just the product name | P2 |
+| TC-INV-014 | Edge | Wildcards are literal | Search `%` | Treated as a typed character — does NOT match everything | P2 |
+| TC-INV-015 | Edge | Paging through matches | Search a term with >2 pages of matches and walk every page | No row appears twice and none is skipped | P2 |
+| TC-INV-016 | Edge | Fast typing | Type a term quickly, then delete a few characters | Final list matches the final search box contents (no stale result overwriting it) | P2 |
+| TC-INV-017 | Edge | Correction keeps the search | Search, correct a stock count, save | List reloads still filtered by the same term, on the same page | P2 |
+| TC-INV-018 | Edge | No matches | Search `zzzzqq` | "No stock matches …" naming the term; pager hidden | P3 |
 
 ---
 

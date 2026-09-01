@@ -34,12 +34,25 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<StockLevelDto> listStockLevels(Long storeId, int page, int size) {
-        String countSql = """
-                SELECT COUNT(*) FROM inventory.stock_levels WHERE store_id = :storeId
-                """;
-        Long total = jdbc.queryForObject(countSql,
-                new MapSqlParameterSource("storeId", storeId), Long.class);
+    public PagedResponse<StockLevelDto> listStockLevels(Long storeId, String q, int page, int size) {
+        String term = q == null || q.isBlank() ? null : q.trim();
+        MapSqlParameterSource params = new MapSqlParameterSource("storeId", storeId);
+        // The search has to reach the catalog join, so even the COUNT needs it —
+        // otherwise the pager would describe the unfiltered set.
+        String searchJoin = "";
+        String searchWhere = "";
+        if (term != null) {
+            searchJoin = """
+                    JOIN catalog.product_variants pv ON pv.id = sl.variant_id
+                    JOIN catalog.products p          ON p.id  = pv.product_id
+                    """;
+            searchWhere = " AND (p.name ILIKE :like OR pv.label ILIKE :like)";
+            params.addValue("like", "%" + escapeLike(term) + "%");
+        }
+
+        String countSql = "SELECT COUNT(*) FROM inventory.stock_levels sl "
+                + searchJoin + " WHERE sl.store_id = :storeId" + searchWhere;
+        Long total = jdbc.queryForObject(countSql, params, Long.class);
 
         String listSql = """
                 SELECT
@@ -57,6 +70,7 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                 JOIN catalog.product_variants pv ON pv.id = sl.variant_id
                 JOIN catalog.products p          ON p.id  = pv.product_id
                 WHERE sl.store_id = :storeId
+                %SEARCH%
                 -- Surface stock that needs attention first: out-of-stock, then
                 -- low-stock (at/below threshold), then healthy. Within each bucket
                 -- the scarcest items lead; product/variant name breaks ties.
@@ -71,9 +85,8 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                 LIMIT :size OFFSET :offset
                 """;
         List<StockLevelDto> content = jdbc.query(
-                listSql,
-                new MapSqlParameterSource("storeId", storeId)
-                        .addValue("size", size)
+                listSql.replace("%SEARCH%", searchWhere),
+                params.addValue("size", size)
                         .addValue("offset", (long) page * size),
                 (rs, n) -> new StockLevelDto(
                         rs.getLong("id"),
@@ -88,6 +101,14 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                         rs.getInt("low_stock_threshold")));
 
         return new PagedResponse<>(content, page, size, total == null ? 0L : total);
+    }
+
+    /**
+     * Neutralise LIKE wildcards in user input so searching "50%" or "a_b" is a
+     * literal match rather than a match-everything pattern.
+     */
+    private static String escapeLike(String term) {
+        return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     @Override

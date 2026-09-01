@@ -63,7 +63,7 @@ class ProductCsvImportIntegrationTest extends AbstractIntegrationTest {
         // so the imported variants appear in the admin stock list immediately.
         Long variantId = dahi.variants().get(0).id();
         eventually(() -> assertThat(
-                adminInventoryService.listStockLevels(1L, 0, 500).content())
+                adminInventoryService.listStockLevels(1L, null, 0, 500).content())
                 .anySatisfy(s -> {
                     assertThat(s.variantId()).isEqualTo(variantId);
                     assertThat(s.onHand()).isZero();
