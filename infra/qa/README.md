@@ -22,8 +22,10 @@ indexed.
 
 ## One-time setup
 
-1. **Droplet**: a $6–12/mo DigitalOcean droplet (Bangalore), Marketplace
-   "Docker on Ubuntu" image. The from-source build needs ~2 GB RAM; on the
+1. **Droplet**: a $6–12/mo DigitalOcean droplet (Bangalore). Image: the
+   Marketplace tab's "Docker" 1-Click app — or plain Ubuntu 24.04 plus
+   `curl -fsSL https://get.docker.com | sh` (installs the engine and the
+   Compose v2 plugin). The from-source build needs ~2 GB RAM; on the
    smallest droplet add swap first:
    ```bash
    fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
