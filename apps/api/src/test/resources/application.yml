@@ -33,3 +33,8 @@ townbasket:
       secret: test-only-jwt-secret-which-is-long-enough-32+
       access-ttl: PT15M
       refresh-ttl: P30D
+  payments:
+    # Tests keep the UPI plumbing covered (fake provider) so the path is ready
+    # when a live gateway lands. Production defaults to OFF — see
+    # PaymentMethodsIntegrationTest for the disabled behaviour.
+    upi-enabled: true

@@ -120,6 +120,9 @@ class OrderServiceImpl implements OrderService {
         }
 
         validateRequest(request);
+        // Refuse a method this deployment doesn't accept before doing any work,
+        // so nothing has to be rolled back.
+        paymentService.requireEnabled(request.paymentMethod());
 
         CartDto cart = cartService.getCart(request.cartId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cart not found: " + request.cartId()));

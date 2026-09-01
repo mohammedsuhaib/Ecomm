@@ -1424,3 +1424,11 @@ a:hover {
     color: #d8bf86;
   }
 }
+
+/* Stands in for the UPI radio while online payment is off, so the payment
+   section never looks like a single stray option. */
+.upi-soon {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}

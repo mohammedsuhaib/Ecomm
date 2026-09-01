@@ -4,10 +4,12 @@ import com.townbasket.payments.PaymentMethod;
 import com.townbasket.payments.PaymentResult;
 import com.townbasket.payments.PaymentService;
 import com.townbasket.payments.PaymentStatus;
+import com.townbasket.shared.BusinessRuleException;
 import java.math.BigDecimal;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,21 +20,43 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
+@EnableConfigurationProperties(PaymentProperties.class)
 class PaymentServiceImpl implements PaymentService {
 
     private final Map<PaymentMethod, PaymentProvider> providers = new EnumMap<>(PaymentMethod.class);
     private final PaymentRepository payments;
+    private final PaymentProperties properties;
 
-    PaymentServiceImpl(List<PaymentProvider> providerBeans, PaymentRepository payments) {
-        // For UPI the @Primary FakeProvider wins; PaytmProvider is not a bean (M5).
+    PaymentServiceImpl(List<PaymentProvider> providerBeans, PaymentRepository payments,
+                       PaymentProperties properties) {
+        // For UPI the @Primary FakeProvider wins; a live provider is not a bean yet.
         for (PaymentProvider p : providerBeans) {
             providers.putIfAbsent(p.method(), p);
         }
         this.payments = payments;
+        this.properties = properties;
+    }
+
+    @Override
+    public List<PaymentMethod> enabledMethods() {
+        return properties.upiEnabled()
+                ? List.of(PaymentMethod.COD, PaymentMethod.UPI)
+                : List.of(PaymentMethod.COD);
+    }
+
+    @Override
+    public void requireEnabled(PaymentMethod method) {
+        if (method == null || !enabledMethods().contains(method)) {
+            throw new BusinessRuleException(
+                    "Online payment isn't available yet. Please choose Cash on Delivery.");
+        }
     }
 
     @Override
     public PaymentResult charge(Long orderId, PaymentMethod method, BigDecimal amount) {
+        // Defence in depth: checkout already refuses a disabled method, but a
+        // fake provider must never be able to mark an order PAID by accident.
+        requireEnabled(method);
         PaymentProvider provider = providers.get(method);
         if (provider == null) {
             throw new IllegalArgumentException("No payment provider for method " + method);

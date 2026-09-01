@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
   checkServiceability,
+  getPaymentMethods,
   getStore,
   listAddresses,
   placeOrder,
@@ -48,6 +49,12 @@ export default function CheckoutPage() {
   // order would be refused. Say so up front instead of at submit time.
 
   const [storeClosed, setStoreClosed] = useState(false);
+
+  // Only methods the server accepts are offered, so a customer can never
+
+  // pick one that checkout would refuse. COD until the server says more.
+
+  const [methods, setMethods] = useState<PaymentMethod[]>(['COD']);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +96,20 @@ export default function CheckoutPage() {
         // customer who could have ordered.
         setStoreClosed(false);
       });
+  }, []);
+
+  useEffect(() => {
+    getPaymentMethods()
+      .then((res) => {
+        const allowed = res.methods?.length ? res.methods : (['COD'] as PaymentMethod[]);
+        setMethods(allowed);
+        // If the selected method just became unavailable, fall back to COD
+        // rather than leaving a dead selection the server would reject.
+        setPaymentMethod((current) =>
+          allowed.includes(current) ? current : allowed[0],
+        );
+      })
+      .catch(() => setMethods(['COD']));
   }, []);
 
   // Prefill the delivery coordinates from the location the LocationGate captured.
@@ -365,20 +386,24 @@ export default function CheckoutPage() {
               <span className="muted">{t('codHint')}</span>
             </span>
           </label>
-          <label className="radio-row">
-            <input
-              type="radio"
-              name="payment"
-              value="UPI"
-              checked={paymentMethod === 'UPI'}
-              onChange={() => setPaymentMethod('UPI')}
-            />
-            <span>
-              <strong>UPI</strong>
-              <br />
-              <span className="muted">{t('upiHint')}</span>
-            </span>
-          </label>
+          {methods.includes('UPI') ? (
+            <label className="radio-row">
+              <input
+                type="radio"
+                name="payment"
+                value="UPI"
+                checked={paymentMethod === 'UPI'}
+                onChange={() => setPaymentMethod('UPI')}
+              />
+              <span>
+                <strong>UPI</strong>
+                <br />
+                <span className="muted">{t('upiHint')}</span>
+              </span>
+            </label>
+          ) : (
+            <p className="muted upi-soon">{t('upiComingSoon')}</p>
+          )}
         </fieldset>
 
         <div className="cart-summary">

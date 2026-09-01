@@ -351,7 +351,9 @@ added on top. The customer-facing total must never change because of a GST edit.
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
 | TC-PAY-001 | Positive | COD lifecycle | Place COD, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
-| TC-PAY-002 | Positive | UPI (fake) | Place a UPI order | PAID immediately; order CONFIRMED | P1 |
+| TC-PAY-002 | Positive | Only COD is offered | Open checkout on a default deployment | Cash on Delivery is the only method; a note explains online payment is coming soon | P1 |
+| TC-PAY-002a | Negative | UPI cannot be forced | POST an order with `paymentMethod: "UPI"` directly to the API | Refused ("choose Cash on Delivery"); no order created, cart still usable for COD | P1 |
+| TC-PAY-002b | Positive | Switching UPI on | Set `UPI_ENABLED=true`, restart, reload checkout | UPI appears as a choice and a UPI order completes (fake gateway) | P2 |
 | TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Identical in all four places | P2 |
 | TC-PAY-004 | Edge | Cancelled UPI order | Cancel a PAID UPI order inside the window | Cancellation succeeds; refund handling matches the published refund policy | P1 |
 
@@ -490,7 +492,7 @@ behaviour rather than expecting the feature.
 
 | Area | Current state | What to verify instead |
 |---|---|---|
-| Live payments | No real gateway; fake UPI always succeeds | TC-PAY-002 (fake path only) |
+| Live payments | No real gateway. UPI is switched OFF by default (`UPI_ENABLED`) because the only provider is a fake that auto-succeeds | TC-PAY-002 / 002a — COD only, UPI refused |
 | WhatsApp / SMS notifications | Not built — needs a provider account and DLT registration | Nothing; SSE + Web Push are the shipped channels |
 | Product image upload | Admin accepts pasted URLs only | TC-ACAT-009 with a URL |
 | Storefront app icons | Placeholder artwork | TC-PWA-001 checks installability, not artwork quality |
