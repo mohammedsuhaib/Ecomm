@@ -29,6 +29,10 @@ prod compose as a fallback, commented, for cost-sensitive single-box setups.
 ## Deploy flow (CD)
 
 1. Merge to `main` → CI builds images → pushes to the registry.
+   **Not wired yet** — no workflow builds or pushes these images, and the
+   frontends need `NEXT_PUBLIC_*` passed as `--build-arg` at that step (they are
+   inlined at build time and cannot be set on the running container). Until then
+   step 2 pulls tags that do not exist.
 2. On the droplet: `docker compose -f docker-compose.prod.yml pull && \
    docker compose -f docker-compose.prod.yml up -d` (pull-and-restart; brief
    blip, acceptable at ~100 orders/day — no multi-instance zero-downtime).
@@ -36,8 +40,13 @@ prod compose as a fallback, commented, for cost-sensitive single-box setups.
 ## Secrets
 
 Provided via a root-restricted `.env` next to the prod compose (never in the
-repo): `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, registry creds, DO Spaces keys,
-Paytm + Firebase credentials. See `.env.example` for the expected keys.
+repo). The compose file hard-requires `REGISTRY`, `DB_URL`, `DB_USERNAME`,
+`DB_PASSWORD`, `JWT_SECRET` and `FIREBASE_PROJECT_ID` — each guarded with
+`${VAR:?…}`, so a missing or blank value aborts `compose up` naming the var
+rather than starting a half-configured stack. The nightly backup additionally
+needs `DB_URL_PG`, `SPACES_BUCKET`, `SPACES_ENDPOINT` and the Spaces (AWS-style)
+keys. `PAYTM_*` are reserved but read by nothing yet. See `.env.example`, which
+marks what is required, what is optional, and what is build-time only.
 
 ## Durability
 
