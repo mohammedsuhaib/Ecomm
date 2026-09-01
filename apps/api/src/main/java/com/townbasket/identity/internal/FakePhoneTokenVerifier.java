@@ -12,9 +12,10 @@ import org.springframework.stereotype.Component;
  *
  * <p><strong>Hard security requirement:</strong> this bean must be inactive
  * when Firebase is configured, so a production deployment cannot be bypassed
- * with a {@code dev:} token. {@link FirebaseNotConfiguredCondition} is the strict
- * complement of {@link FirebasePhoneTokenVerifier}'s {@code @ConditionalOnProperty},
- * so exactly one of the two is active.
+ * with a {@code dev:} token. {@link FirebaseNotConfiguredCondition} and
+ * {@link FirebaseConfiguredCondition} both decide via {@link PhoneVerifierMode},
+ * so they are strict complements — exactly one of the two beans is active, and a
+ * present-but-blank project-id is refused rather than resolved to this one.
  */
 @Component
 @Conditional(FirebaseNotConfiguredCondition.class)

@@ -22,13 +22,14 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 /**
  * Production phone-token verifier: validates a Firebase ID token as a
  * Google-signed RS256 JWT. Active ONLY when
- * {@code townbasket.identity.firebase.project-id} is configured.
+ * {@code townbasket.identity.firebase.project-id} holds a NON-BLANK value
+ * (see {@link PhoneVerifierMode}).
  *
  * <p>Verification per Firebase's spec: fetch Google's public x509 signing certs,
  * select by {@code kid}, verify the RS256 signature and the standard claims —
@@ -40,7 +41,7 @@ import org.springframework.stereotype.Component;
  * rotates them). No third-party Firebase SDK is used (deliberately).
  */
 @Component
-@ConditionalOnProperty(prefix = "townbasket.identity.firebase", name = "project-id")
+@Conditional(FirebaseConfiguredCondition.class)
 class FirebasePhoneTokenVerifier implements PhoneTokenVerifier {
 
     private static final String CERT_URL =

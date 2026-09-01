@@ -40,10 +40,10 @@ services:
       # (the in-repo dev default is insecure and only for local dev).
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env (>=32 random bytes)}
       # Set to your Firebase projectId to enable REAL phone-OTP (disables the
-      # offline dev fake verifier). A present-but-BLANK value would make the API
-      # refuse to start — both verifier beans match, so there is no unique
-      # PhoneTokenVerifier — which is fail-safe but only visible in the container
-      # logs; the guard below fails at `compose up` and names the var instead.
+      # offline dev fake verifier). Blank is refused at two levels and is never
+      # a silent downgrade to the fake: the guard below stops `compose up` naming
+      # the var, and if the var reaches the API blank anyway PhoneVerifierMode
+      # fails the boot with the property name and the fix.
       # To intentionally run the offline fake, comment this line out.
       TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:?set FIREBASE_PROJECT_ID in .env (or comment out this line to run the offline fake verifier)}
       # Browser origins allowed to call the API. WITHOUT this the API keeps

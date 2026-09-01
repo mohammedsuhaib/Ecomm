@@ -112,6 +112,42 @@ ssh $QA "cd Ecomm/infra/qa && docker compose -f docker-compose.qa.yml \
 Remember the schema-per-module layout: tables live in `catalog`, `orders`,
 `inventory`, … not `public`. `\dn` lists them.
 
+## Real mobile-OTP verification in QA
+
+QA ships with the OFFLINE verifier: any 10-digit phone, OTP token
+`dev:<phone>`, no SMS, no cost. To exercise the real Firebase phone-OTP path
+instead, both halves must move together — the storefront must request a real SMS
+AND the API must verify a Google-signed token. One side alone fails every login.
+
+In the Firebase console first:
+
+1. **Authentication → Sign-in method → Phone** — enable it.
+2. **Authentication → Settings → Authorized domains** — add `qa.town-basket.com`.
+   Without this, reCAPTCHA refuses to run on the QA host.
+3. **Phone → "Phone numbers for testing"** — add each tester's number with a
+   fixed 6-digit code. Those numbers verify through the real code path **without
+   sending an SMS**, so QA stays free and repeatable. Prefer this over billing
+   real SMS to test logins; a QA login loop can burn through quota fast.
+
+Then in `infra/qa/.env`, uncomment the OTP block (one backend var + six
+storefront build args — the file spells them out) and rebuild:
+
+```bash
+cd infra/qa
+docker compose -f docker-compose.qa.yml up -d --build api storefront
+```
+
+A rebuild, not a restart: `NEXT_PUBLIC_*` is inlined at build time.
+
+To go back to the fake, **comment the backend line out again** rather than
+blanking it. `TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID` is a pass-through, so an
+absent variable is omitted from the container entirely, while a blank one is
+refused — blank is never treated as "use the fake", because that would silently
+downgrade a real deployment to a verifier accepting any phone number.
+
+QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
+own endpoints and needs no same-origin callback handler.
+
 ## Smoke test after deploy
 
 - https://qa.town-basket.com → basic auth (`qa` / your password) → storefront
