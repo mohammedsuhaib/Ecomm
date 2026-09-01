@@ -1,5 +1,6 @@
 package com.townbasket.orders.internal;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -17,18 +18,21 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
         Long getAgentId();
         LocalDate getDay();
         long getDeliveries();
+        BigDecimal getAmount();
     }
 
     /**
-     * Per-agent, per-date delivered-order counts from the order-events audit
-     * trail. The delivered date is the UTC calendar date of the DELIVERED
-     * transition — the store operates 08:00–21:00 IST, a window inside which
-     * the UTC and IST calendar dates always coincide, so no zone shift needed.
+     * Per-agent, per-date delivered-order counts and summed order value from
+     * the order-events audit trail. The delivered date is the UTC calendar
+     * date of the DELIVERED transition — the store operates 08:00–21:00 IST,
+     * a window inside which the UTC and IST calendar dates always coincide,
+     * so no zone shift needed.
      */
     @Query(value = """
             SELECT o.assigned_agent_id AS "agentId",
                    CAST(e.at AS date)  AS "day",
-                   COUNT(*)            AS "deliveries"
+                   COUNT(*)            AS "deliveries",
+                   SUM(o.total)        AS "amount"
             FROM orders.order_events e
             JOIN orders.orders o ON o.id = e.order_id
             WHERE e.to_status = 'DELIVERED' AND o.assigned_agent_id IS NOT NULL

@@ -9,6 +9,7 @@ import {
   getDeliveryStats,
   setDeliveryAgentActive,
 } from '@/app/lib/api';
+import { formatRupees } from '@/app/lib/format';
 import type { AgentDeliveryStat, DeliveryAgent } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
@@ -16,7 +17,7 @@ const MIN_PASSWORD = 8;
 
 /**
  * Total deliveries for one rider, expandable (native <details>) into the
- * per-date counts. Rows arrive newest-date-first from the API.
+ * per-date counts and order values. Rows arrive newest-date-first from the API.
  */
 function RiderDeliveries({ rows }: { rows: AgentDeliveryStat[] }) {
   const total = rows.reduce((sum, r) => sum + r.deliveries, 0);
@@ -27,12 +28,19 @@ function RiderDeliveries({ rows }: { rows: AgentDeliveryStat[] }) {
       <ul>
         {rows.map((r) => (
           <li key={r.date}>
-            <span className="muted">{r.date}</span> × {r.deliveries}
+            <span className="muted">{r.date}</span> × {r.deliveries} · {formatRupees(r.amount)}
           </li>
         ))}
       </ul>
     </details>
   );
+}
+
+/** Sum of the rider's delivered-order values across all dates. */
+function RiderOrderValue({ rows }: { rows: AgentDeliveryStat[] }) {
+  const total = rows.reduce((sum, r) => sum + r.amount, 0);
+  if (total === 0) return <span className="muted">—</span>;
+  return <>{formatRupees(total)}</>;
 }
 
 /**
@@ -192,6 +200,7 @@ export default function RidersPanel() {
                 <th>Email</th>
                 <th>Status</th>
                 <th>Deliveries</th>
+                <th>Order value</th>
                 <th className="actions-col">Action</th>
               </tr>
             </thead>
@@ -207,6 +216,9 @@ export default function RidersPanel() {
                   </td>
                   <td>
                     <RiderDeliveries rows={stats.filter((s) => s.agentId === a.id)} />
+                  </td>
+                  <td>
+                    <RiderOrderValue rows={stats.filter((s) => s.agentId === a.id)} />
                   </td>
                   <td className="actions-col">
                     <button

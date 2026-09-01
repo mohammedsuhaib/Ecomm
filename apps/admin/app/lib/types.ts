@@ -78,11 +78,13 @@ export interface HsnRateSuggestions {
   suggestions: HsnSuggestion[];
 }
 
-/** Delivered-order count for one agent on one date (yyyy-mm-dd). */
+/** Delivered-order count and summed order value for one agent on one date (yyyy-mm-dd). */
 export interface AgentDeliveryStat {
   agentId: number;
   date: string;
   deliveries: number;
+  /** Sum of the delivered orders' totals in rupees, tax-inclusive. */
+  amount: number;
 }
 
 // Spring Data style page envelope used by list endpoints.
