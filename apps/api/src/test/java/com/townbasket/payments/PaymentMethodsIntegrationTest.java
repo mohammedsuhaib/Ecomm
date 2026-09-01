@@ -36,6 +36,9 @@ class PaymentMethodsIntegrationTest extends AbstractIntegrationTest {
     private static final double STORE_LAT = 12.21;
     private static final double STORE_LNG = 76.89;
 
+    /** Units per line — 5 x >= Rs.120 clears the store's minimum order value. */
+    private static final int QTY = 5;
+
     @Autowired
     PaymentService paymentService;
 
@@ -86,17 +89,27 @@ class PaymentMethodsIntegrationTest extends AbstractIntegrationTest {
 
     // ---- helpers -----------------------------------------------------------
 
-    /** A cart whose subtotal clears the store's minimum order value. */
+    /**
+     * A cart whose subtotal clears the store's minimum order value.
+     *
+     * <p>Stock matters as much as price here. The Testcontainers Postgres is a
+     * singleton shared by every integration test, and variants created by other
+     * tests (admin "add variant", CSV import) open their stock row at zero — so
+     * picking on price alone can land on a listed-but-unbuyable variant and fail
+     * with InsufficientStock. Require live sellable stock for the whole quantity.
+     */
     private CartDto cartWorthOrdering() {
-        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content()) {
+        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 200)).content()) {
             for (ProductVariantDto v : p.variants()) {
-                if (v.available() && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
+                if (v.available()
+                        && v.availableStock() >= QTY
+                        && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
                     UUID cartId = cartService.createCart().cartId();
-                    return cartService.addItem(cartId, v.id(), 5);
+                    return cartService.addItem(cartId, v.id(), QTY);
                 }
             }
         }
-        throw new IllegalStateException("No suitable seeded variant found");
+        throw new IllegalStateException("No seeded variant with price >= 120 and " + QTY + " units in stock");
     }
 
     private static PlaceOrderRequest request(UUID cartId, PaymentMethod method) {
