@@ -33,9 +33,15 @@ indexed.
 2. **DNS** — four A records → the QA droplet IP:
    `qa`, `qa-admin`, `qa-api`, `qa-delivery` (all under town-basket.com).
 3. **Firewall**: `ufw allow 80 && ufw allow 443 && ufw allow OpenSSH && ufw --force enable`
-4. **Clone + secrets**:
+4. **Clone + secrets** — the repo is private, so give the droplet a
+   **read-only deploy key** first (GitHub → Ecomm → Settings → Deploy keys →
+   Add, "Allow write access" unchecked). The SSH remote means the deploy
+   workflow's later `git fetch` reuses the same key:
    ```bash
-   git clone https://github.com/mohammedsuhaib/Ecomm.git && cd Ecomm/infra/qa
+   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "townbasket-qa-droplet"
+   cat ~/.ssh/id_ed25519.pub          # paste this as the deploy key
+   ssh-keyscan github.com >> ~/.ssh/known_hosts
+   git clone git@github.com:mohammedsuhaib/Ecomm.git && cd Ecomm/infra/qa
    cp .env.example .env && chmod 600 .env
    # fill DB_PASSWORD, JWT_SECRET, and the basic-auth hash:
    docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password'
