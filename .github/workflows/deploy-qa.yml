@@ -1,0 +1,121 @@
+# Auto-redeploy the QA stack (qa*.town-basket.com) when app or QA-infra files
+# change on main. The QA droplet builds the images from source (see
+# infra/qa/), so a deploy is: git pull + compose up --build. If the build
+# fails, the previously running containers stay up — QA keeps serving the old
+# version and this workflow goes red.
+#
+# One-time droplet setup (DNS, firewall, infra/qa/.env) is manual and
+# documented in infra/qa/README.md; this workflow only refreshes an already
+# provisioned box and fails fast with a clear message if .env is missing.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   QA_DROPLET_SSH_KEY  — private key with SSH access to the QA droplet (PEM/OpenSSH)
+#   QA_DROPLET_HOST     — QA droplet public IP or hostname
+# Optional:
+#   QA_DROPLET_USER     — SSH user (defaults to root)
+#   QA_DROPLET_REPO_DIR — repo path on the droplet (defaults to Ecomm in $HOME)
+#
+# The job fails fast with a clear message if secrets are missing, and can be
+# run manually from the Actions tab (workflow_dispatch) to test the setup.
+name: Deploy QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/qa/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/deploy-qa.yml'
+  workflow_dispatch:
+
+# Never run two deploys at once; queue instead of cancelling (cancelling would
+# kill the SSH session mid-build on the droplet).
+concurrency:
+  group: deploy-qa
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # From-source build on the droplet: Maven + three Next builds. Warm-cache
+    # runs are much faster; 30 min covers a cold rebuild with headroom.
+    timeout-minutes: 30
+    steps:
+      - name: Check deploy secrets are configured
+        env:
+          KEY: ${{ secrets.QA_DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.QA_DROPLET_HOST }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
+            echo "::error::QA_DROPLET_SSH_KEY and/or QA_DROPLET_HOST secrets are not set." \
+                 "Add them under Settings → Secrets and variables → Actions to enable QA auto-deploy."
+            exit 1
+          fi
+
+      - name: Deploy over SSH
+        env:
+          KEY: ${{ secrets.QA_DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.QA_DROPLET_HOST }}
+          USER: ${{ secrets.QA_DROPLET_USER || 'root' }}
+          REPO_DIR: ${{ secrets.QA_DROPLET_REPO_DIR || 'Ecomm' }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # accept-new: trust the host key on first contact, pin it afterwards.
+          # ServerAlive keeps the connection open through the long quiet
+          # stretches of the on-droplet Maven/Next builds.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=10 \
+              "$USER@$HOST" REPO_DIR="$REPO_DIR" 'bash -s' <<'REMOTE'
+            set -euo pipefail
+            cd "$HOME/$REPO_DIR"
+            # The droplet may still be on the original feature-branch clone —
+            # QA always tracks main.
+            git fetch origin main
+            git checkout main 2>/dev/null || git checkout -b main origin/main
+            git reset --hard origin/main
+            cd infra/qa
+            if [ ! -f .env ]; then
+              echo "::error::infra/qa/.env is missing on the droplet — finish the" \
+                   "one-time setup in infra/qa/README.md before enabling auto-deploy."
+              exit 1
+            fi
+            docker compose -f docker-compose.qa.yml up -d --build
+            # From-source rebuilds strand the previous images as dangling
+            # layers; prune them so the small droplet's disk doesn't fill up.
+            docker image prune -f
+            echo "Deployed $(git -C ../.. rev-parse --short HEAD) to QA"
+          REMOTE
+
+      - name: Verify QA responds
+        env:
+          HOST: ${{ secrets.QA_DROPLET_HOST }}
+        run: |
+          # The API container was just replaced; Spring Boot + Flyway need a
+          # moment to come up. Poll the (permitAll) actuator health endpoint,
+          # pinned to the droplet IP so DNS is not a dependency.
+          for i in $(seq 1 18); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+                   --resolve qa-api.town-basket.com:443:"$HOST" \
+                   https://qa-api.town-basket.com/actuator/health || echo 000)
+            echo "attempt $i: /actuator/health -> HTTP $code"
+            [ "$code" = "200" ] && break
+            sleep 10
+          done
+          [ "$code" = "200" ] || { echo "::error::QA API not healthy after deploy"; exit 1; }
+
+          # The storefront host must answer — and answer 401, proving the
+          # basic-auth gate in front of the QA apps is still in place.
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+                 --resolve qa.town-basket.com:443:"$HOST" \
+                 https://qa.town-basket.com/ || echo 000)
+          echo "storefront (no credentials) -> HTTP $code"
+          [ "$code" = "401" ] || { echo "::error::QA storefront should demand basic auth (got HTTP $code)"; exit 1; }

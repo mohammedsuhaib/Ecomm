@@ -48,12 +48,33 @@ indexed.
 
 ## Deploying a new version to QA
 
+**Automatic (CD):** `.github/workflows/deploy-qa.yml` redeploys QA on every
+merge to `main` that touches `apps/`, `packages/`, or `infra/qa/` (and can be
+run manually from the Actions tab). It SSHes into the droplet, resets the
+clone to `origin/main`, and runs the compose build; afterwards it polls
+`qa-api`'s `/actuator/health` and confirms the storefront still demands basic
+auth. If the build fails, the previous containers keep running — QA stays on
+the old version and the workflow goes red. Enable it with two repository
+secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `QA_DROPLET_SSH_KEY` | Private key with SSH access to the QA droplet |
+| `QA_DROPLET_HOST` | QA droplet public IP or hostname |
+| `QA_DROPLET_USER` (optional) | SSH user, defaults to `root` |
+| `QA_DROPLET_REPO_DIR` (optional) | Repo path on the droplet, defaults to `Ecomm` in `$HOME` |
+
+Note the workflow deploys whatever is on `main`, whether or not CI has
+finished — a broken build simply leaves QA on the previous version.
+
+**Manual (or to test a feature branch):**
 ```bash
-cd Ecomm && git checkout main && git pull
+cd Ecomm && git checkout main && git pull   # or: git checkout <feature-branch>
 cd infra/qa && docker compose -f docker-compose.qa.yml up -d --build
 ```
 Only changed images rebuild (Docker layer cache). To wipe QA data and start
-fresh: add `down -v` before the `up`.
+fresh: add `down -v` before the `up`. If you park QA on a feature branch,
+remember the next merge to `main` will auto-deploy over it.
 
 ## Smoke test after deploy
 
