@@ -42,6 +42,12 @@ export default function CheckoutPage() {
   const prefilled = useRef(false);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
+
+  // Server-decided (its clock, not the device's): the shop is shut, so the
+
+  // order would be refused. Say so up front instead of at submit time.
+
+  const [storeClosed, setStoreClosed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,9 +76,17 @@ export default function CheckoutPage() {
   }, [checked, isAuthenticated, router]);
 
   useEffect(() => {
-    getStore()
-      .then((s) => setMinOrderValue(s.minOrderValue))
-      .catch(() => setMinOrderValue(null));
+    getStore({ noStore: true })
+      .then((s) => {
+        setMinOrderValue(s.minOrderValue);
+        setStoreClosed(!s.open);
+      })
+      .catch(() => {
+        setMinOrderValue(null);
+        // Unknown status: let the server be the judge rather than blocking a
+        // customer who could have ordered.
+        setStoreClosed(false);
+      });
   }, []);
 
   // Prefill the delivery coordinates from the location the LocationGate captured.
@@ -138,6 +152,7 @@ export default function CheckoutPage() {
 
   const formValid =
     items.length > 0 &&
+    !storeClosed &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -186,8 +201,14 @@ export default function CheckoutPage() {
           await refresh();
         } else if (err.status === 422 || err.status === 400) {
           // Business rule: below minimum, item unavailable, store closed, or the
-          // total changed since you confirmed it. Refresh so the cart reflects it.
-          setError(t('errorInvalid'));
+          // total changed since you confirmed it. Re-read the store so a
+          // closure that started mid-checkout is named instead of hidden behind
+          // the catch-all, then refresh the cart.
+          const closedNow = await getStore({ noStore: true })
+            .then((st) => !st.open)
+            .catch(() => false);
+          setStoreClosed(closedNow);
+          setError(closedNow ? t('errorStoreClosed') : t('errorInvalid'));
           await refresh();
         } else {
           setError(t('errorGeneric'));

@@ -27,7 +27,7 @@ export function formatDistance(meters: number): string {
 }
 
 /** Format a single "HH:mm" 24-hour time as a 12-hour clock, e.g. "08:00" -> "8 AM". */
-function formatClock(time: string): string {
+export function formatClock(time: string): string {
   const date = new Date(`1970-01-01T${time}`);
   if (Number.isNaN(date.getTime())) return time; // unparseable — show as-is
   return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });

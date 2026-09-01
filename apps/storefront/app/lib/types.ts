@@ -42,6 +42,10 @@ export interface Store {
   minOrderValue: number;
   lat: number;
   lng: number;
+  /** Whether the store is serving right now, decided on the SERVER clock. */
+  open: boolean;
+  /** True when the next opening is the following day (today's window has closed). */
+  opensNextDay: boolean;
 }
 
 export interface ServiceabilityResult {

@@ -136,7 +136,15 @@ testing possible without real money or SMS.
 | TC-SRV-005 | Positive | Location gate | Open the storefront in a fresh browser | Location prompt appears; after choosing, the header shows the chosen area | P2 |
 | TC-SRV-006 | Positive | Pin-drop picker | Use the map picker to move the pin | Coordinates update; serviceability re-checks | P2 |
 | TC-SRV-007 | Edge | Maps key absent | Deployment without `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Pin-drop degrades gracefully; manual address entry still works | P2 |
-| TC-SRV-008 | Negative | Store closed | Set device/store time outside 08:00–21:00 and check out | "Store is closed right now" with the delivery hours; order not created | P1 |
+| TC-SRV-008 | Negative | Store closed blocks ordering | With the store closed, try to check out | Place Order is disabled with the closed reason; no order created | P1 |
+| TC-SRV-009 | Positive | Closed banner is sitewide | With the store closed, visit home, a category, a product, cart and checkout | Amber "We're closed right now" banner under the header on EVERY page, naming the next opening time | P1 |
+| TC-SRV-010 | Positive | Tomorrow vs today wording | Check the banner after closing time, then before opening time | After closing: "opens again tomorrow at 8 AM". Before opening: "opens today at 8 AM" | P2 |
+| TC-SRV-011 | Negative | No banner while open | Visit any page during trading hours | No closed banner anywhere | P1 |
+| TC-SRV-012 | Edge | Device clock is irrelevant | Set the phone's clock/timezone hours off, then load the storefront | Banner reflects the STORE's real state — the device clock must not change it | P1 |
+| TC-SRV-013 | Edge | Banner appears without a reload | Keep a page open across closing time (or close the store in the DB) | Banner appears within ~5 minutes without the customer reloading | P2 |
+| TC-SRV-014 | Edge | Browsing still works when closed | With the banner showing, browse and add items to the cart | Browsing and cart edits work; only order placement is blocked | P2 |
+| TC-SRV-015 | Edge | Closure mid-checkout | Begin checkout while open, close the store, then submit | Rejected with the specific closed message — not the generic "couldn't place this order" | P1 |
+| TC-SRV-016 | Edge | API unreachable | Block the API, then load a page | No banner shown (a false "closed" would cost orders); page still renders | P2 |
 
 ---
 

@@ -6,6 +6,7 @@ import './globals.css';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import LocationGate from './components/LocationGate';
+import StoreClosedBanner from './components/StoreClosedBanner';
 import CartProvider from './components/CartProvider';
 import AuthProvider from './components/AuthProvider';
 
@@ -79,6 +80,9 @@ export default async function RootLayout({
                   badge, add-to-cart controls, cart and checkout pages. */}
               <CartProvider>
                 <Header />
+                {/* Sitewide: while the shop is shut, say so on every page
+                    rather than letting the customer discover it at checkout. */}
+                <StoreClosedBanner />
                 <main id="main" className="wrap">
                   {/* SearchBar/useSearchParams need a Suspense boundary. */}
                   <Suspense fallback={null}>{children}</Suspense>

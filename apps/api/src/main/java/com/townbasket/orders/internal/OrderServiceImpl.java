@@ -449,21 +449,19 @@ class OrderServiceImpl implements OrderService {
 
     /**
      * Reject checkout when the store is closed (the address may be serviceable,
-     * but nobody can fulfil the order). Hours are interpreted in the store's
-     * local time via the injected {@link Clock}. Supports an overnight window
-     * (closing before opening), though the MVP store opens 08:00–21:00.
+     * but nobody can fulfil the order).
+     *
+     * <p>The open/closed decision is NOT recomputed here — it comes from
+     * {@code serviceability}, which owns store hours and evaluates them on the
+     * server clock. That is what keeps the storefront's closed banner and this
+     * rejection in agreement; two copies of the rule would eventually drift.
      */
     private void requireStoreOpen(StoreDto store) {
-        LocalTime now = LocalTime.now(clock);
-        LocalTime open = store.openingTime();
-        LocalTime close = store.closingTime();
-        boolean isOpen = !open.isAfter(close)
-                ? !now.isBefore(open) && !now.isAfter(close)        // same-day window
-                : !now.isBefore(open) || !now.isAfter(close);       // crosses midnight
-        if (!isOpen) {
+        if (!store.open()) {
             throw new BusinessRuleException(
                     store.name() + " is closed right now. Delivery hours are "
-                            + open + "–" + close + ". Please order during open hours.");
+                            + store.openingTime() + "–" + store.closingTime()
+                            + ". Please order during open hours.");
         }
     }
 

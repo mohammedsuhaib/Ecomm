@@ -1387,3 +1387,40 @@ a:hover {
   text-align: center;
   max-width: 34ch;
 }
+
+/* ---- Store-closed banner (sitewide, under the header) ------------------ */
+/* Full-bleed so it reads as a state of the shop rather than page content.
+   Amber, not red: the shop is shut, nothing has gone wrong. */
+.store-closed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  background: #fff7e6;
+  border-bottom: 1px solid #f0d9a8;
+  color: #4a3506;
+}
+.store-closed-icon {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.store-closed-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 72ch;
+}
+/* #7a5a00 is 5.6:1 on #fff7e6; a lighter amber ink would fail AA here. */
+.store-closed-hint {
+  color: #7a5a00;
+}
+@media (prefers-color-scheme: dark) {
+  .store-closed {
+    background: #2b2314;
+    border-bottom-color: #4a3c1c;
+    color: #f3e4c4;
+  }
+  .store-closed-hint {
+    color: #d8bf86;
+  }
+}

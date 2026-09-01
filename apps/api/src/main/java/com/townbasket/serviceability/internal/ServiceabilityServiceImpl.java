@@ -6,6 +6,8 @@ import com.townbasket.serviceability.StoreDto;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.time.Clock;
+import java.time.LocalTime;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,14 +31,17 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
     private static final double EARTH_RADIUS_M = 6_371_000.0;
 
     private final StoreRepository storeRepository;
+    private final Clock clock;
     private final Double overrideLat;
     private final Double overrideLng;
 
     ServiceabilityServiceImpl(
             StoreRepository storeRepository,
+            Clock clock,
             @Value("${townbasket.serviceability.store-lat:}") String overrideLatRaw,
             @Value("${townbasket.serviceability.store-lng:}") String overrideLngRaw) {
         this.storeRepository = storeRepository;
+        this.clock = clock;
         this.overrideLat = parseCoord(overrideLatRaw);
         this.overrideLng = parseCoord(overrideLngRaw);
         if (overrideActive()) {
@@ -91,6 +96,33 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         return storeRepository.findFirstByActiveTrueOrderByIdAsc().map(this::toDto);
     }
 
+    /**
+     * Whether the store is serving right now, on the SERVER's clock — never the
+     * customer's device, whose timezone may be anything. Supports an overnight
+     * window (closing before opening), though the MVP store opens 08:00-21:00.
+     *
+     * <p>This is the single source of truth for "are we open": {@code orders}
+     * rejects checkout using this same flag, so the storefront banner can never
+     * disagree with what happens at checkout.
+     */
+    static boolean isOpenAt(LocalTime now, LocalTime opening, LocalTime closing) {
+        return !opening.isAfter(closing)
+                ? !now.isBefore(opening) && !now.isAfter(closing)   // same-day window
+                : !now.isBefore(opening) || !now.isAfter(closing);  // crosses midnight
+    }
+
+    /**
+     * True when the next opening falls on the following day — i.e. today's
+     * trading window has already closed. False when the store simply has not
+     * opened yet today (or the window runs overnight, so it reopens later today).
+     */
+    static boolean opensNextDay(LocalTime now, LocalTime opening, LocalTime closing) {
+        if (opening.isAfter(closing)) {
+            return false; // overnight window: it reopens later the same day
+        }
+        return now.isAfter(closing);
+    }
+
     /** Great-circle distance between two lat/lng points in metres. */
     static double haversineMeters(double lat1, double lng1, double lat2, double lng2) {
         double dLat = Math.toRadians(lat2 - lat1);
@@ -103,6 +135,7 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
     }
 
     private StoreDto toDto(StoreEntity s) {
+        LocalTime now = LocalTime.now(clock);
         return new StoreDto(
                 s.getName(),
                 s.getAddress(),
@@ -111,6 +144,8 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
                 s.getDeliveryRadiusM(),
                 s.getMinOrderValue(),
                 storeLat(s),
-                storeLng(s));
+                storeLng(s),
+                isOpenAt(now, s.getOpeningTime(), s.getClosingTime()),
+                opensNextDay(now, s.getOpeningTime(), s.getClosingTime()));
     }
 }
