@@ -46,7 +46,10 @@ indexed.
    # fill DB_PASSWORD, JWT_SECRET, and the basic-auth hash:
    docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password'
    ```
-   Paste the resulting `$2a$...` hash into `QA_BASIC_AUTH_HASH` as-is.
+   Paste the resulting `$2a$...` hash into `QA_BASIC_AUTH_HASH` **wrapped in
+   single quotes** (`QA_BASIC_AUTH_HASH='$2a$...'`). Unquoted, Compose's
+   env-file interpolation expands the hash's `$`-sequences as variables and
+   silently corrupts it — basic auth then rejects every password.
 5. **Launch**:
    ```bash
    docker compose -f docker-compose.qa.yml up -d --build
