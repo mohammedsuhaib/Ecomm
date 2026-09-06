@@ -33,7 +33,10 @@ export default function SortControl({
     next.delete('page');
     const qs = next.toString();
     // Prefer the live pathname (client) but fall back to the page's basePath.
-    router.push(`${pathname || basePath}${qs ? `?${qs}` : ''}`);
+    // scroll: false — the user is looking at the grid this control sits above;
+    // the default scroll-to-top on navigation yanks them away from it and makes
+    // re-sorting feel like a page reload.
+    router.push(`${pathname || basePath}${qs ? `?${qs}` : ''}`, { scroll: false });
   }
 
   return (

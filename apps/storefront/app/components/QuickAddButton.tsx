@@ -5,11 +5,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { ApiError } from '@/app/lib/api';
 import type { Product } from '@/app/lib/types';
 import { productDisplayName } from '@/app/lib/productName';
+import { cheapestBuyableVariant } from '@/app/lib/variants';
 import { useCart } from './CartProvider';
 
 /**
- * Inline "+" quick-add control for product grid tiles (F3). Adds the product's
- * first AVAILABLE variant to the cart; once in the cart it swaps to a compact
+ * Inline "+" quick-add control for product grid tiles (F3). Adds the SAME
+ * variant the card prices — the cheapest buyable one (see lib/variants.ts), so
+ * tapping + can never cart a different pack than the tile shows — and once in
+ * the cart it swaps to a compact
  * −/+ stepper (same server-cart patterns as AddToCartButton). Rendered as an
  * overlay on the card thumb, so it stops click/navigation bubbling to the card
  * link. Renders nothing when the product has no buyable variant.
@@ -23,10 +26,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
 
-  const variant =
-    product.available !== false
-      ? (product.variants ?? []).find((v) => v.available && v.availableStock > 0)
-      : undefined;
+  const variant = cheapestBuyableVariant(product) ?? undefined;
 
   // No buyable variant (unavailable or out of stock) => no quick-add control
   // (card still links to the detail page).
