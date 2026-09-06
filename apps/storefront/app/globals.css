@@ -1325,6 +1325,59 @@ a:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Press states -------------------------------------------------------
+   Touch screens have no :hover, so without :active the only tap feedback is
+   the browser default — on a slow network a tap on anything that talks to the
+   server feels dead until the round-trip lands. A slight press-in scale is
+   instant, local, and honest (it confirms the TAP, not the result; busy states
+   still own the in-flight story). Press-in is immediate; only the release
+   eases back. */
+.btn,
+.quick-add,
+.quick-add-stepper button,
+.product-card,
+.category-card {
+  transition: transform 0.12s ease;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0s;
+}
+.btn:active:not(:disabled):not(.btn-outline) {
+  background: var(--green-dark);
+}
+.btn-outline:active:not(:disabled) {
+  background: var(--green-light);
+}
+.quick-add:active:not(:disabled),
+.quick-add-stepper button:active:not(:disabled) {
+  transform: scale(0.88);
+  transition-duration: 0s;
+}
+.product-card:active {
+  transform: scale(0.985);
+  transition-duration: 0s;
+}
+.category-card:active {
+  transform: scale(0.97);
+  transition-duration: 0s;
+}
+/* Card tiles are <Link>s: manipulation kills double-tap-zoom latency the same
+   way the buttons already do, so rapid taps land as taps. */
+.product-card,
+.category-card {
+  touch-action: manipulation;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .quick-add,
+  .quick-add-stepper button,
+  .product-card,
+  .category-card {
+    transition: none;
+  }
+}
+
 /* Cart loading skeleton — reserves row space to avoid layout jumps. */
 .skeleton-row {
   height: 64px;

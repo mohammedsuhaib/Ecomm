@@ -492,6 +492,8 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-NFR-007 | Accessibility | Keyboard only | Complete browse → cart → checkout using only the keyboard | Every control reachable; visible focus ring throughout | P2 |
 | TC-NFR-008 | Accessibility | Touch targets | Use the storefront and rider app one-handed on a phone | Tap targets ≥44 px; nothing requires precision tapping | P2 |
 | TC-NFR-009 | Edge | Timezone correctness | Place an order near midnight IST | It lands on the correct IST calendar day in analytics and on the invoice | P2 |
+| TC-NFR-010 | Positive | Tap feedback on touch | On a PHONE (not a desktop with a mouse), tap buttons, product tiles, category tiles and the +/− steppers | Every tap gives an immediate press-in response, before any network round-trip; with Slow 3G throttled, a tap never feels dead while the request runs | P2 |
+| TC-NFR-011 | Positive | Loading states reserve space | Throttle to Slow 3G and open Account, Order tracking and Cart while data loads | Shimmer skeletons hold the layout — no bare "Loading…" line and no content jump when data lands | P3 |
 | TC-NFR-010 | Edge | Money formatting | Check a large total (>₹1,00,000) across all surfaces | Consistent Indian grouping; no rounding drift between cart, order and invoice | P2 |
 
 ---

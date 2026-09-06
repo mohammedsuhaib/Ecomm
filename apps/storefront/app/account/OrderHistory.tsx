@@ -53,7 +53,14 @@ export default function OrderHistory() {
     }
   }
 
-  if (loading) return <p className="muted">{t('loadingOrders')}</p>;
+  if (loading) {
+    return (
+      <div aria-busy="true" aria-label={t('loadingOrders')}>
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+      </div>
+    );
+  }
   if (error && orders.length === 0)
     return <p className="notice error">{error}</p>;
   if (orders.length === 0)
