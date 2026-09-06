@@ -476,6 +476,7 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-SEC-012 | Security | No secrets in responses | Inspect API responses and page source | No password hashes, JWT secret, VAPID private key or cost prices anywhere | P1 |
 | TC-SEC-013 | Negative | OTP not exposed early | Read the tracking payload before OUT_FOR_DELIVERY | `deliveryOtp` is null; it is never present on admin/rider payloads | P1 |
 | TC-SEC-014 | Negative | QA env not public | Open a `qa.*` host in a fresh browser | HTTP basic auth challenge; page carries `X-Robots-Tag: noindex` | P2 |
+| TC-SEC-015 | Security | Backup objects are private | In the DO Spaces console, open the backups bucket; try an unauthenticated GET on a `db/<timestamp>.sql.gz` URL | Bucket listing is OFF and the object returns 403 — database dumps sit at timestamp-predictable keys, so a public bucket means every customer's data is enumerable by date | P1 |
 
 ---
 
