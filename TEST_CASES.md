@@ -143,6 +143,8 @@ testing possible without real money or SMS.
 | TC-CART-006 | Edge | Stock cap in cart | Cart holds 3 of a variant that has 3 in stock; try to increase | Blocked at 3 with a clear reason | P1 |
 | TC-CART-007 | Edge | Item goes unavailable | Add an item, then mark it unavailable in Admin, return to cart | Cart flags the line as unavailable and blocks checkout until removed | P1 |
 | TC-CART-008 | Edge | Price changes under the customer | Add an item, change its selling price in Admin, then check out | Checkout is rejected with a "total has changed" message; the customer re-confirms | P1 |
+| TC-CART-009 | Positive | Cart follows the account across devices | Log in on device A, add items, log out; log in with the same number on device B (fresh browser) | The same basket appears on device B — carts belong to the account, not the browser | P1 |
+| TC-CART-010 | Positive | Logout clears the basket from a shared browser | Log in, add items, log out; without logging in, open the cart on the same browser | Cart shows empty for the next (guest) user; logging back in restores the basket | P1 |
 
 ---
 

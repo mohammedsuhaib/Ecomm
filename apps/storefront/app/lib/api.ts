@@ -576,6 +576,20 @@ export function reorder(orderId: string): Promise<Cart> {
 // ---- Cart merge on login (M4, AUTHENTICATED) ----------------------------
 
 /**
+ * GET /carts/mine — the caller's most recently used open cart, or null when
+ * they have none. How a device with no local cartId (a new phone, another
+ * computer) picks the basket up after login.
+ */
+export async function getMyCart(): Promise<Cart | null> {
+  try {
+    return await authGet<Cart>('/carts/mine');
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+/**
  * POST /carts/{cartId}/merge — merge the guest cart into the caller's active
  * cart. The returned cart's `cartId` may differ; callers MUST store it.
  */

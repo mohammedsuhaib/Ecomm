@@ -14,8 +14,23 @@ import java.util.UUID;
  */
 public interface CartService {
 
-    /** Create a new empty cart and return it. */
+    /** Create a new empty GUEST cart (no owner) and return it. */
     CartDto createCart();
+
+    /**
+     * Create a new empty cart, owned by {@code userIdOrNull} when the caller is
+     * authenticated (else a guest cart). Ownership at creation is what lets a
+     * cart follow the customer to another device: a cart added to while logged
+     * in but created anonymously is unreachable from anywhere but the browser
+     * holding its id.
+     */
+    CartDto createCart(Long userIdOrNull);
+
+    /**
+     * The user's most recently touched open cart, if any — how a fresh device
+     * (no local cartId) picks the basket up after login.
+     */
+    Optional<CartDto> activeCartFor(Long userId);
 
     /** Fetch a cart by id, with lines resolved against the catalog. */
     Optional<CartDto> getCart(UUID cartId);

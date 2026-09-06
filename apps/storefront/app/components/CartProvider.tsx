@@ -16,6 +16,7 @@ import {
   removeCartItem,
   updateCartItem,
 } from '@/app/lib/api';
+import { loadAuth } from '@/app/lib/auth';
 import { clearCartId, loadCartId, saveCartId } from '@/app/lib/cart';
 import type { Cart } from '@/app/lib/types';
 
@@ -89,6 +90,22 @@ export default function CartProvider({
         setCart(null);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  // Forget the cart when the session ends (logout, or a failed token refresh
+  // clearing it). Now that carts follow the ACCOUNT — owned at creation and
+  // recoverable via /carts/mine on the next login — keeping the id in this
+  // browser would only hand the previous user's basket to whoever uses a
+  // shared device next. Nothing is lost: the server still holds the cart.
+  useEffect(() => {
+    const onAuthChanged = () => {
+      if (!loadAuth()) {
+        clearCartId();
+        setCart(null);
+      }
+    };
+    window.addEventListener('tb:auth-changed', onAuthChanged);
+    return () => window.removeEventListener('tb:auth-changed', onAuthChanged);
   }, []);
 
   const ensureCartId = useCallback(async (): Promise<string> => {

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { ApiError, mergeCart } from '@/app/lib/api';
+import { ApiError, getMyCart, mergeCart } from '@/app/lib/api';
 import { loadCartId, saveCartId } from '@/app/lib/cart';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCart } from '@/app/components/CartProvider';
@@ -68,8 +68,12 @@ export default function LoginPage() {
     try {
       await loginWithPhone(phone.trim(), code.trim());
 
-      // Cart merge: fold any guest cart into the user's active cart, then store
-      // the returned cartId (it may differ) and refresh the cart context.
+      // Cart handover: with a local (guest) cart, fold it into the user's
+      // active cart and store the returned cartId (it may differ). With NO
+      // local cart — a new device, or after logout cleared it — fetch the
+      // user's open cart from the server, so the basket follows the account
+      // rather than the browser. Both are best-effort: login must not fail
+      // over a cart.
       const guestCartId = loadCartId();
       if (guestCartId) {
         try {
@@ -77,6 +81,13 @@ export default function LoginPage() {
           saveCartId(merged.cartId);
         } catch {
           /* non-fatal: keep the guest cart as-is if merge fails */
+        }
+      } else {
+        try {
+          const mine = await getMyCart();
+          if (mine && !mine.checkedOut) saveCartId(mine.cartId);
+        } catch {
+          /* non-fatal: start with an empty cart if the lookup fails */
         }
       }
       await refresh();
