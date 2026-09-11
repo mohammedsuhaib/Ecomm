@@ -204,11 +204,13 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         // the reservation: on_hand drops, so available stays reduced by 5.
         eventually(() -> assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5));
 
-        // The delivery shows up in the per-agent date-wise stats.
+        // The delivery shows up in the per-agent date-wise stats, with the
+        // order's value summed in (>= because other tests may add deliveries).
         assertThat(orderService.deliveryStatsByAgent())
                 .anySatisfy(s -> {
                     assertThat(s.agentId()).isEqualTo(agentId);
                     assertThat(s.deliveries()).isGreaterThanOrEqualTo(1);
+                    assertThat(s.amount()).isGreaterThanOrEqualTo(delivered.total());
                 });
     }
 

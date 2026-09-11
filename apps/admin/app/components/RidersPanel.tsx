@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
   ApiError,
   AuthRequiredError,
@@ -9,14 +9,25 @@ import {
   getDeliveryStats,
   setDeliveryAgentActive,
 } from '@/app/lib/api';
+import { formatRupees } from '@/app/lib/format';
 import type { AgentDeliveryStat, DeliveryAgent } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
 const MIN_PASSWORD = 8;
 
 /**
+ * Amount of one stat row as a safe number. Guards the render against an API
+ * that predates the `amount` field (admin rolled out ahead of the api
+ * container): undefined would otherwise poison the sums into NaN and the
+ * table would show "₹NaN" instead of degrading to zero / the em dash.
+ */
+function amountOf(r: AgentDeliveryStat): number {
+  return Number(r.amount) || 0;
+}
+
+/**
  * Total deliveries for one rider, expandable (native <details>) into the
- * per-date counts. Rows arrive newest-date-first from the API.
+ * per-date counts and order values. Rows arrive newest-date-first from the API.
  */
 function RiderDeliveries({ rows }: { rows: AgentDeliveryStat[] }) {
   const total = rows.reduce((sum, r) => sum + r.deliveries, 0);
@@ -27,12 +38,19 @@ function RiderDeliveries({ rows }: { rows: AgentDeliveryStat[] }) {
       <ul>
         {rows.map((r) => (
           <li key={r.date}>
-            <span className="muted">{r.date}</span> × {r.deliveries}
+            <span className="muted">{r.date}</span> × {r.deliveries} · {formatRupees(amountOf(r))}
           </li>
         ))}
       </ul>
     </details>
   );
+}
+
+/** Sum of the rider's delivered-order values across all dates. */
+function RiderOrderValue({ rows }: { rows: AgentDeliveryStat[] }) {
+  const total = rows.reduce((sum, r) => sum + amountOf(r), 0);
+  if (total === 0) return <span className="muted">—</span>;
+  return <>{formatRupees(total)}</>;
 }
 
 /**
@@ -55,6 +73,20 @@ export default function RidersPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  // Group once per stats change: the table re-renders on every keystroke of
+  // the add-rider form, and per-row filters would rescan O(agents × stats)
+  // each time. A single Map also keeps the Deliveries and Order value cells
+  // reading the exact same row set.
+  const statsByAgent = useMemo(() => {
+    const byAgent = new Map<number, AgentDeliveryStat[]>();
+    for (const s of stats) {
+      const rows = byAgent.get(s.agentId);
+      if (rows) rows.push(s);
+      else byAgent.set(s.agentId, [s]);
+    }
+    return byAgent;
+  }, [stats]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -192,11 +224,14 @@ export default function RidersPanel() {
                 <th>Email</th>
                 <th>Status</th>
                 <th>Deliveries</th>
+                <th>Order value</th>
                 <th className="actions-col">Action</th>
               </tr>
             </thead>
             <tbody>
-              {agents.map((a) => (
+              {agents.map((a) => {
+                const riderStats = statsByAgent.get(a.id) ?? [];
+                return (
                 <tr key={a.id} className={a.active ? '' : 'rider-inactive'}>
                   <td>{a.name ?? '—'}</td>
                   <td className="muted">{a.email ?? '—'}</td>
@@ -206,7 +241,10 @@ export default function RidersPanel() {
                     </span>
                   </td>
                   <td>
-                    <RiderDeliveries rows={stats.filter((s) => s.agentId === a.id)} />
+                    <RiderDeliveries rows={riderStats} />
+                  </td>
+                  <td>
+                    <RiderOrderValue rows={riderStats} />
                   </td>
                   <td className="actions-col">
                     <button
@@ -224,7 +262,8 @@ export default function RidersPanel() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

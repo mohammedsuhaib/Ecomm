@@ -45,7 +45,7 @@ class AdminOrderController {
     }
 
     @GetMapping("/delivery-stats")
-    @Operation(summary = "Delivered-order counts per agent per date, newest date first.")
+    @Operation(summary = "Delivered-order counts and summed order value per agent per date, newest date first.")
     List<AgentDeliveryStat> deliveryStats() {
         return orderService.deliveryStatsByAgent();
     }

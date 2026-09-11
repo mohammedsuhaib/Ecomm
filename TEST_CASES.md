@@ -320,8 +320,10 @@ testing possible without real money or SMS.
 | TC-RID-004 | Negative | Weak / blank password | Submit a blank password | Refused with a field message | P2 |
 | TC-RID-005 | Positive | Deactivate | Deactivate a rider | Marked inactive; drops out of the assignment dropdown | P1 |
 | TC-RID-006 | Positive | Reactivate | Reactivate them | Assignable and able to log in again | P2 |
-| TC-RID-007 | Positive | Date-wise delivery counts | Complete 2 deliveries with one rider, expand their stats | Counts shown per date and match reality | P2 |
-| TC-RID-008 | Edge | Rider with no deliveries | Expand a brand-new rider's stats | Empty state, not an error | P3 |
+| TC-RID-007 | Positive | Date-wise delivery counts | Complete 2 deliveries with one rider, expand their stats | Counts shown per date and match reality; each date row also shows that day's ₹ order value | P2 |
+| TC-RID-008 | Edge | Rider with no deliveries | Expand a brand-new rider's stats | Empty state, not an error; Order value column shows "—" | P3 |
+| TC-RID-009 | Positive | Order value column | Deliver 2 orders of known totals with one rider, check the Order value column | Shows the ₹ sum of the delivered orders' totals (tax-inclusive), matching the two order totals exactly; per-date breakdown amounts add up to it | P2 |
+| TC-RID-010 | Edge | Order value counts each order once | Deliver one order, then re-check stats after any repeated/duplicate confirm attempts | The order's value appears exactly once — deliveries and ₹ never double | P2 |
 
 ---
 

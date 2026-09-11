@@ -359,7 +359,7 @@ class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<AgentDeliveryStat> deliveryStatsByAgent() {
         return orders.countDeliveredByAgentAndDay().stream()
-                .map(r -> new AgentDeliveryStat(r.getAgentId(), r.getDay(), r.getDeliveries()))
+                .map(r -> new AgentDeliveryStat(r.getAgentId(), r.getDay(), r.getDeliveries(), r.getAmount()))
                 .toList();
     }
 
