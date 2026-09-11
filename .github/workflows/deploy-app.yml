@@ -1,0 +1,264 @@
+# Auto-deploy the app stack (api + storefront + admin + delivery) to the
+# droplet whenever main changes and CI is green.
+#
+# Flow (see infra/deploy/README.md):
+#   merge to main → CI (ci.yml) passes → this workflow builds the four prod
+#   images → pushes them to GHCR → SSHes to the droplet → compose pull +
+#   up -d pinned to this commit's sha tag → health-checks the four subdomains.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions) —
+# the same ones the holding-site deploy already uses:
+#   DROPLET_SSH_KEY  — private key with SSH access to the droplet (PEM/OpenSSH)
+#   DROPLET_HOST     — droplet public IP or hostname
+# Optional:
+#   DROPLET_USER     — SSH user (defaults to root)
+#   DROPLET_REPO_DIR — repo path on the droplet, relative to $HOME (defaults to Ecomm)
+#
+# Optional repository VARIABLES override the public build-time frontend config
+# (NEXT_PUBLIC_FIREBASE_*, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY); the defaults below
+# match infra/deploy/.env.example and are safe-to-expose browser values.
+#
+# The droplet pulls images via a docker login with the job-scoped GITHUB_TOKEN,
+# so no long-lived registry credentials live on the droplet. One-time droplet
+# setup (repo clone + infra/deploy/.env) is described in infra/deploy/README.md.
+name: Deploy app
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; queue instead of cancelling.
+concurrency:
+  group: deploy-app
+  cancel-in-progress: false
+
+env:
+  # For workflow_run, github.sha can lag behind the run that triggered us —
+  # always deploy the exact commit CI validated.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  # ───── Decide whether this main change needs a deploy ─────
+  changes:
+    name: Check changed paths
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 0
+
+      - name: Skip doc-only changes
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — deploying."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # HEAD^1..HEAD covers the whole PR for merge and squash commits (the
+          # usual ways main moves). If the diff can't be computed (first
+          # commit, shallow history), err on the side of deploying.
+          if ! changed=$(git diff --name-only HEAD^1 HEAD); then
+            echo "Could not diff — deploying."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Changed files:"
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(apps/|infra/deploy/|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.github/workflows/deploy-app\.yml)'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No app/deploy files changed — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ───── Build + push the four prod images to GHCR ─────
+  build:
+    name: Build ${{ matrix.image }}
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: town-basket-api
+            dockerfile: apps/api/Dockerfile
+            build_args: ''
+          # NEXT_PUBLIC_* values are inlined into the client bundle at BUILD
+          # time (see each Dockerfile) — runtime env in the prod compose only
+          # affects SSR, so they must be passed here.
+          - image: town-basket-storefront
+            dockerfile: apps/storefront/Dockerfile
+            build_args: |
+              NEXT_PUBLIC_API_BASE_URL=https://api.town-basket.com/api/v1
+              NEXT_PUBLIC_FIREBASE_API_KEY=${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyCeGmac68Mffr_hEKyMaodqHpI2afehRso' }}
+              NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'town-basket.firebaseapp.com' }}
+              NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'town-basket' }}
+              NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'town-basket.firebasestorage.app' }}
+              NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '661494495950' }}
+              NEXT_PUBLIC_FIREBASE_APP_ID=${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID || '1:661494495950:web:e554decc5ee8f8c92e2e9f' }}
+              NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyBT7nnGEdDd9y66tZCF2Ajv9QriIduxpuA' }}
+          - image: town-basket-admin
+            dockerfile: apps/admin/Dockerfile
+            build_args: |
+              NEXT_PUBLIC_API_BASE_URL=https://api.town-basket.com/api/v1
+          - image: town-basket-delivery
+            dockerfile: apps/delivery/Dockerfile
+            build_args: |
+              NEXT_PUBLIC_API_BASE_URL=https://api.town-basket.com/api/v1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+
+      - name: Compute registry and tag
+        id: meta
+        run: |
+          # GHCR requires a lowercase namespace.
+          echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${DEPLOY_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          # provenance manifests confuse some older docker daemons on pull.
+          provenance: false
+          tags: |
+            ${{ steps.meta.outputs.registry }}/${{ matrix.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.registry }}/${{ matrix.image }}:latest
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+  # ───── Pull + restart on the droplet, then verify ─────
+  deploy:
+    name: Deploy to droplet
+    needs: [changes, build]
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    # Lets you add required-reviewer / wait-timer protection later under
+    # Settings → Environments → production without touching this file.
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Check deploy secrets are configured
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
+            echo "::error::DROPLET_SSH_KEY and/or DROPLET_HOST secrets are not set." \
+                 "Add them under Settings → Secrets and variables → Actions to enable auto-deploy."
+            exit 1
+          fi
+
+      - name: Set up SSH key
+        env:
+          KEY: ${{ secrets.DROPLET_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Compute registry and tag
+        id: meta
+        run: |
+          echo "registry=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${DEPLOY_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log the droplet into GHCR (job-scoped token)
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER || 'root' }}
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The token only lives for this job — the droplet keeps no usable
+          # registry credential afterwards (manual pulls need a PAT login).
+          printf '%s' "$TOKEN" | ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 \
+              "$USER@$HOST" "docker login ghcr.io -u '$ACTOR' --password-stdin"
+
+      - name: Deploy over SSH
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+          USER: ${{ secrets.DROPLET_USER || 'root' }}
+          REPO_DIR: ${{ secrets.DROPLET_REPO_DIR || 'Ecomm' }}
+          REGISTRY: ${{ steps.meta.outputs.registry }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -o ConnectTimeout=15 \
+              "$USER@$HOST" REPO_DIR="$REPO_DIR" REGISTRY="$REGISTRY" TAG="$TAG" 'bash -s' <<'REMOTE'
+            set -euo pipefail
+            cd "$HOME/$REPO_DIR"
+            # Deploys always track main — the checkout is only the source of
+            # the compose file, Caddyfile and .env; images come from GHCR.
+            git fetch origin main
+            git checkout main 2>/dev/null || git checkout -b main origin/main
+            git reset --hard origin/main
+            cd infra/deploy
+            if [ ! -f .env ]; then
+              echo "::error::infra/deploy/.env is missing on the droplet." \
+                   "Copy .env.example to .env, fill in real secrets (chmod 600), then re-run." >&2
+              exit 1
+            fi
+            # REGISTRY and TAG from the environment take precedence over the
+            # .env file, pinning this deploy to the exact commit CI built.
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f >/dev/null
+            echo "Deployed $REGISTRY/*:$TAG ($(git rev-parse --short HEAD))"
+          REMOTE
+
+      - name: Verify the stack responds
+        env:
+          HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          # Hit the droplet IP with the domain as Host/SNI so DNS is not a
+          # dependency. Retries cover container start-up; the API gets the
+          # longest window (Spring Boot + Flyway migrations).
+          check() {
+            local host=$1 path=$2 tries=${3:-6} code=000
+            for _ in $(seq 1 "$tries"); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
+                     --resolve "$host:443:$HOST" "https://$host$path" || echo 000)
+              if [ "$code" = "200" ]; then
+                echo "$host$path -> HTTP $code"
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::$host$path still HTTP $code after $tries attempts"
+            return 1
+          }
+          check api.town-basket.com /actuator/health 18
+          check shop.town-basket.com /
+          check admin.town-basket.com /
+          check delivery.town-basket.com /
