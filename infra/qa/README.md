@@ -55,13 +55,141 @@ cd infra/qa && docker compose -f docker-compose.qa.yml up -d --build
 Only changed images rebuild (Docker layer cache). To wipe QA data and start
 fresh: add `down -v` before the `up`.
 
+## Loading test data
+
+The dev SQL scripts work on QA too, but note the compose file: QA is a separate
+Compose project, so `docker compose -f infra/docker-compose.yml exec postgres`
+answers `service "postgres" is not running` even while QA is up.
+
+```bash
+cd infra/qa
+docker compose -f docker-compose.qa.yml exec -T postgres \
+  psql -U townbasket -d townbasket < ../dev/mock-analytics-data.sql   # analytics panels
+docker compose -f docker-compose.qa.yml exec -T postgres \
+  psql -U townbasket -d townbasket < ../dev/mock-user-orders.sql      # one customer's order history
+```
+Both are re-runnable: each clears only its own `mock-%` orders and rebuilds
+them, leaving orders placed by testers alone. Use the `DB_USERNAME` from `.env`
+if you changed it from the `townbasket` default.
+
+## Connecting a local SQL client to the QA database
+
+QA's postgres publishes NO port — only Caddy binds 80/443, so the database is
+reachable on the Compose network and nowhere else. Keep it that way (an exposed
+5432 with a password is a standing invitation) and tunnel over SSH instead.
+
+SSH resolves the forward's target from the SERVER side, and the droplet can
+route to the container's bridge IP, so no port has to be published anywhere:
+
+```bash
+QA=root@qa.town-basket.com   # or the droplet IP
+
+IP=$(ssh $QA "docker inspect -f \
+  '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' qa-postgres-1")
+
+ssh -N -L 5433:$IP:5432 $QA        # leave this running
+```
+
+Then point the client at `localhost:5433`, database `townbasket`, user
+`DB_USERNAME` (default `townbasket`), password `DB_PASSWORD` from `.env`:
+
+```bash
+psql "postgresql://townbasket@localhost:5433/townbasket"
+```
+
+The container is `qa-postgres-1` — Compose derives the project name from the
+`infra/qa` directory. Its bridge IP changes whenever the container is
+recreated, so re-run the lookup if an established tunnel starts refusing
+connections.
+
+For a one-off query, skip the tunnel:
+
+```bash
+ssh $QA "cd Ecomm/infra/qa && docker compose -f docker-compose.qa.yml \
+  exec -T postgres psql -U townbasket -d townbasket -c 'select count(*) from orders.orders'"
+```
+
+Remember the schema-per-module layout: tables live in `catalog`, `orders`,
+`inventory`, … not `public`. `\dn` lists them.
+
+## Real mobile-OTP verification in QA
+
+QA ships with the OFFLINE verifier: any 10-digit phone, OTP token
+`dev:<phone>`, no SMS, no cost. To exercise the real Firebase phone-OTP path
+instead, both halves must move together — the storefront must request a real SMS
+AND the API must verify a Google-signed token. One side alone fails every login.
+
+In the Firebase console first:
+
+1. **Authentication → Sign-in method → Phone** — enable it.
+2. **Authentication → Settings → Authorized domains** — add `qa.town-basket.com`.
+   Without this, reCAPTCHA refuses to run on the QA host.
+3. **Phone → "Phone numbers for testing"** — add each tester's number with a
+   fixed 6-digit code. Those numbers verify through the real code path **without
+   sending an SMS**, so QA stays free and repeatable. Prefer this over billing
+   real SMS to test logins; a QA login loop can burn through quota fast.
+
+Then in `infra/qa/.env`, uncomment the OTP block (one backend var + six
+storefront build args — the file spells them out) and rebuild.
+
+**Copy `projectId` verbatim from the console.** Firebase appends a generated
+suffix to a taken name, so the project you asked to call `town-basket-qa` may
+actually be `town-basket-qa-baf89`. The verifier requires
+`iss = https://securetoken.google.com/<projectId>` and `aud = <projectId>` to
+match exactly, so a shortened id 401s every login.
+
+```bash
+cd infra/qa
+docker compose -f docker-compose.qa.yml up -d --build api storefront
+```
+
+A rebuild, not a restart: `NEXT_PUBLIC_*` is inlined at build time.
+
+To go back to the fake, **comment the backend line out again** rather than
+blanking it. `TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID` is a pass-through, so an
+absent variable is omitted from the container entirely, while a blank one is
+refused — blank is never treated as "use the fake", because that would silently
+downgrade a real deployment to a verifier accepting any phone number.
+
+QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
+own endpoints and needs no same-origin callback handler.
+
+### When a login returns 401 "Invalid phone token"
+
+That response is deliberately vague — it never says which check failed. The API
+log does. Read it first:
+
+```bash
+docker compose -f docker-compose.qa.yml logs api | grep -i "Phone-OTP\|Phone token"
+```
+
+One `Phone-OTP:` line is written at startup naming the ACTIVE verifier, and every
+rejection logs its specific cause. The three failures worth knowing:
+
+| Log says | Cause | Fix |
+|---|---|---|
+| `OFFLINE dev verifier active` + `looks like a real Firebase ID token` | Storefront rebuilt with the Firebase config, API never got the projectId | Set `TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID`, then `up -d api` |
+| `received a dev: token while the REAL verifier is active` | The reverse — API switched, storefront still built without the args | `up -d --build storefront` |
+| `rejected while verifying against projectId '...'` | projectId mismatch (usually the missing generated suffix) | Correct it on BOTH sides, rebuild both |
+
+Confirm what the container actually holds rather than what `.env` says:
+
+```bash
+docker compose -f docker-compose.qa.yml exec api env | grep -i firebase
+docker compose -f docker-compose.qa.yml exec storefront \
+  sh -c 'grep -rlo "<your-project-id>" .next | head -1'
+```
+
+An empty first result means the API is on the fake; an empty second means the
+storefront image was built without the Firebase args.
+
 ## Smoke test after deploy
 
 - https://qa.town-basket.com → basic auth (`qa` / your password) → storefront
   loads, green theme
 - Storefront login: any 10-digit phone with OTP token `dev:<phone>`
-- Place a COD order → confirm it appears in qa-admin's queue → assign to the
-  delivery agent → confirm in qa-delivery with the order's OTP
+- Place a pay-on-delivery order → confirm it appears in qa-admin's queue →
+  assign to the delivery agent → confirm in qa-delivery with the order's OTP
 - Admin login: `admin@townbasket.local` / `Admin@12345` (QA-only seed)
 
 ## What QA must NEVER become

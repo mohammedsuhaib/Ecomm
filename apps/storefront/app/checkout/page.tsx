@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
   checkServiceability,
+  getPaymentMethods,
   getStore,
   listAddresses,
   placeOrder,
@@ -42,6 +43,18 @@ export default function CheckoutPage() {
   const prefilled = useRef(false);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
+
+  // Server-decided (its clock, not the device's): the shop is shut, so the
+
+  // order would be refused. Say so up front instead of at submit time.
+
+  const [storeClosed, setStoreClosed] = useState(false);
+
+  // Only methods the server accepts are offered, so a customer can never
+
+  // pick one that checkout would refuse. COD until the server says more.
+
+  const [methods, setMethods] = useState<PaymentMethod[]>(['COD']);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,9 +83,33 @@ export default function CheckoutPage() {
   }, [checked, isAuthenticated, router]);
 
   useEffect(() => {
-    getStore()
-      .then((s) => setMinOrderValue(s.minOrderValue))
-      .catch(() => setMinOrderValue(null));
+    getStore({ noStore: true })
+      .then((s) => {
+        setMinOrderValue(s.minOrderValue);
+        // Strictly false only — see StoreClosedBanner: a missing field
+        // (older API) must not block a customer who could order.
+        setStoreClosed(s.open === false);
+      })
+      .catch(() => {
+        setMinOrderValue(null);
+        // Unknown status: let the server be the judge rather than blocking a
+        // customer who could have ordered.
+        setStoreClosed(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    getPaymentMethods()
+      .then((res) => {
+        const allowed = res.methods?.length ? res.methods : (['COD'] as PaymentMethod[]);
+        setMethods(allowed);
+        // If the selected method just became unavailable, fall back to COD
+        // rather than leaving a dead selection the server would reject.
+        setPaymentMethod((current) =>
+          allowed.includes(current) ? current : allowed[0],
+        );
+      })
+      .catch(() => setMethods(['COD']));
   }, []);
 
   // Prefill the delivery coordinates from the location the LocationGate captured.
@@ -90,7 +127,10 @@ export default function CheckoutPage() {
     if (!isAuthenticated || !user || prefilled.current) return;
     prefilled.current = true;
     if (user.name) setName(user.name);
-    if (user.phone) setPhone(user.phone);
+    // Last 10 digits, not the raw value: a profile written before phones were
+    // canonicalised holds E.164 (+919632500797), which fails the 10-digit check
+    // below and would leave Place Order dead with no visible reason.
+    if (user.phone) setPhone(user.phone.replace(/\D/g, '').slice(-10));
   }, [isAuthenticated, user]);
 
   useEffect(() => {
@@ -138,6 +178,7 @@ export default function CheckoutPage() {
 
   const formValid =
     items.length > 0 &&
+    !storeClosed &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -186,8 +227,14 @@ export default function CheckoutPage() {
           await refresh();
         } else if (err.status === 422 || err.status === 400) {
           // Business rule: below minimum, item unavailable, store closed, or the
-          // total changed since you confirmed it. Refresh so the cart reflects it.
-          setError(t('errorInvalid'));
+          // total changed since you confirmed it. Re-read the store so a
+          // closure that started mid-checkout is named instead of hidden behind
+          // the catch-all, then refresh the cart.
+          const closedNow = await getStore({ noStore: true })
+            .then((st) => st.open === false)
+            .catch(() => false);
+          setStoreClosed(closedNow);
+          setError(closedNow ? t('errorStoreClosed') : t('errorInvalid'));
           await refresh();
         } else {
           setError(t('errorGeneric'));
@@ -342,20 +389,24 @@ export default function CheckoutPage() {
               <span className="muted">{t('codHint')}</span>
             </span>
           </label>
-          <label className="radio-row">
-            <input
-              type="radio"
-              name="payment"
-              value="UPI"
-              checked={paymentMethod === 'UPI'}
-              onChange={() => setPaymentMethod('UPI')}
-            />
-            <span>
-              <strong>UPI</strong>
-              <br />
-              <span className="muted">{t('upiHint')}</span>
-            </span>
-          </label>
+          {methods.includes('UPI') ? (
+            <label className="radio-row">
+              <input
+                type="radio"
+                name="payment"
+                value="UPI"
+                checked={paymentMethod === 'UPI'}
+                onChange={() => setPaymentMethod('UPI')}
+              />
+              <span>
+                <strong>UPI</strong>
+                <br />
+                <span className="muted">{t('upiHint')}</span>
+              </span>
+            </label>
+          ) : (
+            <p className="muted upi-soon">{t('upiComingSoon')}</p>
+          )}
         </fieldset>
 
         <div className="cart-summary">

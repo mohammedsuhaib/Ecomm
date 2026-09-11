@@ -1325,6 +1325,59 @@ a:hover {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Press states -------------------------------------------------------
+   Touch screens have no :hover, so without :active the only tap feedback is
+   the browser default — on a slow network a tap on anything that talks to the
+   server feels dead until the round-trip lands. A slight press-in scale is
+   instant, local, and honest (it confirms the TAP, not the result; busy states
+   still own the in-flight story). Press-in is immediate; only the release
+   eases back. */
+.btn,
+.quick-add,
+.quick-add-stepper button,
+.product-card,
+.category-card {
+  transition: transform 0.12s ease;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 0s;
+}
+.btn:active:not(:disabled):not(.btn-outline) {
+  background: var(--green-dark);
+}
+.btn-outline:active:not(:disabled) {
+  background: var(--green-light);
+}
+.quick-add:active:not(:disabled),
+.quick-add-stepper button:active:not(:disabled) {
+  transform: scale(0.88);
+  transition-duration: 0s;
+}
+.product-card:active {
+  transform: scale(0.985);
+  transition-duration: 0s;
+}
+.category-card:active {
+  transform: scale(0.97);
+  transition-duration: 0s;
+}
+/* Card tiles are <Link>s: manipulation kills double-tap-zoom latency the same
+   way the buttons already do, so rapid taps land as taps. */
+.product-card,
+.category-card {
+  touch-action: manipulation;
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .quick-add,
+  .quick-add-stepper button,
+  .product-card,
+  .category-card {
+    transition: none;
+  }
+}
+
 /* Cart loading skeleton — reserves row space to avoid layout jumps. */
 .skeleton-row {
   height: 64px;
@@ -1386,4 +1439,49 @@ a:hover {
   margin: 0;
   text-align: center;
   max-width: 34ch;
+}
+
+/* ---- Store-closed banner (sitewide, under the header) ------------------ */
+/* Full-bleed so it reads as a state of the shop rather than page content.
+   Amber, not red: the shop is shut, nothing has gone wrong. */
+.store-closed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  background: #fff7e6;
+  border-bottom: 1px solid #f0d9a8;
+  color: #4a3506;
+}
+.store-closed-icon {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.store-closed-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 72ch;
+}
+/* #7a5a00 is 5.6:1 on #fff7e6; a lighter amber ink would fail AA here. */
+.store-closed-hint {
+  color: #7a5a00;
+}
+@media (prefers-color-scheme: dark) {
+  .store-closed {
+    background: #2b2314;
+    border-bottom-color: #4a3c1c;
+    color: #f3e4c4;
+  }
+  .store-closed-hint {
+    color: #d8bf86;
+  }
+}
+
+/* Stands in for the UPI radio while online payment is off, so the payment
+   section never looks like a single stray option. */
+.upi-soon {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
 }

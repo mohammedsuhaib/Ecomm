@@ -64,7 +64,7 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
         <span className="dcard-id">#{order.id}</span>
         <span className="dcard-time">{fmtTime(order.placedAt)}</span>
         <span className={`dcard-pay ${order.paymentMethod === 'COD' ? 'cod' : 'upi'}`}>
-          {order.paymentMethod === 'COD' ? `COD ${fmtAmount(order.total)}` : `UPI Paid`}
+          {order.paymentMethod === 'COD' ? `Collect ${fmtAmount(order.total)}` : `UPI Paid`}
         </span>
       </div>
 

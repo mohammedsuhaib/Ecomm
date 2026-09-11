@@ -42,7 +42,15 @@ export default function AccountPage() {
   }
 
   if (!checked || !isAuthenticated || !user) {
-    return <p className="empty-state">{t('loadingAccount')}</p>;
+    // Skeletons, not a bare text line: reserve the profile + orders space so
+    // the page doesn't jump when the data lands.
+    return (
+      <div aria-busy="true" aria-label={t('loadingAccount')}>
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+      </div>
+    );
   }
 
   return (

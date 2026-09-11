@@ -31,11 +31,30 @@ class CartController {
         this.cartService = cartService;
     }
 
+    /**
+     * The principal is OPTIONAL here (the route is public): the JWT filter runs
+     * on every request, so a logged-in caller's cart is owned from birth and can
+     * be found from another device via {@code GET /carts/mine}; a guest's cart
+     * stays anonymous until the login merge claims it.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new empty cart; returns the cart (with its generated id).")
-    CartDto createCart() {
-        return cartService.createCart();
+    CartDto createCart(@AuthenticationPrincipal Long userId) {
+        return cartService.createCart(userId);
+    }
+
+    /**
+     * How a device with no local cartId finds the basket after login. 404 (not
+     * an empty cart) when the user has no open cart, so the client keeps its
+     * lazy create-on-first-add behaviour.
+     */
+    @GetMapping("/mine")
+    @Operation(summary = "The caller's most recently used open cart (AUTHENTICATED).")
+    ResponseEntity<CartDto> myCart(@AuthenticationPrincipal Long userId) {
+        return cartService.activeCartFor(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{cartId}")

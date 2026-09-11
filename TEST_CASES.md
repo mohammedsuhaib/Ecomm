@@ -26,7 +26,7 @@ testing possible without real money or SMS.
 
 | Role | Credentials | Where |
 |---|---|---|
-| Customer | any 10-digit phone, OTP token `dev:<phone>` | Storefront |
+| Customer | any 10-digit phone, OTP token `dev:<phone>` (offline verifier — the default) | Storefront |
 | Admin | `admin@townbasket.local` / `Admin@12345` | Admin |
 | Store staff | `staff@townbasket.local` / `Staff@12345` | Admin |
 | Delivery rider | `delivery@townbasket.local` / `Delivery@12345` | Delivery |
@@ -61,6 +61,11 @@ testing possible without real money or SMS.
 
 ### 2.1 Customer phone-OTP login — storefront
 
+> **Two verifier modes.** TC-AUTH-001..008 below assume the OFFLINE verifier
+> (`dev:<phone>` tokens), which is the default in local dev and QA. A deployment
+> with a Firebase projectId set runs the REAL SMS path instead — see
+> TC-AUTH-001r..003r, and note that `dev:` tokens must then be rejected.
+
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
 | TC-AUTH-001 | Positive | First-time login | Account → Login → enter `9876500001` → request OTP → submit token `dev:9876500001` | Logged in; name/phone shown on Account; header shows account indicator | P1 |
@@ -71,6 +76,19 @@ testing possible without real money or SMS.
 | TC-AUTH-006 | Edge | Token refresh | Log in, leave idle >15 min, then browse/act | Access token silently refreshes; no forced re-login (refresh valid 30 days) | P2 |
 | TC-AUTH-007 | Negative | Rate limit | Request OTP 12 times in under a minute from one browser | After ~10, further attempts are rejected until the window resets | P2 |
 | TC-AUTH-008 | Positive | Guest cart merges on login | Add 2 items as guest → log in | Cart still holds both items; cart id may change but nothing is lost | P1 |
+
+**Real-OTP mode only** (run these after switching QA to Firebase phone auth per
+`infra/qa/README.md` — use a Firebase *test* phone number so no SMS is billed):
+
+| ID | Type | Scenario | Steps | Expected result | Pri |
+|---|---|---|---|---|---|
+| TC-AUTH-001r | Positive | Real OTP login | Log in with a Firebase test number and its fixed code | Logged in; same post-login state as TC-AUTH-001 | P1 |
+| TC-AUTH-002r | Negative | Dev token is dead | Submit `dev:9876500001` against the real-mode deployment | Rejected; a hand-typed token can never stand in for an SMS | P1 |
+| TC-AUTH-003r | Negative | Wrong code | Request the OTP, then submit a wrong 6-digit code | Rejected with a clear message; not logged in | P1 |
+| TC-AUTH-004r | Edge | Half-switched deployment | Set the API projectId but rebuild the storefront WITHOUT the Firebase build args (or the reverse) | Login fails; this is config drift, not a defect — both halves must move together | P2 |
+| TC-AUTH-006r | Positive | One account across both modes | Log in as `9632500797` under the offline verifier, switch the deployment to real OTP, log in again with the same number | Same account and same order history — NOT a second customer; Account shows `+91 9632500797`, not a doubled prefix | P1 |
+| TC-AUTH-007r | Positive | Checkout after a real-OTP login | Log in via real OTP, go to checkout | Phone prefills as 10 digits and Place Order is enabled — an E.164 prefill would silently fail the 10-digit check | P1 |
+| TC-AUTH-005r | Edge | Blank projectId | Deploy with the projectId env var present but empty | API refuses to boot with a message naming `townbasket.identity.firebase.project-id` — never a silent fall back to the dev verifier | P1 |
 
 ### 2.2 Staff / rider login
 
@@ -104,6 +122,9 @@ testing possible without real money or SMS.
 | TC-CAT-010 | Positive | Sort by name | Apply sort Name | Alphabetical | P3 |
 | TC-CAT-010a | Positive | Sort by discount | Apply sort Discount | Biggest MRP-vs-selling saving first; items with no discount last | P2 |
 | TC-CAT-010b | Edge | Sort survives a reload | Apply a sort, copy the URL, open it in a new tab | Same sort still applied (carried in `?sort=`); an invalid value falls back to the default order | P3 |
+| TC-CAT-010c | Positive | Sort keeps scroll position | Scroll down to the product grid on home/category/search, change the sort | The list reorders in place — the page does NOT jump back to the top | P2 |
+| TC-CAT-014 | Positive | Tile price = what "+" adds | Find a multi-variant product whose CHEAPEST variant is out of stock; note the price on the tile, tap the quick-add "+", open the cart | The cart line's variant and unit price match exactly what the tile showed — never a different pack than the price implied | P1 |
+| TC-CAT-014a | Edge | No buyable variant | Product switched on but every variant out of stock | Tile shows a "from" price + Out of stock tag and NO quick-add "+"; detail page still opens | P2 |
 | TC-CAT-011 | Positive | Out of stock visible in catalogue | Set a variant's stock to 0 in Admin → Inventory, reload the catalogue | Variant shows out-of-stock **in the listing and on the product page**, not only in the cart | P1 |
 | TC-CAT-012 | Negative | Unavailable product hidden | Admin → toggle a product unavailable | It disappears from storefront listing and search | P1 |
 | TC-CAT-013 | Edge | Stock cap on stepper | Variant with 3 units in stock; try to add 5 from the grid and the product page | Stepper stops at 3 in both places | P1 |
@@ -122,6 +143,8 @@ testing possible without real money or SMS.
 | TC-CART-006 | Edge | Stock cap in cart | Cart holds 3 of a variant that has 3 in stock; try to increase | Blocked at 3 with a clear reason | P1 |
 | TC-CART-007 | Edge | Item goes unavailable | Add an item, then mark it unavailable in Admin, return to cart | Cart flags the line as unavailable and blocks checkout until removed | P1 |
 | TC-CART-008 | Edge | Price changes under the customer | Add an item, change its selling price in Admin, then check out | Checkout is rejected with a "total has changed" message; the customer re-confirms | P1 |
+| TC-CART-009 | Positive | Cart follows the account across devices | Log in on device A, add items, log out; log in with the same number on device B (fresh browser) | The same basket appears on device B — carts belong to the account, not the browser | P1 |
+| TC-CART-010 | Positive | Logout clears the basket from a shared browser | Log in, add items, log out; without logging in, open the cart on the same browser | Cart shows empty for the next (guest) user; logging back in restores the basket | P1 |
 
 ---
 
@@ -136,7 +159,16 @@ testing possible without real money or SMS.
 | TC-SRV-005 | Positive | Location gate | Open the storefront in a fresh browser | Location prompt appears; after choosing, the header shows the chosen area | P2 |
 | TC-SRV-006 | Positive | Pin-drop picker | Use the map picker to move the pin | Coordinates update; serviceability re-checks | P2 |
 | TC-SRV-007 | Edge | Maps key absent | Deployment without `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Pin-drop degrades gracefully; manual address entry still works | P2 |
-| TC-SRV-008 | Negative | Store closed | Set device/store time outside 08:00–21:00 and check out | "Store is closed right now" with the delivery hours; order not created | P1 |
+| TC-SRV-008 | Negative | Store closed blocks ordering | With the store closed, try to check out | Place Order is disabled with the closed reason; no order created | P1 |
+| TC-SRV-009 | Positive | Closed banner is sitewide | With the store closed, visit home, a category, a product, cart and checkout | Amber "We're closed right now" banner under the header on EVERY page, naming the next opening time | P1 |
+| TC-SRV-010 | Positive | Tomorrow vs today wording | Check the banner after closing time, then before opening time | After closing: "opens again tomorrow at 8 AM". Before opening: "opens today at 8 AM" | P2 |
+| TC-SRV-011 | Negative | No banner while open | Visit any page during trading hours | No closed banner anywhere | P1 |
+| TC-SRV-012 | Edge | Device clock is irrelevant | Set the phone's clock/timezone hours off, then load the storefront | Banner reflects the STORE's real state — the device clock must not change it | P1 |
+| TC-SRV-013 | Edge | Banner appears without a reload | Keep a page open across closing time (or close the store in the DB) | Banner appears within ~5 minutes without the customer reloading | P2 |
+| TC-SRV-014 | Edge | Browsing still works when closed | With the banner showing, browse and add items to the cart | Browsing and cart edits work; only order placement is blocked | P2 |
+| TC-SRV-015 | Edge | Closure mid-checkout | Begin checkout while open, close the store, then submit | Rejected with the specific closed message — not the generic "couldn't place this order" | P1 |
+| TC-SRV-016 | Edge | API unreachable | Block the API, then load a page | No banner shown (a false "closed" would cost orders); page still renders | P2 |
+| TC-SRV-017 | Edge | Frontend newer than the API | Run the storefront against an API build that predates the open/closed fields | No banner at all — a missing `open` must read as unknown, never as closed (it would otherwise show all day and always say "opens today") | P1 |
 
 ---
 
@@ -144,7 +176,7 @@ testing possible without real money or SMS.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-CHK-001 | Positive | COD order | Cart ≥ ₹299, in-radius address, store open → pay Cash on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
+| TC-CHK-001 | Positive | Pay-on-delivery order | Cart ≥ ₹299, in-radius address, store open → choose Pay on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
 | TC-CHK-002 | Positive | UPI order (fake gateway) | Same cart, choose UPI | Order CONFIRMED; payment PAID (fake provider auto-succeeds) | P1 |
 | TC-CHK-003 | Negative | Below minimum | Cart of ₹150 → checkout | Rejected naming the ₹299 minimum; no order created | P1 |
 | TC-CHK-004 | Negative | Login required | As a guest, try to place an order | Redirected to login — there is no guest checkout | P1 |
@@ -215,6 +247,15 @@ testing possible without real money or SMS.
 | TC-INV-007 | Edge | Reservation committed on delivery | Complete an order to DELIVERED | On-hand permanently reduced; reserved returns to 0 | P1 |
 | TC-INV-008 | Edge | New variant opens at zero | Create a product with a variant in Admin → Catalogue | It appears in Inventory with 0 on-hand (out of stock, not missing) | P2 |
 | TC-INV-009 | Positive | Low-stock threshold edit | Change a threshold, then reduce stock just below it | Row flags as low; appears in the Analytics low-stock panel | P2 |
+| TC-INV-010 | Positive | Search spans the whole store | With >100 variants, search for a product you know is NOT on page 1 | It is found — search is not limited to the page you are viewing | P1 |
+| TC-INV-011 | Positive | Pager describes the search results | Search a term with few matches | Header count and "Page x of y" describe the MATCHES, not the full variant list | P1 |
+| TC-INV-012 | Positive | Search resets to page 1 | Go to page 3, then type a search | Jumps back to page 1 of the results rather than filtering page 3 | P1 |
+| TC-INV-013 | Positive | Search by variant label | Search `500 g` | Matches on the variant label, not just the product name | P2 |
+| TC-INV-014 | Edge | Wildcards are literal | Search `%` | Treated as a typed character — does NOT match everything | P2 |
+| TC-INV-015 | Edge | Paging through matches | Search a term with >2 pages of matches and walk every page | No row appears twice and none is skipped | P2 |
+| TC-INV-016 | Edge | Fast typing | Type a term quickly, then delete a few characters | Final list matches the final search box contents (no stale result overwriting it) | P2 |
+| TC-INV-017 | Edge | Correction keeps the search | Search, correct a stock count, save | List reloads still filtered by the same term, on the same page | P2 |
+| TC-INV-018 | Edge | No matches | Search `zzzzqq` | "No stock matches …" naming the term; pager hidden | P3 |
 
 ---
 
@@ -326,15 +367,18 @@ added on top. The customer-facing total must never change because of a GST edit.
 
 ## 14. Payments (`payments`)
 
-> **Live payments are NOT implemented.** Only Cash on Delivery and a fake UPI
+> **Live prepayment is NOT implemented.** Only Pay on Delivery (cash or UPI at
+> the door, settled off-platform) and a fake online UPI
 > provider that always succeeds exist. Every UPI case below tests the fake
 > gateway; real Razorpay acceptance testing is out of scope until integrated.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-PAY-001 | Positive | COD lifecycle | Place COD, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
-| TC-PAY-002 | Positive | UPI (fake) | Place a UPI order | PAID immediately; order CONFIRMED | P1 |
-| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Identical in all four places | P2 |
+| TC-PAY-001 | Positive | Pay-on-delivery lifecycle | Place a COD order, complete to DELIVERED | COD_PENDING at placement → PAID at delivery | P1 |
+| TC-PAY-002 | Positive | Only pay-on-delivery is offered | Open checkout on a default deployment | "Pay on Delivery" is the only method, its hint says cash or UPI at the door, and a note explains paying online in advance is coming soon | P1 |
+| TC-PAY-002a | Negative | UPI cannot be forced | POST an order with `paymentMethod: "UPI"` directly to the API | Refused ("choose Pay on Delivery"); no order created, cart still usable for COD | P1 |
+| TC-PAY-002b | Positive | Switching UPI on | Set `UPI_ENABLED=true`, restart, reload checkout | UPI appears as a choice and a UPI order completes (fake gateway) | P2 |
+| TC-PAY-003 | Positive | Method shown consistently | Compare method/status on the tracking page, admin card, rider card and invoice | Consistent everywhere and never says "cash only": tracking + invoice read "Pay on Delivery", admin reads "Pay on delivery", the rider card reads "Collect ₹<total>" | P2 |
 | TC-PAY-004 | Edge | Cancelled UPI order | Cancel a PAID UPI order inside the window | Cancellation succeeds; refund handling matches the published refund policy | P1 |
 
 ---
@@ -432,6 +476,7 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-SEC-012 | Security | No secrets in responses | Inspect API responses and page source | No password hashes, JWT secret, VAPID private key or cost prices anywhere | P1 |
 | TC-SEC-013 | Negative | OTP not exposed early | Read the tracking payload before OUT_FOR_DELIVERY | `deliveryOtp` is null; it is never present on admin/rider payloads | P1 |
 | TC-SEC-014 | Negative | QA env not public | Open a `qa.*` host in a fresh browser | HTTP basic auth challenge; page carries `X-Robots-Tag: noindex` | P2 |
+| TC-SEC-015 | Security | Backup objects are private | In the DO Spaces console, open the backups bucket; try an unauthenticated GET on a `db/<timestamp>.sql.gz` URL | Bucket listing is OFF and the object returns 403 — database dumps sit at timestamp-predictable keys, so a public bucket means every customer's data is enumerable by date | P1 |
 
 ---
 
@@ -448,6 +493,8 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-NFR-007 | Accessibility | Keyboard only | Complete browse → cart → checkout using only the keyboard | Every control reachable; visible focus ring throughout | P2 |
 | TC-NFR-008 | Accessibility | Touch targets | Use the storefront and rider app one-handed on a phone | Tap targets ≥44 px; nothing requires precision tapping | P2 |
 | TC-NFR-009 | Edge | Timezone correctness | Place an order near midnight IST | It lands on the correct IST calendar day in analytics and on the invoice | P2 |
+| TC-NFR-010 | Positive | Tap feedback on touch | On a PHONE (not a desktop with a mouse), tap buttons, product tiles, category tiles and the +/− steppers | Every tap gives an immediate press-in response, before any network round-trip; with Slow 3G throttled, a tap never feels dead while the request runs | P2 |
+| TC-NFR-011 | Positive | Loading states reserve space | Throttle to Slow 3G and open Account, Order tracking and Cart while data loads | Shimmer skeletons hold the layout — no bare "Loading…" line and no content jump when data lands | P3 |
 | TC-NFR-010 | Edge | Money formatting | Check a large total (>₹1,00,000) across all surfaces | Consistent Indian grouping; no rounding drift between cart, order and invoice | P2 |
 
 ---
@@ -472,7 +519,7 @@ behaviour rather than expecting the feature.
 
 | Area | Current state | What to verify instead |
 |---|---|---|
-| Live payments | No real gateway; fake UPI always succeeds | TC-PAY-002 (fake path only) |
+| Live payments | No real gateway. UPI is switched OFF by default (`UPI_ENABLED`) because the only provider is a fake that auto-succeeds | TC-PAY-002 / 002a — COD only, UPI refused |
 | WhatsApp / SMS notifications | Not built — needs a provider account and DLT registration | Nothing; SSE + Web Push are the shipped channels |
 | Product image upload | Admin accepts pasted URLs only | TC-ACAT-009 with a URL |
 | Storefront app icons | Placeholder artwork | TC-PWA-001 checks installability, not artwork quality |

@@ -10,10 +10,17 @@ import com.townbasket.shared.PagedResponse;
 public interface AdminInventoryService {
 
     /**
-     * Paged list of all stock levels for a store, joined with product and variant
+     * Paged list of stock levels for a store, joined with product and variant
      * names from the catalog schema for display in the admin panel.
+     *
+     * <p>{@code q} filters on product name or variant label (case-insensitive,
+     * substring). It is applied in SQL — across the WHOLE store, not just the
+     * requested page — so the page count the caller gets back describes the
+     * filtered set and paging through matches works.
+     *
+     * @param q optional search term; {@code null}/blank lists everything
      */
-    PagedResponse<StockLevelDto> listStockLevels(Long storeId, int page, int size);
+    PagedResponse<StockLevelDto> listStockLevels(Long storeId, String q, int page, int size);
 
     /**
      * Physical-count correction: sets {@code on_hand} to {@code newOnHand} for

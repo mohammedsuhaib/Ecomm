@@ -81,8 +81,13 @@ The deploy fails with a clear error if `.env` is missing on the droplet.
 ## Secrets
 
 Provided via a root-restricted `.env` next to the prod compose (never in the
-repo): `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, DO Spaces keys, Paytm +
-Firebase credentials. See `.env.example` for the expected keys. Registry
+repo). The compose file hard-requires `REGISTRY`, `DB_URL`, `DB_USERNAME`,
+`DB_PASSWORD`, `JWT_SECRET` and `FIREBASE_PROJECT_ID` — each guarded with
+`${VAR:?…}`, so a missing or blank value aborts `compose up` naming the var
+rather than starting a half-configured stack. The nightly backup additionally
+needs `DB_URL_PG`, `SPACES_BUCKET`, `SPACES_ENDPOINT` and the Spaces (AWS-style)
+keys. `PAYTM_*` are reserved but read by nothing yet. See `.env.example`, which
+marks what is required, what is optional, and what is build-time only. Registry
 pull credentials are *not* kept on the droplet — CD logs in with a job-scoped
 token on each deploy.
 

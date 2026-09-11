@@ -42,6 +42,10 @@ export interface Store {
   minOrderValue: number;
   lat: number;
   lng: number;
+  /** Whether the store is serving right now, decided on the SERVER clock. */
+  open: boolean;
+  /** True when the next opening is the following day (today's window has closed). */
+  opensNextDay: boolean;
 }
 
 export interface ServiceabilityResult {
@@ -85,6 +89,11 @@ export interface Cart {
 // ---- Orders (M3) --------------------------------------------------------
 
 export type PaymentMethod = 'COD' | 'UPI';
+
+/** Which methods this deployment accepts — the UI renders exactly these. */
+export interface PaymentMethods {
+  methods: PaymentMethod[];
+}
 
 export type OrderStatus =
   | 'PLACED'

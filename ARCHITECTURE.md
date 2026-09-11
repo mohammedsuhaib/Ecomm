@@ -137,7 +137,9 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 
 ### 3.6 `payments`
 - Two payment methods, chosen by the customer at checkout: **online UPI**
-  (Paytm PG) and **Cash on Delivery (COD)**.
+  (Paytm PG) and **Pay on Delivery (`COD`)** — settled at the door in cash or
+  by UPI, so the code keeps the `COD` name while every customer- and
+  staff-facing label says "Pay on Delivery".
 - `PaymentProvider` port with implementations: `PaytmProvider` (UPI),
   `CodProvider`, and `FakeProvider` (tests/local/M3 demo). The port keeps
   methods independently swappable/addable.
@@ -195,7 +197,7 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
-  checkout (UPI via Paytm PG, or Cash on Delivery) → live tracking (SSE)
+  checkout (UPI via Paytm PG, or Pay on Delivery) → live tracking (SSE)
   → history → reorder.
 - Talks only to the backend's public REST API via the **generated
   TypeScript client** (see §6) — the frontend never knows internal
@@ -291,7 +293,7 @@ Ecomm/
 **Failure modes considered**
 | Failure | Behavior |
 |---|---|
-| Paytm PG down | UPI checkout shows a clear retry message; **Cash on Delivery remains available as a fallback**; browsing/cart unaffected; unpaid online orders auto-cancel + release stock |
+| Paytm PG down | UPI checkout shows a clear retry message; **Pay on Delivery remains available as a fallback**; browsing/cart unaffected; unpaid online orders auto-cancel + release stock |
 | SMS/OTP provider down | Existing sessions unaffected (our JWTs); staff email login unaffected |
 | A container crashes | Docker restart policy brings it back automatically |
 | Droplet/host outage | Downtime until restart; restore from nightly backup if needed (no auto-failover — accepted trade-off) |
@@ -374,7 +376,7 @@ provider port, so it is additive — no rebuild of delivered functionality.
 | 3 | Next.js for both frontends | SSR speed on low-end mobiles, PWA tooling, image pipeline | — |
 | 4 | Generated TS client from OpenAPI | Closes the Java↔TS type gap mechanically | — |
 | 5 | Firebase Auth for phone OTP, own JWTs | Don't build SMS/OTP infra; vendor swappable | Cost/SMS deliverability issues |
-| 6 | Paytm PG (UPI) + Cash on Delivery behind `PaymentProvider` | Customer picks method at checkout; COD also a fallback if UPI is down | New vendor/method requested |
+| 6 | Paytm PG (UPI) + Pay on Delivery behind `PaymentProvider` | Customer picks method at checkout; COD also a fallback if UPI is down | New vendor/method requested |
 | 7 | Single DigitalOcean droplet (Docker Compose), not AWS multi-AZ | Cost is the priority at ~100 orders/day; ~₹2–3k/mo vs ~₹9–16k; HA overkill here | Sustained growth or store becomes mission-critical → managed/HA |
 | 7a | Durability via nightly off-site backups (+ optional managed Postgres); accept no auto-failover | Protect data (non-negotiable) while trading away availability (tolerable at this scale) | Downtime starts costing real revenue |
 | 7b | Caddy reverse proxy + auto-TLS; DO Spaces for images/backups | Simple, free TLS, S3-compatible object storage | — |

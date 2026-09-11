@@ -23,7 +23,11 @@
     "previous": "← Previous",
     "next": "Next →",
     "goBack": "Go back",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "storeClosedTitle": "We’re closed right now.",
+    "storeClosedOpensTomorrow": "We open again tomorrow at {time}.",
+    "storeClosedOpensToday": "We open today at {time}.",
+    "storeClosedBrowseHint": "You can still browse and fill your cart — you’ll be able to order once we open."
   },
   "veg": {
     "vegetarian": "Vegetarian",
@@ -161,8 +165,8 @@
     "deliveryLocation": "Delivery location",
     "mapHint": "Drop a pin on the map (or use your current location). We re-check that you’re within range before placing the order.",
     "paymentMethod": "Payment method",
-    "cod": "Cash on Delivery",
-    "codHint": "Pay in cash when your order arrives.",
+    "cod": "Pay on Delivery",
+    "codHint": "Pay by cash or UPI when your order arrives.",
     "upi": "UPI",
     "upiHint": "Pay online via UPI.",
     "placeOrder": "Place order · {amount}",
@@ -178,7 +182,9 @@
     "someOutOfStockEdit": "Some items are out of stock. Please <link>edit your cart</link> first.",
     "subtotal": "Subtotal",
     "someNoLongerAvailableEdit": "Some items are no longer available. Please <link>edit your cart</link> first.",
-    "someShortageEdit": "Some items don’t have enough stock for the quantity you chose. Please <link>edit your cart</link> first."
+    "someShortageEdit": "Some items don’t have enough stock for the quantity you chose. Please <link>edit your cart</link> first.",
+    "errorStoreClosed": "We’re closed right now, so this order can’t be placed. Your cart is saved — please order once we reopen.",
+    "upiComingSoon": "Paying online in advance is coming soon. For now, pay on delivery \u2014 cash or UPI at your door."
   },
   "login": {
     "signIn": "Sign in",

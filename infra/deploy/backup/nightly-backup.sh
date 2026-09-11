@@ -27,7 +27,12 @@ echo "[backup] dumping database -> ${dumpfile}"
 pg_dump "${DB_URL_PG}" | gzip > "${dumpfile}"
 
 echo "[backup] uploading to s3://${SPACES_BUCKET}/db/"
-aws s3 cp "${dumpfile}" "s3://${SPACES_BUCKET}/db/" --endpoint-url "${SPACES_ENDPOINT}"
+# --acl private is EXPLICIT, not left to the bucket default: these objects are
+# full database dumps under timestamp-predictable keys, so a bucket accidentally
+# created with public file listing would make every customer's data enumerable
+# by date. The bucket itself must also be private — this flag is defence in
+# depth for the objects this script writes, not permission to relax the bucket.
+aws s3 cp "${dumpfile}" "s3://${SPACES_BUCKET}/db/" --endpoint-url "${SPACES_ENDPOINT}" --acl private
 
 echo "[backup] pruning backups older than ${RETENTION_DAYS} days"
 cutoff="$(date -u -d "-${RETENTION_DAYS} days" +%Y%m%d 2>/dev/null || date -u -v-"${RETENTION_DAYS}"d +%Y%m%d)"

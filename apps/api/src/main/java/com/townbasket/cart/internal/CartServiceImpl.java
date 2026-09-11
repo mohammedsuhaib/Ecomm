@@ -38,8 +38,21 @@ class CartServiceImpl implements CartService {
 
     @Override
     public CartDto createCart() {
-        CartEntity cart = carts.save(new CartEntity(UUID.randomUUID()));
+        return createCart(null);
+    }
+
+    @Override
+    public CartDto createCart(Long userIdOrNull) {
+        CartEntity cart = carts.save(userIdOrNull == null
+                ? new CartEntity(UUID.randomUUID())
+                : new CartEntity(UUID.randomUUID(), userIdOrNull));
         return toDto(cart);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CartDto> activeCartFor(Long userId) {
+        return carts.findFirstByUserIdAndCheckedOutFalseOrderByUpdatedAtDesc(userId).map(this::toDto);
     }
 
     @Override
@@ -136,7 +149,8 @@ class CartServiceImpl implements CartService {
         CartEntity guest = (guestCartId != null) ? carts.findById(guestCartId).orElse(null) : null;
         boolean guestUsable = guest != null && !guest.isCheckedOut() && !guest.getItems().isEmpty();
 
-        Optional<CartEntity> activeUserCart = carts.findFirstByUserIdAndCheckedOutFalse(userId);
+        Optional<CartEntity> activeUserCart =
+                carts.findFirstByUserIdAndCheckedOutFalseOrderByUpdatedAtDesc(userId);
 
         // No active user cart: claim the guest cart (if usable), else return/create
         // the user's empty cart.

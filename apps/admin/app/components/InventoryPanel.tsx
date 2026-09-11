@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   correctStock,
   getStockLevels,
@@ -33,38 +33,50 @@ export default function InventoryPanel() {
   const [edit, setEdit] = useState<EditState | null>(null);
   const PAGE_SIZE = 100;
 
+  // Monotonic request id: a slower response from a superseded keystroke must
+  // not overwrite a newer one (e.g. "hor" landing after "horlicks").
+  const reqSeq = useRef(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const load = useCallback(
-    async (pg: number) => {
+    async (pg: number, term: string) => {
+      const seq = ++reqSeq.current;
       setLoading(true);
       setError(null);
       try {
-        const data = await getStockLevels(1, pg, PAGE_SIZE);
+        const data = await getStockLevels(1, pg, PAGE_SIZE, term.trim() || undefined);
+        if (seq !== reqSeq.current) return; // superseded
         setItems(data.content);
         setTotal(data.totalElements);
+        // A correction can move a row into another page's bucket and strand an
+        // empty page — step back rather than showing "no stock levels found".
+        if (data.content.length === 0 && pg > 0) {
+          setPage((p) => Math.max(0, p - 1));
+        }
       } catch (err) {
+        if (seq !== reqSeq.current) return;
         if (err instanceof AuthRequiredError) {
           refreshAuth();
         } else {
           setError('Could not load stock levels.');
         }
       } finally {
-        setLoading(false);
+        if (seq === reqSeq.current) setLoading(false);
       }
     },
     [refreshAuth],
   );
 
+  // Debounce so each keystroke doesn't fire a request.
   useEffect(() => {
-    void load(page);
-  }, [page, load]);
-
-  const filtered = search
-    ? items.filter(
-        (i) =>
-          i.productName.toLowerCase().includes(search.toLowerCase()) ||
-          i.variantLabel.toLowerCase().includes(search.toLowerCase()),
-      )
-    : items;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void load(page, search);
+    }, 250);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [page, search, load]);
 
   const startEdit = (item: StockLevel) => {
     setEdit({
@@ -88,7 +100,7 @@ export default function InventoryPanel() {
     try {
       await correctStock(edit.variantId, { newOnHand, reason: edit.reason || 'physical count' });
       setEdit(null);
-      void load(page);
+      void load(page, search);
     } catch {
       setEdit((e) => e ? { ...e, saving: false, error: 'Correction failed. Try again.' } : e);
     }
@@ -100,7 +112,9 @@ export default function InventoryPanel() {
     <section className="inv-panel">
       <div className="inv-panel-head">
         <h2 className="cat-panel-title">Stock Levels</h2>
-        <span className="muted" style={{ fontSize: '0.85rem' }}>{total} variants</span>
+        <span className="muted" style={{ fontSize: '0.85rem' }}>
+          {search ? `${total} matching` : `${total} variants`}
+        </span>
       </div>
 
       <div className="prod-filters">
@@ -109,7 +123,10 @@ export default function InventoryPanel() {
           type="search"
           placeholder="Search product or variant…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setPage(0);
+            setSearch(e.target.value);
+          }}
           aria-label="Search stock"
         />
       </div>
@@ -118,8 +135,10 @@ export default function InventoryPanel() {
 
       {loading && items.length === 0 ? (
         <p className="queue-empty">Loading stock levels…</p>
-      ) : filtered.length === 0 ? (
-        <p className="queue-empty">No stock levels found.</p>
+      ) : items.length === 0 ? (
+        <p className="queue-empty">
+          {search ? `No stock matches "${search}".` : 'No stock levels found.'}
+        </p>
       ) : (
         <>
           <div className="prod-table-wrap">
@@ -136,7 +155,7 @@ export default function InventoryPanel() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((item) => {
+                {items.map((item) => {
                   const isLow = item.available <= item.lowStockThreshold;
                   const isOut = item.available <= 0;
                   return (

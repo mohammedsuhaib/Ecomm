@@ -216,7 +216,14 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   }
 
   if (!order) {
-    return <p className="empty-state">{t('loadingOrder')}</p>;
+    return (
+      <div aria-busy="true" aria-label={t('loadingOrder')}>
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+        <div className="skeleton-row" />
+      </div>
+    );
   }
 
   const cancelled = order.status === 'CANCELLED';

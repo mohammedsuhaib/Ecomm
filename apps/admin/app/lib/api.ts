@@ -642,8 +642,16 @@ export function getStockLevels(
   storeId = 1,
   page = 0,
   size = 100,
+  q?: string,
 ): Promise<Page<StockLevel>> {
-  return apiFetch<Page<StockLevel>>('/admin/inventory/stock', { storeId, page, size });
+  // `q` is applied server-side across the whole store, so totalElements (and
+  // therefore the pager) describes the filtered set.
+  return apiFetch<Page<StockLevel>>('/admin/inventory/stock', {
+    storeId,
+    page,
+    size,
+    ...(q ? { q } : {}),
+  });
 }
 
 /** POST /admin/inventory/stock/{variantId}/correction — set on_hand to absolute value. */

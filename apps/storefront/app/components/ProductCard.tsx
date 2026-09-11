@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import type { Product } from '@/app/lib/types';
 import { productDisplayName } from '@/app/lib/productName';
+import { displayVariant, isBuyable } from '@/app/lib/variants';
 import VegMarker from './VegMarker';
 import PriceTag from './PriceTag';
 import QuickAddButton from './QuickAddButton';
@@ -9,23 +10,21 @@ import ProductThumb from './ProductThumb';
 
 /**
  * Compact product tile for grids. Links to the detail page and previews the
- * cheapest available variant's price. Cart actions live on the detail page.
+ * price of the SAME variant the quick-add button adds (see lib/variants.ts) —
+ * a price from one variant with a "+" that adds a different one reads as the
+ * cart changing the customer's choice.
  */
 export default function ProductCard({ product }: { product: Product }) {
   const t = useTranslations('product');
   const locale = useLocale();
   const displayName = productDisplayName(product, locale);
-  // Show the lowest-priced variant as the "from" price on the card.
   const variants = product.variants ?? [];
-  const cheapest = variants.reduce<(typeof variants)[number] | null>(
-    (min, v) => (min == null || v.sellingPrice < min.sellingPrice ? v : min),
-    null,
-  );
+  // Priced variant = the one quick-add would put in the cart (cheapest buyable),
+  // falling back to cheapest overall only when nothing is sellable.
+  const priced = displayVariant(product);
   // Out of stock = product is on, has variants, but none are sellable right now.
   const outOfStock =
-    product.available &&
-    variants.length > 0 &&
-    !variants.some((v) => v.available && v.availableStock > 0);
+    product.available && variants.length > 0 && !variants.some(isBuyable);
 
   return (
     <Link
@@ -45,11 +44,8 @@ export default function ProductCard({ product }: { product: Product }) {
           <VegMarker veg={product.vegMarker} />
           <span className="name">{displayName}</span>
         </span>
-        {cheapest ? (
-          <PriceTag
-            sellingPrice={cheapest.sellingPrice}
-            mrp={cheapest.mrp}
-          />
+        {priced ? (
+          <PriceTag sellingPrice={priced.sellingPrice} mrp={priced.mrp} />
         ) : null}
         {!product.available ? (
           <span className="unavailable-tag">{t('currentlyUnavailable')}</span>

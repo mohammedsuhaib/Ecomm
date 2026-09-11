@@ -73,4 +73,64 @@ class CartMergeIntegrationTest extends AbstractIntegrationTest {
         assertThat(merged).isNotNull();
         assertThat(merged.items()).isEmpty();
     }
+
+    /**
+     * The cross-device flow that used to lose the basket: a cart created WHILE
+     * LOGGED IN was anonymous (only the login-time merge ever set user_id), so a
+     * second device — with no cartId in ITS localStorage — had no way to find
+     * it. Ownership at creation + activeCartFor() is the fix.
+     */
+    @Test
+    void cartCreatedWhileLoggedInIsFoundFromAnotherDevice() {
+        Long userId = newUser("9777700010");
+        ProductVariantDto v = anyVariant();
+
+        // Device 1: logged-in customer's first add creates the cart.
+        UUID phoneCart = cartService.createCart(userId).cartId();
+        cartService.addItem(phoneCart, v.id(), 2);
+
+        // Device 2: fresh browser, no local cartId — the login flow asks the server.
+        CartDto found = cartService.activeCartFor(userId).orElseThrow();
+        assertThat(found.cartId()).isEqualTo(phoneCart);
+        assertThat(found.itemCount()).isEqualTo(2);
+    }
+
+    @Test
+    void activeCartPrefersTheMostRecentlyTouchedOpenCart() {
+        Long userId = newUser("9777700011");
+        ProductVariantDto v = anyVariant();
+
+        UUID older = cartService.createCart(userId).cartId();
+        UUID newer = cartService.createCart(userId).cartId();
+        // Touch the older one LAST — recency is by activity, not creation order,
+        // so the basket the customer actually used wins.
+        cartService.addItem(newer, v.id(), 1);
+        cartService.addItem(older, v.id(), 5);
+
+        assertThat(cartService.activeCartFor(userId).orElseThrow().cartId()).isEqualTo(older);
+    }
+
+    @Test
+    void activeCartIgnoresCheckedOutCartsAndOtherUsers() {
+        Long userId = newUser("9777700012");
+        Long otherUser = newUser("9777700013");
+        ProductVariantDto v = anyVariant();
+
+        UUID ordered = cartService.createCart(userId).cartId();
+        cartService.addItem(ordered, v.id(), 1);
+        cartService.markCheckedOut(ordered);
+        cartService.createCart(otherUser);
+
+        // An ordered cart is history, and another user's cart is not "mine".
+        assertThat(cartService.activeCartFor(userId)).isEmpty();
+    }
+
+    @Test
+    void guestCreatedCartStaysUnowned() {
+        Long userId = newUser("9777700014");
+        cartService.createCart((Long) null);
+
+        // A guest cart must never surface as anyone's cart until merge claims it.
+        assertThat(cartService.activeCartFor(userId)).isEmpty();
+    }
 }

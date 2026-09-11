@@ -76,6 +76,10 @@ class SecurityConfig {
                         // no guest checkout. GET /orders/{id} + /stream stay public (tracking).
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/reorder").authenticated()
+                        // /carts/mine before the catch-all: without a rule it is
+                        // permitAll and the principal is null for guests, which
+                        // would read as "no cart" instead of 401.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/carts/mine").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/carts/*/merge").authenticated()
                         // A push subscription is stored against the customer's account,
                         // so registering one requires a login. Removing one is authorised

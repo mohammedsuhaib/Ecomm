@@ -17,6 +17,7 @@ import type {
   Category,
   Order,
   Page,
+  PaymentMethods,
   PlaceOrderRequest,
   Product,
   SavedAddress,
@@ -172,6 +173,15 @@ async function apiMutate<T>(
 }
 
 // ---- Endpoint functions -------------------------------------------------
+
+/**
+ * GET /payments/methods — the methods a customer may choose. Online UPI only
+ * appears once a live gateway is configured, so the UI never offers a method
+ * the server would refuse.
+ */
+export function getPaymentMethods(opts?: FetchOpts): Promise<PaymentMethods> {
+  return apiFetch<PaymentMethods>('/payments/methods', undefined, opts);
+}
 
 /** GET /store — store profile, hours, radius, min order value. */
 export function getStore(opts?: FetchOpts): Promise<Store> {
@@ -564,6 +574,20 @@ export function reorder(orderId: string): Promise<Cart> {
 }
 
 // ---- Cart merge on login (M4, AUTHENTICATED) ----------------------------
+
+/**
+ * GET /carts/mine — the caller's most recently used open cart, or null when
+ * they have none. How a device with no local cartId (a new phone, another
+ * computer) picks the basket up after login.
+ */
+export async function getMyCart(): Promise<Cart | null> {
+  try {
+    return await authGet<Cart>('/carts/mine');
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
 
 /**
  * POST /carts/{cartId}/merge — merge the guest cart into the caller's active
