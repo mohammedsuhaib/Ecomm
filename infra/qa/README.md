@@ -73,7 +73,8 @@ secrets (Settings → Secrets and variables → Actions):
 | `QA_DROPLET_SSH_KEY` | Private key with SSH access to the QA droplet |
 | `QA_DROPLET_HOST` | QA droplet public IP or hostname |
 | `QA_DROPLET_USER` (optional) | SSH user, defaults to `root` |
-| `QA_DROPLET_REPO_DIR` (optional) | Repo path on the droplet, defaults to `Ecomm` in `$HOME` |
+| `QA_DROPLET_REPO_DIR` (optional) | Repo path on the droplet, defaults to `Ecomm` under `$HOME` (absolute paths honored as-is) |
+| `QA_DROPLET_HOST_KEY` (optional, recommended) | Output of `ssh-keyscan -t ed25519 <droplet-ip>`; when set, SSH verifies the droplet's host key on every run instead of trusting whatever answers on first contact |
 
 Note the workflow deploys whatever is on `main`, whether or not CI has
 finished — a broken build simply leaves QA on the previous version.
