@@ -12,7 +12,13 @@
 #   DROPLET_HOST     — droplet public IP or hostname
 # Optional:
 #   DROPLET_USER     — SSH user (defaults to root)
-#   DROPLET_REPO_DIR — repo path on the droplet, relative to $HOME (defaults to Ecomm)
+#   DROPLET_REPO_DIR — repo path on the droplet (defaults to Ecomm under $HOME;
+#                      absolute paths are honored as-is)
+#   DROPLET_HOST_KEY — the droplet's SSH host key (output of
+#                      `ssh-keyscan -t ed25519 <droplet-ip>`). When set, SSH
+#                      verifies the host key instead of trusting on first use —
+#                      recommended, since ephemeral runners start with an empty
+#                      known_hosts and would otherwise trust whatever answers.
 #
 # Optional repository VARIABLES override the public build-time frontend config
 # (NEXT_PUBLIC_FIREBASE_*, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY); the defaults below
@@ -179,10 +185,20 @@ jobs:
       - name: Set up SSH key
         env:
           KEY: ${{ secrets.DROPLET_SSH_KEY }}
+          HOST_KEY: ${{ secrets.DROPLET_HOST_KEY }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # With DROPLET_HOST_KEY set, pin the host key properly. Without it,
+          # accept-new degrades to trust-on-first-use on EVERY run (runners
+          # start with an empty known_hosts) — connectivity, not authentication.
+          if [ -n "$HOST_KEY" ]; then
+            printf '%s\n' "$HOST_KEY" >> ~/.ssh/known_hosts
+            echo "SSH_STRICT=yes" >> "$GITHUB_ENV"
+          else
+            echo "SSH_STRICT=accept-new" >> "$GITHUB_ENV"
+          fi
 
       - name: Compute registry and tag
         id: meta
@@ -200,7 +216,7 @@ jobs:
           # The token only lives for this job — the droplet keeps no usable
           # registry credential afterwards (manual pulls need a PAT login).
           printf '%s' "$TOKEN" | ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=accept-new \
+              -o StrictHostKeyChecking="$SSH_STRICT" \
               -o ConnectTimeout=15 \
               "$USER@$HOST" "docker login ghcr.io -u '$ACTOR' --password-stdin"
 
@@ -212,12 +228,20 @@ jobs:
           REGISTRY: ${{ steps.meta.outputs.registry }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
+          # printf %q survives the SSH hop: the remote login shell re-parses
+          # the command string, so plain double quotes would not protect a
+          # REPO_DIR containing spaces or shell metacharacters.
           ssh -i ~/.ssh/deploy_key \
-              -o StrictHostKeyChecking=accept-new \
+              -o StrictHostKeyChecking="$SSH_STRICT" \
               -o ConnectTimeout=15 \
-              "$USER@$HOST" REPO_DIR="$REPO_DIR" REGISTRY="$REGISTRY" TAG="$TAG" 'bash -s' <<'REMOTE'
+              "$USER@$HOST" \
+              "REPO_DIR=$(printf '%q' "$REPO_DIR") REGISTRY=$(printf '%q' "$REGISTRY") TAG=$(printf '%q' "$TAG") bash -s" <<'REMOTE'
             set -euo pipefail
-            cd "$HOME/$REPO_DIR"
+            # An absolute DROPLET_REPO_DIR is honored as-is; relative is under $HOME.
+            case "$REPO_DIR" in
+              /*) cd "$REPO_DIR" ;;
+              *)  cd "$HOME/$REPO_DIR" ;;
+            esac
             # Deploys always track main — the checkout is only the source of
             # the compose file, Caddyfile and .env; images come from GHCR.
             git fetch origin main
@@ -241,14 +265,20 @@ jobs:
         env:
           HOST: ${{ secrets.DROPLET_HOST }}
         run: |
-          # Hit the droplet IP with the domain as Host/SNI so DNS is not a
-          # dependency. Retries cover container start-up; the API gets the
-          # longest window (Spring Boot + Flyway migrations).
+          # Hit the droplet directly with the domain as Host/SNI so the app
+          # subdomains' DNS is not a dependency. --connect-to (not --resolve)
+          # because DROPLET_HOST may be a hostname; --resolve only accepts
+          # numeric IPs and silently ignores anything else. Retries cover
+          # container start-up; the API gets the longest window (Spring Boot +
+          # Flyway migrations).
           check() {
             local host=$1 path=$2 tries=${3:-6} code=000
             for _ in $(seq 1 "$tries"); do
+              # No || fallback on purpose: curl prints its -w '%{http_code}'
+              # ('000' when no response) even on nonzero exit, and an appended
+              # echo would concatenate ('200' + '000' = '200000').
               code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 \
-                     --resolve "$host:443:$HOST" "https://$host$path" || echo 000)
+                     --connect-to "$host:443:$HOST:443" "https://$host$path" || true)
               if [ "$code" = "200" ]; then
                 echo "$host$path -> HTTP $code"
                 return 0

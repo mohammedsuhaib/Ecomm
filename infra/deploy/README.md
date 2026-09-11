@@ -61,8 +61,12 @@ REGISTRY=ghcr.io/<owner> TAG=sha-<old-commit> docker compose -f docker-compose.p
 
 Same secrets the holding-site deploy already uses: `DROPLET_SSH_KEY`,
 `DROPLET_HOST`; optional `DROPLET_USER` (default `root`) and
-`DROPLET_REPO_DIR` (default `Ecomm`, relative to `$HOME`). The workflow fails
-fast with a clear message when they are missing. Optional repo **variables**
+`DROPLET_REPO_DIR` (default `Ecomm` under `$HOME`; absolute paths are honored
+as-is). The workflow fails fast with a clear message when they are missing.
+Also recommended: `DROPLET_HOST_KEY` — the output of
+`ssh-keyscan -t ed25519 <droplet-ip>` — which makes SSH verify the droplet's
+host key on every run; without it, each ephemeral runner trusts whatever host
+answers on first contact. Optional repo **variables**
 `NEXT_PUBLIC_FIREBASE_*` / `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` override the
 public frontend build config (defaults match `.env.example`).
 
