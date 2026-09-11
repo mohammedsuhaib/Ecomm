@@ -17,6 +17,11 @@ import com.townbasket.shared.BusinessRuleException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -212,6 +217,56 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
                     assertThat(s.deliveries()).isGreaterThanOrEqualTo(1);
                     assertThat(s.amount()).isGreaterThanOrEqualTo(delivered.total());
                 });
+    }
+
+    @Test
+    void concurrentDeliveredTransitionsCommitExactlyOnce() throws Exception {
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, 5);
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", null);
+        Long id = order.id();
+        orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+                .orElseThrow().deliveryOtp();
+
+        // A rider double-tapping "confirm delivery" on a flaky connection: two
+        // identical DELIVERED transitions race. Exactly one may commit — the
+        // loser fails (optimistic lock / unique index / illegal-transition check,
+        // depending on interleaving) and its transaction rolls back, taking the
+        // duplicate event row AND the duplicate outbox publications (inventory
+        // commit, COD->PAID, notifications) with it.
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        Callable<Boolean> deliver = () -> {
+            barrier.await();
+            try {
+                orderService.transition(id, new TransitionRequest("DELIVERED", otp, null));
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        };
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<Boolean>> results = pool.invokeAll(List.of(deliver, deliver));
+            int successes = 0;
+            for (Future<Boolean> f : results) {
+                if (f.get()) {
+                    successes++;
+                }
+            }
+            assertThat(successes).isEqualTo(1);
+        } finally {
+            pool.shutdown();
+        }
+
+        OrderDto after = orderService.getOrderByToken(UUID.fromString(order.trackingToken())).orElseThrow();
+        assertThat(after.status()).isEqualTo("DELIVERED");
+        assertThat(after.paymentStatus()).isEqualTo("PAID");
+        // Exactly one DELIVERED row in the timeline (= orders.order_events).
+        assertThat(after.timeline()).extracting(OrderTimelineEntryDto::toStatus)
+                .filteredOn("DELIVERED"::equals)
+                .hasSize(1);
     }
 
     @Test

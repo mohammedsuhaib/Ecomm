@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +30,14 @@ class OrderEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Optimistic lock: of two concurrent writes to the same order (e.g. a rider
+    // double-tapping "confirm delivery"), only one commits — the loser rolls
+    // back, taking its duplicate event row and outbox publications with it,
+    // and surfaces as a 409 (see GlobalExceptionHandler).
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Column(name = "cart_id")
     private UUID cartId;
