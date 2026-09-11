@@ -1,0 +1,29 @@
+apps/api/src/main/java/com/townbasket/GlobalExceptionHandler.java
+  s_5bb89e051537ec::t_5346a51e96529d 10
+  s_5bb89e051537ec::t_e51e0510be047e 78-84,86-87
+apps/api/src/main/resources/db/migration/orders/V6_7__orders_optimistic_lock.sql
+  s_5bb89e051537ec::t_3078abdabbaa36 1-21
+apps/api/src/main/java/com/townbasket/orders/internal/OrderEntity.java
+  s_5bb89e051537ec::t_c9794ac3914fc3 14
+  s_5bb89e051537ec::t_07a89cb673a291 34-41
+apps/api/src/test/java/com/townbasket/orders/OrderCheckoutIntegrationTest.java
+  s_5bb89e051537ec::t_c4bfc879b87781 221-269
+  s_5bb89e051537ec::t_80092f97371d68 20-24
+  s_5bb89e051537ec::t_90973aeea524c1 220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ac707cc91c023ff9a8b1263de9ec2a9e7bca7b7d",
+  "prompts": {},
+  "sessions": {
+    "s_5bb89e051537ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c31fa5b6-81a0-4216-b827-03ba571e1856",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Mohammed Suhaib <mohammed.suhaib@boomi.com>"
+    }
+  }
+}
