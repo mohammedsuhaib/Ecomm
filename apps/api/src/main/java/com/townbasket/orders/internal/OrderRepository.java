@@ -27,16 +27,32 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
      * date of the DELIVERED transition — the store operates 08:00–21:00 IST,
      * a window inside which the UTC and IST calendar dates always coincide,
      * so no zone shift needed.
+     *
+     * <p>The inner subquery collapses the events to one DELIVERED timestamp
+     * per order (the first): {@code transition()} has no locking, so two
+     * concurrent DELIVERED requests can both commit an event row, and without
+     * the dedup each such order would count twice — doubling its money in
+     * this report.
+     *
+     * <p>Note this metric is delivered-order value by <em>delivery</em> date;
+     * it deliberately differs from the analytics module's daily revenue,
+     * which buckets by placed-at (IST) and excludes CANCELLED orders. The two
+     * figures are not expected to reconcile.
      */
     @Query(value = """
-            SELECT o.assigned_agent_id AS "agentId",
-                   CAST(e.at AS date)  AS "day",
-                   COUNT(*)            AS "deliveries",
-                   SUM(o.total)        AS "amount"
-            FROM orders.order_events e
-            JOIN orders.orders o ON o.id = e.order_id
-            WHERE e.to_status = 'DELIVERED' AND o.assigned_agent_id IS NOT NULL
-            GROUP BY o.assigned_agent_id, CAST(e.at AS date)
+            SELECT o.assigned_agent_id           AS "agentId",
+                   CAST(d.delivered_at AS date)  AS "day",
+                   COUNT(*)                      AS "deliveries",
+                   SUM(o.total)                  AS "amount"
+            FROM (
+                SELECT order_id, MIN(at) AS delivered_at
+                FROM orders.order_events
+                WHERE to_status = 'DELIVERED'
+                GROUP BY order_id
+            ) d
+            JOIN orders.orders o ON o.id = d.order_id
+            WHERE o.assigned_agent_id IS NOT NULL
+            GROUP BY o.assigned_agent_id, CAST(d.delivered_at AS date)
             ORDER BY "day" DESC, "agentId"
             """, nativeQuery = true)
     List<AgentDeliveryRow> countDeliveredByAgentAndDay();

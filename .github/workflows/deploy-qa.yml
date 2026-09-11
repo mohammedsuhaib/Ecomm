@@ -1,12 +1,17 @@
 # Auto-redeploy the QA stack (qa*.town-basket.com) when app or QA-infra files
-# change on main. The QA droplet builds the images from source (see
-# infra/qa/), so a deploy is: git pull + compose up --build. If the build
+# change on main AND CI is green — a commit that fails tests or the Modulith
+# boundary check never reaches QA (the on-droplet image build runs
+# -DskipTests, so this gate is the only thing standing between a red test
+# suite and testers). The QA droplet builds the images from source (see
+# infra/qa/), so a deploy is: git fetch + compose up --build. If the build
 # fails, the previously running containers stay up — QA keeps serving the old
 # version and this workflow goes red.
 #
 # One-time droplet setup (DNS, firewall, infra/qa/.env) is manual and
 # documented in infra/qa/README.md; this workflow only refreshes an already
-# provisioned box and fails fast with a clear message if .env is missing.
+# provisioned box and fails fast with a clear message if .env is missing, the
+# clone's origin remote can't be fetched non-interactively, or the basic-auth
+# hash in .env has been corrupted by unquoted $-interpolation.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
 #   QA_DROPLET_SSH_KEY  — private key with SSH access to the QA droplet (PEM/OpenSSH)
@@ -23,18 +28,14 @@
 #
 # The job fails fast with a clear message if secrets are missing, and can be
 # run manually from the Actions tab (workflow_dispatch) to test the setup.
+# (workflow_run only fires once this file is on the default branch.)
 name: Deploy QA
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'infra/qa/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/deploy-qa.yml'
   workflow_dispatch:
 
 # Never run two deploys at once; queue instead of cancelling (cancelling would
@@ -43,24 +44,61 @@ concurrency:
   group: deploy-qa
   cancel-in-progress: false
 
+env:
+  # For workflow_run, github.sha can lag behind the run that triggered us —
+  # always deploy the exact commit CI validated.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
 jobs:
-  deploy:
+  # ───── Decide whether this main change needs a QA deploy ─────
+  changes:
+    name: Check changed paths
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    # From-source build on the droplet: Maven + three Next builds. Warm-cache
-    # runs are much faster; 30 min covers a cold rebuild with headroom.
-    timeout-minutes: 30
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
     steps:
-      - name: Check deploy secrets are configured
-        env:
-          KEY: ${{ secrets.QA_DROPLET_SSH_KEY }}
-          HOST: ${{ secrets.QA_DROPLET_HOST }}
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 0
+
+      - name: Skip changes QA does not serve
+        id: decide
         run: |
-          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
-            echo "::error::QA_DROPLET_SSH_KEY and/or QA_DROPLET_HOST secrets are not set." \
-                 "Add them under Settings → Secrets and variables → Actions to enable QA auto-deploy."
-            exit 1
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — deploying."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # HEAD^1..HEAD covers the whole PR for merge and squash commits (the
+          # usual ways main moves). If the diff can't be computed, deploy —
+          # err on the side of deploying.
+          if ! changed=$(git diff --name-only HEAD^1 HEAD); then
+            echo "Could not diff — deploying."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Changed files:"
+          echo "$changed"
+          if echo "$changed" | grep -qE '^(apps/|packages/|infra/qa/|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.github/workflows/deploy-qa\.yml)'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No app/QA files changed — skipping deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
+  # ───── Build + restart on the droplet, then verify ─────
+  deploy:
+    name: Deploy to QA droplet
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    # From-source build on the droplet: Maven + three Next builds. Warm-cache
+    # runs are much faster; 35 min covers a cold rebuild plus the in-network
+    # health probes with headroom.
+    timeout-minutes: 35
+    steps:
       - name: Deploy over SSH
         env:
           KEY: ${{ secrets.QA_DROPLET_SSH_KEY }}
@@ -69,6 +107,12 @@ jobs:
           USER: ${{ secrets.QA_DROPLET_USER || 'root' }}
           REPO_DIR: ${{ secrets.QA_DROPLET_REPO_DIR || 'Ecomm' }}
         run: |
+          if [ -z "$KEY" ] || [ -z "$HOST" ]; then
+            echo "::error::QA_DROPLET_SSH_KEY and/or QA_DROPLET_HOST secrets are not set." \
+                 "Add them under Settings → Secrets and variables → Actions to enable QA auto-deploy."
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -84,6 +128,15 @@ jobs:
             STRICT=accept-new
           fi
 
+          # The droplet's stdout (git, Maven, pnpm build banners — untrusted
+          # dependency output included) streams into this step, where the
+          # runner would parse ::workflow commands. Suspend that around the
+          # SSH session; the remote script prints plain "ERROR:" lines that
+          # stay readable in the log.
+          guard="stop-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          echo "::stop-commands::$guard"
+          rc=0
+
           # ServerAlive keeps the connection open through the long quiet
           # stretches of the on-droplet Maven/Next builds. printf %q survives
           # the SSH hop: the remote login shell re-parses the command string,
@@ -94,7 +147,8 @@ jobs:
               -o ConnectTimeout=15 \
               -o ServerAliveInterval=30 \
               -o ServerAliveCountMax=10 \
-              "$USER@$HOST" "REPO_DIR=$(printf '%q' "$REPO_DIR") bash -s" <<'REMOTE'
+              "$USER@$HOST" \
+              "REPO_DIR=$(printf '%q' "$REPO_DIR") DEPLOY_SHA=$(printf '%q' "$DEPLOY_SHA") bash -s" <<'REMOTE' || rc=$?
             set -euo pipefail
             # An absolute QA_DROPLET_REPO_DIR is honored as-is; relative is
             # under $HOME.
@@ -102,51 +156,142 @@ jobs:
               /*) cd "$REPO_DIR" ;;
               *)  cd "$HOME/$REPO_DIR" ;;
             esac
-            # The droplet may still be on the original feature-branch clone —
-            # QA always tracks main.
-            git fetch origin main
-            git checkout main 2>/dev/null || git checkout -b main origin/main
-            git reset --hard origin/main
+
+            # A droplet provisioned before the deploy-key instructions was
+            # cloned over HTTPS; on this private repo a non-interactive fetch
+            # then dies with a confusing credentials error. Fail fast with the
+            # migration steps instead.
+            origin=$(git remote get-url origin)
+            case "$origin" in
+              git@github.com:*|ssh://git@github.com/*) : ;;
+              *)
+                echo "ERROR: origin remote is '$origin', which cannot be fetched" \
+                     "non-interactively (private repo, no stored credentials)." \
+                     "Migrate the droplet to the read-only deploy key — see" \
+                     "'Existing droplet' in infra/qa/README.md (add a deploy key," \
+                     "ssh-keyscan github.com, git remote set-url origin" \
+                     "git@github.com:<owner>/<repo>.git), then re-run."
+                exit 1
+                ;;
+            esac
+
+            # Deploy the exact commit CI validated (main may have moved since).
+            # -f -B: always end on main at that commit — a plain -b fails
+            # whenever a local main already exists, and -f overwrites local
+            # edits to tracked files (the droplet is CD-managed; hotfixes made
+            # directly on it are overwritten by the next deploy — see
+            # infra/qa/README.md). Untracked files like .env are untouched.
+            git fetch origin "$DEPLOY_SHA"
+            git checkout -f -B main "$DEPLOY_SHA"
+
             cd infra/qa
             if [ ! -f .env ]; then
-              echo "::error::infra/qa/.env is missing on the droplet — finish the" \
+              echo "ERROR: infra/qa/.env is missing on the droplet — finish the" \
                    "one-time setup in infra/qa/README.md before enabling auto-deploy."
               exit 1
             fi
+
+            # Detect the silent bcrypt corruption that compose's env-file
+            # $-interpolation inflicts on an UNQUOTED hash: the resolved value
+            # must still look like a full-length bcrypt hash. Without this, a
+            # corrupted hash locks every tester out while the external 401
+            # check still reports green. (compose config escapes $ as $$ in
+            # its output — undo that before checking.)
+            resolved=$(docker compose -f docker-compose.qa.yml config \
+                       | sed -n 's/^ *QA_BASIC_AUTH_HASH:[[:space:]]*//p' | head -n 1)
+            resolved=${resolved%\"}; resolved=${resolved#\"}
+            resolved=${resolved%\'}; resolved=${resolved#\'}
+            resolved=$(printf '%s' "$resolved" | sed 's/\$\$/$/g')
+            case "$resolved" in
+              \$2[aby]\$*) prefix_ok=1 ;;
+              *)           prefix_ok=0 ;;
+            esac
+            if [ "$prefix_ok" != 1 ] || [ "${#resolved}" -lt 59 ]; then
+              echo "ERROR: QA_BASIC_AUTH_HASH resolves to a ${#resolved}-char value" \
+                   "that is not a bcrypt hash — an unquoted hash in .env is" \
+                   "corrupted by compose's \$-interpolation. Wrap the value in" \
+                   "single quotes (QA_BASIC_AUTH_HASH='\$2a\$...') per" \
+                   "infra/qa/README.md, then re-run."
+              exit 1
+            fi
+
             docker compose -f docker-compose.qa.yml up -d --build
+
+            # `up -d` never recreates Caddy for a changed bind-mounted
+            # Caddyfile: the single-file mount keeps tracking the OLD inode
+            # after git replaces the file, and Caddy never reloads on its own —
+            # a merged Caddyfile change would otherwise deploy green without
+            # taking effect. Recreating costs a few seconds of proxy downtime
+            # (fine for QA); certs persist in the caddy_data volume.
+            docker compose -f docker-compose.qa.yml up -d --force-recreate --no-deps caddy
+
+            # The public 401 check below can't see past Caddy's basic_auth
+            # (Caddy answers 401 itself even when an upstream is dead), so
+            # probe each app upstream from inside the compose network. The
+            # API is covered by the external /actuator/health poll.
+            for target in storefront:3000 admin:3001 delivery:3002; do
+              up=""
+              for _ in $(seq 1 12); do
+                if docker compose -f docker-compose.qa.yml exec -T caddy \
+                     wget -q -O /dev/null -T 5 "http://$target/"; then
+                  up=1
+                  break
+                fi
+                sleep 5
+              done
+              if [ -z "$up" ]; then
+                echo "ERROR: upstream $target is not answering inside the compose" \
+                     "network after deploy — its container is missing or crash-looping."
+                exit 1
+              fi
+              echo "upstream $target OK"
+            done
+
             # From-source rebuilds strand the previous images as dangling
             # layers; prune them so the small droplet's disk doesn't fill up.
             docker image prune -f
-            echo "Deployed $(git -C ../.. rev-parse --short HEAD) to QA"
+            echo "Deployed $DEPLOY_SHA to QA"
           REMOTE
+
+          echo "::$guard::"
+          if [ "$rc" != 0 ]; then
+            echo "::error::QA deploy failed on the droplet (exit $rc) — see the ERROR line in the log above."
+            exit "$rc"
+          fi
 
       - name: Verify QA responds
         env:
           HOST: ${{ secrets.QA_DROPLET_HOST }}
         run: |
-          # The API container was just replaced; Spring Boot + Flyway need a
-          # moment to come up. Poll the (permitAll) actuator health endpoint,
-          # pinned to the droplet so the qa-* DNS records are not a dependency.
-          # --connect-to (not --resolve) because QA_DROPLET_HOST may be a
-          # hostname; --resolve only accepts numeric IPs and silently ignores
-          # anything else. No || fallback on the code capture on purpose: curl
-          # prints its -w '%{http_code}' ('000' when no response) even on
-          # nonzero exit, and an appended echo would concatenate onto it
-          # ('200' + '000' = '200000').
-          for i in $(seq 1 18); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-                   --connect-to qa-api.town-basket.com:443:"$HOST":443 \
-                   https://qa-api.town-basket.com/actuator/health || true)
-            echo "attempt $i: /actuator/health -> HTTP $code"
-            [ "$code" = "200" ] && break
-            sleep 10
-          done
-          [ "$code" = "200" ] || { echo "::error::QA API not healthy after deploy"; exit 1; }
+          # Hit the droplet directly with the domain as Host/SNI so the qa-*
+          # DNS records are not a dependency. --connect-to (not --resolve)
+          # because QA_DROPLET_HOST may be a hostname; --resolve only accepts
+          # numeric IPs and silently ignores anything else. No || fallback on
+          # the code capture on purpose: curl prints its -w '%{http_code}'
+          # ('000' when no response) even on nonzero exit, and an appended
+          # echo would concatenate onto it ('200' + '000' = '200000').
+          check() {
+            local host=$1 path=$2 want=$3 tries=$4 code=000
+            for _ in $(seq 1 "$tries"); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+                     --connect-to "$host:443:$HOST:443" "https://$host$path" || true)
+              if [ "$code" = "$want" ]; then
+                echo "$host$path -> HTTP $code"
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::$host$path returned HTTP $code (wanted $want) after $tries attempts"
+            return 1
+          }
 
-          # The storefront host must answer — and answer 401, proving the
-          # basic-auth gate in front of the QA apps is still in place.
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
-                 --connect-to qa.town-basket.com:443:"$HOST":443 \
-                 https://qa.town-basket.com/ || true)
-          echo "storefront (no credentials) -> HTTP $code"
-          [ "$code" = "401" ] || { echo "::error::QA storefront should demand basic auth (got HTTP $code)"; exit 1; }
+          # Spring Boot + Flyway on the smallest droplet can need several
+          # minutes right after a cold from-source build has been thrashing
+          # swap — 30 x 10s keeps a healthy-but-slow start from reading red.
+          check qa-api.town-basket.com /actuator/health 200 30
+
+          # 401 without credentials proves Caddy's basic-auth gate is still in
+          # place (the app upstreams themselves were already probed from inside
+          # the network during the deploy step). Retried because on a fresh
+          # droplet this host's ACME certificate can lag the API's.
+          check qa.town-basket.com / 401 6

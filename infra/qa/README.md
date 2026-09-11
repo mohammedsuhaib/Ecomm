@@ -43,13 +43,17 @@ indexed.
    ssh-keyscan github.com >> ~/.ssh/known_hosts
    git clone git@github.com:mohammedsuhaib/Ecomm.git && cd Ecomm/infra/qa
    cp .env.example .env && chmod 600 .env
-   # fill DB_PASSWORD, JWT_SECRET, and the basic-auth hash:
-   docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password'
+   # fill DB_PASSWORD and JWT_SECRET, then let this command append the
+   # basic-auth hash CORRECTLY QUOTED (delete the placeholder line first):
+   printf "QA_BASIC_AUTH_HASH='%s'\n" \
+     "$(docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password')" >> .env
    ```
-   Paste the resulting `$2a$...` hash into `QA_BASIC_AUTH_HASH` **wrapped in
-   single quotes** (`QA_BASIC_AUTH_HASH='$2a$...'`). Unquoted, Compose's
+   The single quotes around the hash are load-bearing: unquoted, Compose's
    env-file interpolation expands the hash's `$`-sequences as variables and
-   silently corrupts it — basic auth then rejects every password.
+   silently corrupts it — basic auth then rejects every password. Letting the
+   command above emit the line keeps the quoting out of human hands, and the
+   deploy workflow re-verifies the resolved hash before every `up`, failing
+   with a clear error if it has been corrupted.
 5. **Launch**:
    ```bash
    docker compose -f docker-compose.qa.yml up -d --build
@@ -59,14 +63,20 @@ indexed.
 
 ## Deploying a new version to QA
 
-**Automatic (CD):** `.github/workflows/deploy-qa.yml` redeploys QA on every
-merge to `main` that touches `apps/`, `packages/`, or `infra/qa/` (and can be
-run manually from the Actions tab). It SSHes into the droplet, resets the
-clone to `origin/main`, and runs the compose build; afterwards it polls
-`qa-api`'s `/actuator/health` and confirms the storefront still demands basic
-auth. If the build fails, the previous containers keep running — QA stays on
-the old version and the workflow goes red. Enable it with two repository
-secrets (Settings → Secrets and variables → Actions):
+**Automatic (CD):** `.github/workflows/deploy-qa.yml` redeploys QA when the
+`CI` workflow finishes **green** on a `main` commit that touches `apps/`,
+`packages/`, or `infra/qa/` (or on manual dispatch from the Actions tab) — a
+commit that fails tests or the Modulith boundary check never reaches QA. The
+workflow SSHes into the droplet, checks out the exact CI-validated commit,
+verifies the basic-auth hash survived `.env` interpolation, runs the compose
+build, recreates Caddy (so Caddyfile changes actually apply), and probes each
+app upstream from inside the compose network; afterwards it polls `qa-api`'s
+`/actuator/health` and confirms the storefront still demands basic auth. If
+the build fails, the previous containers keep running — QA stays on the old
+version and the workflow goes red. Deploys hard-reset the clone: **edits made
+directly on the droplet to tracked files are overwritten** by the next
+deploy, so commit hotfixes instead of patching the box. Enable it with two
+repository secrets (Settings → Secrets and variables → Actions):
 
 | Secret | Value |
 |---|---|
@@ -76,8 +86,22 @@ secrets (Settings → Secrets and variables → Actions):
 | `QA_DROPLET_REPO_DIR` (optional) | Repo path on the droplet, defaults to `Ecomm` under `$HOME` (absolute paths honored as-is) |
 | `QA_DROPLET_HOST_KEY` (optional, recommended) | Output of `ssh-keyscan -t ed25519 <droplet-ip>`; when set, SSH verifies the droplet's host key on every run instead of trusting whatever answers on first contact |
 
-Note the workflow deploys whatever is on `main`, whether or not CI has
-finished — a broken build simply leaves QA on the previous version.
+**Existing droplet** (provisioned before the deploy-key instructions above):
+its clone's `origin` is the credential-less HTTPS URL, which the workflow
+cannot fetch non-interactively — deploys fail fast with a pointer here until
+the box is migrated once:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "townbasket-qa-droplet"
+cat ~/.ssh/id_ed25519.pub          # add as a read-only deploy key on GitHub
+ssh-keyscan github.com >> ~/.ssh/known_hosts
+cd ~/Ecomm && git remote set-url origin git@github.com:mohammedsuhaib/Ecomm.git
+```
+
+Also re-quote `QA_BASIC_AUTH_HASH` in `infra/qa/.env` (see step 4): the
+pre-fix instructions said to paste the hash unquoted, which corrupts it —
+the deploy now detects a corrupted hash and refuses to proceed until it is
+fixed.
 
 **Manual (or to test a feature branch):**
 ```bash
