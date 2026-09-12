@@ -7,6 +7,7 @@ import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -74,13 +75,16 @@ class GlobalExceptionHandler {
     }
 
     /**
-     * A database constraint rejected the write (e.g. a unique-index race: two
-     * requests ordering the same cart, or two products claiming the same slug)
-     * -> 409. We never leak the underlying SQL/constraint text; the generic
-     * message tells the client the state changed and a retry/refresh is in order.
+     * A concurrent-write race lost cleanly -> 409: either a database constraint
+     * rejected the write (a unique-index race: two requests ordering the same
+     * cart, two products claiming the same slug, a second DELIVERED event) or
+     * optimistic locking detected a stale order (two identical transitions,
+     * e.g. a double-tapped "confirm delivery"). We never leak the underlying
+     * SQL/constraint text; the generic message tells the client the state
+     * changed and a retry/refresh is in order.
      */
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+    @ExceptionHandler({DataIntegrityViolationException.class, OptimisticLockingFailureException.class})
+    ResponseEntity<ApiError> handleDataIntegrity(Exception ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT,
                 "This action conflicts with the current state. Please refresh and try again.",
                 request);

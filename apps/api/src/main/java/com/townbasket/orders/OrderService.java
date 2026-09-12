@@ -70,8 +70,9 @@ public interface OrderService {
     PagedResponse<OrderDto> listOrders(String status, Pageable pageable);
 
     /**
-     * Admin reporting: delivered-order counts per agent per date, newest date
-     * first. Only DELIVERED orders with an assigned agent are counted.
+     * Admin reporting: delivered-order counts and summed order value per agent
+     * per date, newest date first. Only DELIVERED orders with an assigned
+     * agent are counted.
      */
     List<AgentDeliveryStat> deliveryStatsByAgent();
 
