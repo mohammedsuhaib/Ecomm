@@ -211,6 +211,15 @@ downgrade a real deployment to a verifier accepting any phone number.
 QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
 own endpoints and needs no same-origin callback handler.
 
+### Viewing logs
+
+`docker compose -f docker-compose.qa.yml logs -f <service>` tails a service live
+(`api`, `storefront`, `admin`, `delivery`, `caddy`, `postgres`) — this is where
+every diagnostic line lands (Spring Boot logs to stdout, no file on disk).
+
+For a searchable, browser-based view that also survives the droplet, enable the
+optional Grafana Cloud shipper — see `infra/monitoring/README.md`.
+
 ### When a login returns 401 "Invalid phone token"
 
 That response is deliberately vague — it never says which check failed. The API

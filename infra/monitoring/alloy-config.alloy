@@ -1,0 +1,58 @@
+// Grafana Alloy — ship every Docker container's logs to Grafana Cloud Loki.
+//
+// Shared by the QA and prod stacks (infra/qa + infra/deploy). The agent runs
+// ON the droplet but STORES nothing there: it streams logs out to hosted Loki,
+// so they survive the container — and the droplet — dying. Outbound HTTPS only;
+// it needs no inbound port.
+//
+// Three things come from the environment (set in the stack's .env, never here):
+//   GRAFANA_LOKI_URL    the Grafana Cloud Loki push endpoint (…/loki/api/v1/push)
+//   GRAFANA_LOKI_USER   the numeric instance/user id (basic-auth username)
+//   GRAFANA_LOKI_TOKEN  an API token with logs:write scope (basic-auth password)
+// plus TB_ENV ("qa" or "prod"), set per stack so you can tell them apart in one
+// Grafana with {env="qa"} vs {env="prod"}.
+
+// Discover the containers Compose is running on this host.
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+}
+
+// Keep only labels worth querying on: the Compose SERVICE (api, storefront,
+// admin, delivery, caddy, postgres) and the CONTAINER name. High-cardinality
+// Docker metadata is dropped so it never becomes a Loki label.
+discovery.relabel "containers" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+		target_label  = "service"
+	}
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "container"
+	}
+}
+
+// Read each discovered container's log stream and forward it on, stamped with
+// which environment this is.
+loki.source.docker "containers" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.containers.output
+	labels     = {env = sys.env("TB_ENV")}
+	forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// Push to Grafana Cloud. If the three vars are blank (profile enabled but not
+// configured) the agent starts and logs an auth error here — visible in
+// `docker compose logs alloy` — rather than failing silently.
+loki.write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GRAFANA_LOKI_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_LOKI_USER")
+			password = sys.env("GRAFANA_LOKI_TOKEN")
+		}
+	}
+}

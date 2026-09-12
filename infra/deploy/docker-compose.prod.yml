@@ -105,6 +105,28 @@ services:
     expose:
       - "3002"
 
+  # Log shipper to Grafana Cloud. OFF unless COMPOSE_PROFILES=monitoring is set
+  # in .env (see .env.example). Streams logs out; stores nothing on the droplet.
+  alloy:
+    image: grafana/alloy:latest
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    environment:
+      TB_ENV: prod
+      GRAFANA_LOKI_URL: ${GRAFANA_LOKI_URL:-}
+      GRAFANA_LOKI_USER: ${GRAFANA_LOKI_USER:-}
+      GRAFANA_LOKI_TOKEN: ${GRAFANA_LOKI_TOKEN:-}
+    volumes:
+      # Read-only Docker socket to discover containers and read their logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../monitoring/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+
   # Optional self-hosted Postgres (fallback to DO Managed Database).
   # Uncomment only for a cost-sensitive single-box deployment.
   # postgres:
@@ -120,4 +142,5 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  alloy_data:
   # pgdata:
