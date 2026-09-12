@@ -18,6 +18,7 @@ import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.time.Instant;
 import java.util.ArrayList;
+import com.townbasket.identity.DutyStatusDto;
 import com.townbasket.identity.StaffMemberDto;
 import org.springframework.security.access.AccessDeniedException;
 import java.util.List;
@@ -375,7 +376,34 @@ class AuthServiceImpl implements AuthService {
     }
 
     private static DeliveryAgentDto toDeliveryAgentDto(UserEntity u) {
-        return new DeliveryAgentDto(u.getId(), u.getName(), u.getEmail(), u.isActive());
+        return new DeliveryAgentDto(u.getId(), u.getName(), u.getEmail(), u.isActive(), u.isOnDuty());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAvailableDeliveryAgent(Long userId) {
+        return userId != null
+                && users.existsByIdAndRoleAndActiveTrueAndOnDutyTrue(userId, Role.DELIVERY_AGENT);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DutyStatusDto dutyStatus(Long agentId) {
+        return new DutyStatusDto(requireAgent(agentId).isOnDuty());
+    }
+
+    @Override
+    public DutyStatusDto setDutyStatus(Long agentId, boolean onDuty) {
+        UserEntity agent = requireAgent(agentId);
+        agent.setOnDuty(onDuty);
+        agent.touch();
+        return new DutyStatusDto(users.saveAndFlush(agent).isOnDuty());
+    }
+
+    private UserEntity requireAgent(Long agentId) {
+        return users.findById(agentId)
+                .filter(u -> u.getRole() == Role.DELIVERY_AGENT)
+                .orElseThrow(() -> new AccessDeniedException("Only delivery agents have a duty status"));
     }
 
     private static SavedAddressDto toAddressDto(AddressEntity a) {

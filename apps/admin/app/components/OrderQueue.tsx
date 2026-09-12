@@ -23,6 +23,11 @@ import { useNewOrderAlert } from './useNewOrderAlert';
 export default function OrderQueue() {
   const { refresh: refreshAuth } = useAuth();
   const [status, setStatus] = useState('');
+  // Free-text search: order no., phone or name. Debounced before it hits the
+  // API; kept in a ref (like the status) so the live refetch searches the
+  // same thing the user is looking at.
+  const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
   const [agents, setAgents] = useState<DeliveryAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +38,13 @@ export default function OrderQueue() {
   // right slice without re-subscribing on every filter change.
   const statusRef = useRef(status);
   statusRef.current = status;
+  const qRef = useRef(debouncedQ);
+  qRef.current = debouncedQ;
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(id);
+  }, [q]);
 
   // Chime + desktop notification when an order arrives. Held in a ref for the
   // same reason as the filter: the SSE effect must not re-subscribe every time
@@ -51,11 +63,11 @@ export default function OrderQueue() {
   }, [refreshAuth]);
 
   const load = useCallback(
-    async (filter: string) => {
+    async (filter: string, search: string) => {
       setLoading(true);
       setError(null);
       try {
-        const pageData = await getAdminOrders(filter || undefined);
+        const pageData = await getAdminOrders(filter || undefined, search || undefined);
         setOrders(pageData.content);
       } catch (err) {
         if (err instanceof AuthRequiredError) {
@@ -70,10 +82,10 @@ export default function OrderQueue() {
     [onAuthExpired],
   );
 
-  // Reload when the filter changes.
+  // Reload when the filter or the (debounced) search changes.
   useEffect(() => {
-    void load(status);
-  }, [status, load]);
+    void load(status, debouncedQ);
+  }, [status, debouncedQ, load]);
 
   // Load the delivery-agent roster once (for the assignment dropdown). Best-effort:
   // a failure just leaves assignment disabled, it doesn't break the queue.
@@ -93,7 +105,7 @@ export default function OrderQueue() {
     let es: EventSource | null = null;
 
     const refetch = () => {
-      getAdminOrders(statusRef.current || undefined)
+      getAdminOrders(statusRef.current || undefined, qRef.current || undefined)
         .then((p) => setOrders(p.content))
         .catch((err) => {
           // A refresh-exhausted 401 means the session is gone — force re-login.
@@ -155,6 +167,23 @@ export default function OrderQueue() {
 
   return (
     <section className="queue">
+      <div className="queue-search">
+        <input
+          type="search"
+          className="queue-search-input"
+          placeholder="Search order no., phone or name…"
+          aria-label="Search orders by order number, phone or customer name"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        {debouncedQ && (
+          <span className="muted queue-search-hint">
+            {orders.length === 0 && !loading
+              ? `No orders match “${debouncedQ}”`
+              : `${orders.length} match${orders.length === 1 ? '' : 'es'}`}
+          </span>
+        )}
+      </div>
       {/* aria-pressed toggles, not a half-implemented ARIA tabs pattern. */}
       <div className="queue-tabs" aria-label="Order status filter">
         {STATUS_TABS.map((tab) => (

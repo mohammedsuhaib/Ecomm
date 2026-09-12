@@ -113,6 +113,26 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return (text ? JSON.parse(text) : null) as T;
 }
 
+async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const u = url(path);
+  const run = () => {
+    const h = authHeader({ Accept: 'application/json' });
+    if (body !== undefined) h['Content-Type'] = 'application/json';
+    return fetch(u, { method: 'PUT', headers: h, body: body !== undefined ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  };
+
+  let res = await run();
+  if (res.status === 401) {
+    const ok = await tryRefresh();
+    if (!ok) throw new AuthRequiredError();
+    res = await run();
+    if (res.status === 401) { clearAuth(); throw new AuthRequiredError(); }
+  }
+  if (!res.ok) throw await toError(res, u);
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
+}
+
 async function authPost<T>(path: string, body: unknown): Promise<T> {
   const u = url(path);
   const res = await fetch(u, {
@@ -182,6 +202,19 @@ export interface PushSubscriptionPayload {
  * GET /notifications/push-config — public. `enabled: false` means the server has
  * no VAPID keys, so the opt-in is hidden rather than offered and broken.
  */
+/** GET /me/duty — the rider's own availability. */
+export function getDutyStatus(): Promise<{ onDuty: boolean }> {
+  return apiFetch<{ onDuty: boolean }>('/me/duty');
+}
+
+/**
+ * PUT /me/duty — go on/off duty. Off duty means no NEW assignments; the orders
+ * already in the queue stay until delivered or reported.
+ */
+export function setDutyStatus(onDuty: boolean): Promise<{ onDuty: boolean }> {
+  return apiPut<{ onDuty: boolean }>('/me/duty', { onDuty });
+}
+
 export function getPushConfig(): Promise<PushConfig> {
   return apiFetch<PushConfig>('/notifications/push-config');
 }

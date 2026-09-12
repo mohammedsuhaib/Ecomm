@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /** Module-internal Spring Data repository for orders. */
 interface OrderRepository extends JpaRepository<OrderEntity, Long> {
@@ -64,6 +65,31 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Page<OrderEntity> findAllByOrderByPlacedAtDescIdDesc(Pageable pageable);
 
     Page<OrderEntity> findByStatusOrderByPlacedAtDescIdDesc(OrderStatus status, Pageable pageable);
+
+    /**
+     * Admin search: order number, phone or customer name. {@code like} arrives
+     * lower-cased with wildcards and escaping already applied by the caller.
+     * Two queries rather than one with a nullable status: Postgres cannot infer
+     * a type for a NULL enum parameter in {@code :status IS NULL}.
+     */
+    @Query("""
+            SELECT o FROM OrderEntity o
+            WHERE CAST(o.id AS string) LIKE :like ESCAPE '\\'
+               OR o.phone LIKE :like ESCAPE '\\'
+               OR LOWER(o.customerName) LIKE :like ESCAPE '\\'
+            ORDER BY o.placedAt DESC, o.id DESC
+            """)
+    Page<OrderEntity> search(@Param("like") String like, Pageable pageable);
+
+    @Query("""
+            SELECT o FROM OrderEntity o
+            WHERE o.status = :status
+              AND (CAST(o.id AS string) LIKE :like ESCAPE '\\'
+                   OR o.phone LIKE :like ESCAPE '\\'
+                   OR LOWER(o.customerName) LIKE :like ESCAPE '\\')
+            ORDER BY o.placedAt DESC, o.id DESC
+            """)
+    Page<OrderEntity> searchByStatus(@Param("status") OrderStatus status, @Param("like") String like, Pageable pageable);
 
     Page<OrderEntity> findByUserIdOrderByPlacedAtDescIdDesc(Long userId, Pageable pageable);
 

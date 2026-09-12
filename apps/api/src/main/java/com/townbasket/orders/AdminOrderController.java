@@ -36,12 +36,13 @@ class AdminOrderController {
     }
 
     @GetMapping
-    @Operation(summary = "List orders newest-first, optionally filtered by status (paginated).")
+    @Operation(summary = "List orders newest-first, optionally filtered by status and/or searched by order no., phone or name (paginated).")
     PagedResponse<OrderDto> list(
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return orderService.listOrders(status, pageable(page, size));
+        return orderService.listOrders(status, q, pageable(page, size));
     }
 
     @GetMapping("/delivery-stats")

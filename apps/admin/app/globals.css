@@ -1348,3 +1348,12 @@ a {
 .store-form { flex-wrap: wrap; }
 .store-form .login-field { flex: 1 1 200px; }
 .store-form .store-form-wide { flex: 1 1 100%; }
+
+/* Order search above the status tabs. */
+.queue-search { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+.queue-search-input {
+  flex: 1 1 260px; max-width: 420px; font: inherit; padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; border-radius: 6px;
+}
+.queue-search-hint { font-size: 0.85rem; }
+.rider-badge.duty-off { background: #fef3c7; color: #92400e; margin-left: 0.35rem; }

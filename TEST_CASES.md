@@ -249,6 +249,11 @@ testing possible without real money or SMS.
 | TC-ADM-015 | Positive | Re-dispatch | On a Delivery-failed card tap **Re-dispatch** | Order returns to OUT_FOR_DELIVERY with the SAME rider and the same customer OTP; it reappears in that rider's queue | P1 |
 | TC-ADM-016 | Positive | Cancel after failed attempt | On a Delivery-failed card tap Cancel with a reason | CANCELLED; reserved stock is released ONLY now (check Inventory before/after) | P1 |
 | TC-ADM-017 | Negative | Failed order cannot skip to Delivered | Try to mark a Delivery-failed order DELIVERED | Refused — it must go back out for delivery first | P1 |
+| TC-ADM-018 | Positive | Order search | Admin → Orders → type an order number, then part of a phone, then part of a customer name | Each finds the order(s) server-side; works across pages, not just the visible list; the count line says how many matched | P1 |
+| TC-ADM-019 | Positive | Search within a status tab | Type a term, then switch status tabs | Results are the intersection of term and status; clearing the box restores the plain tab list | P2 |
+| TC-ADM-020 | Edge | Search wildcards are literal | Search `%` or `_` | Only orders whose name/phone contain that character match — never everything | P2 |
+| TC-ADM-021 | Edge | Live refresh keeps the search | Leave a search active; place a new order from the storefront that does not match | The list does not jump to unfiltered results on the live/poll refresh | P2 |
+| TC-ADM-022 | Negative | Cannot assign an off-duty rider | Rider taps **Off duty**; in Admin open an order's rider dropdown and try that rider | Shown "(off duty)" and not selectable; a direct `POST …/assign` is refused with an "off duty" message; the Riders roster shows an Off-duty badge | P1 |
 
 ---
 
@@ -364,6 +369,9 @@ testing possible without real money or SMS.
 | TC-DLV-010 | Positive | Can't deliver | On an out-for-delivery card tap **Can't deliver**, pick a reason, Report | Order leaves the rider's queue; a "Reported — bring it back" confirmation shows briefly | P1 |
 | TC-DLV-011 | Negative | Reason is mandatory | Open Can't deliver and tap Report with no reason selected | Report is disabled; nothing is sent | P2 |
 | TC-DLV-012 | Negative | Not my order | Call `POST /delivery/orders/{id}/fail` for an order assigned to another rider | 403; order unchanged | P1 |
+| TC-DLV-013 | Positive | Rider goes off duty | Tap **On duty** in the delivery-app header → it flips to Off duty; an amber banner explains | Orders already in the queue stay and can still be delivered/reported; admin cannot assign new ones (TC-ADM-022) | P1 |
+| TC-DLV-014 | Positive | Rider goes back on duty | Tap **Off duty** → On duty | Admin can assign again immediately; the toggle survives a reload (read from the server, not the device) | P1 |
+| TC-DLV-015 | Negative | Only riders have a duty switch | Call `PUT /api/v1/me/duty` with a customer or admin token | 403; nothing changes | P2 |
 
 ---
 

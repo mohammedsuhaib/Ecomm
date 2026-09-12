@@ -293,13 +293,17 @@ export async function changePassword(
 
 // ---- Admin endpoint functions ----------------------------------------------
 
-/** GET /admin/orders?status=&page=&size= — paged order queue. */
+/**
+ * GET /admin/orders?status=&q=&page=&size= — paged order queue. `q` searches
+ * order number, phone and customer name server-side.
+ */
 export function getAdminOrders(
   status?: string,
+  q?: string,
   page = 0,
   size = 50,
 ): Promise<Page<Order>> {
-  return apiFetch<Page<Order>>('/admin/orders', { status, page, size });
+  return apiFetch<Page<Order>>('/admin/orders', { status, q: q || undefined, page, size });
 }
 
 /** POST /admin/orders/{id}/transitions — advance an order's status. */

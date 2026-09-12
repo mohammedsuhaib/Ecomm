@@ -519,3 +519,20 @@ html, body {
 .dcard-reason input { width: 20px; height: 20px; accent-color: var(--clr-primary); }
 .dcard-fail-hint { font-size: .85rem; opacity: .75; margin: .5rem 0 .25rem; }
 .dcard-reported { border-color: #d97706; }
+
+/* On/off duty switch in the header. Green dot = taking jobs. */
+.duty-toggle {
+  display: inline-flex; align-items: center; gap: .4rem;
+  min-height: 36px; padding: .3rem .7rem; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12);
+  color: inherit; font: inherit; font-size: .85rem; font-weight: 600; cursor: pointer;
+  touch-action: manipulation;
+}
+.duty-toggle:disabled { opacity: .6; cursor: default; }
+.duty-toggle .duty-dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; }
+.duty-toggle.on .duty-dot { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+.duty-toggle.off { opacity: .85; }
+.duty-banner {
+  margin: 0 0 .75rem; padding: .6rem .8rem; border-radius: 8px;
+  background: #fef3c7; color: #78350f; border-left: 4px solid #d97706; font-size: .9rem;
+}

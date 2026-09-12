@@ -70,6 +70,14 @@ public interface OrderService {
     PagedResponse<OrderDto> listOrders(String status, Pageable pageable);
 
     /**
+     * Admin listing with a free-text search: {@code q} matches the order number,
+     * any part of the phone, or any part of the customer name (case-insensitive),
+     * applied in SQL so the pager describes the matches. Null/blank {@code q}
+     * behaves like {@link #listOrders(String, Pageable)}.
+     */
+    PagedResponse<OrderDto> listOrders(String status, String q, Pageable pageable);
+
+    /**
      * Admin reporting: delivered-order counts and summed order value per agent
      * per date, newest date first. Only DELIVERED orders with an assigned
      * agent are counted.

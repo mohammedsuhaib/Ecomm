@@ -271,6 +271,11 @@ export default function RidersPanel() {
                     <span className={`rider-badge ${a.active ? 'on' : 'off'}`}>
                       {a.active ? 'Active' : 'Inactive'}
                     </span>
+                    {a.active && a.onDuty === false && (
+                      <span className="rider-badge duty-off" title="The rider switched themselves off duty; no new assignments">
+                        Off duty
+                      </span>
+                    )}
                   </td>
                   <td>
                     <RiderDeliveries rows={riderStats} />

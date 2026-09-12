@@ -119,6 +119,19 @@ public interface AuthService {
      */
     boolean isActiveDeliveryAgent(Long userId);
 
+    /**
+     * Active AND on duty — the test for handing a rider a NEW job. An off-duty
+     * rider keeps the orders they already hold (they must finish them); they
+     * just stop receiving more until they switch back on.
+     */
+    boolean isAvailableDeliveryAgent(Long userId);
+
+    /** The calling rider's own availability. DELIVERY_AGENT only. */
+    DutyStatusDto dutyStatus(Long agentId);
+
+    /** The calling rider sets their own availability. DELIVERY_AGENT only. */
+    DutyStatusDto setDutyStatus(Long agentId, boolean onDuty);
+
     /** Admin: every password-login account (STORE_STAFF and ADMIN), active or not. */
     List<StaffMemberDto> listStaff();
 

@@ -5,5 +5,11 @@ package com.townbasket.identity;
  * admin roster can show/deactivate agents; the assignment dropdown filters to
  * active ones. No password material is ever exposed.
  */
-public record DeliveryAgentDto(Long id, String name, String email, boolean active) {
+public record DeliveryAgentDto(
+        Long id,
+        String name,
+        String email,
+        boolean active,
+        /** Rider's own availability; false means "don't assign me anything new right now". */
+        boolean onDuty) {
 }

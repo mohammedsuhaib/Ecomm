@@ -22,4 +22,7 @@ interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     /** True if the id refers to an active user with the given role (dispatch validation). */
     boolean existsByIdAndRoleAndActiveTrue(Long id, Role role);
+
+    /** Active AND on duty: the only riders who may receive a NEW assignment. */
+    boolean existsByIdAndRoleAndActiveTrueAndOnDutyTrue(Long id, Role role);
 }

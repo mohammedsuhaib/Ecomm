@@ -58,6 +58,8 @@ export interface DeliveryAgent {
   name: string | null;
   email: string | null;
   active: boolean;
+  /** Rider's own switch — false means "no new assignments"; optional until every API instance has V2_6. */
+  onDuty?: boolean;
 }
 
 /** Outcome of a CSV product import (rows are 1-based file line numbers). */

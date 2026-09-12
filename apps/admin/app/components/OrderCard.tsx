@@ -168,11 +168,16 @@ export default function OrderCard({
             <option value="">
               {agents.length === 0 ? 'No agents available' : 'Unassigned'}
             </option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {agentLabel(a)}
-              </option>
-            ))}
+            {agents.map((a) => {
+              // Off duty = the rider's own switch. Keep them visible (so staff
+              // see who exists) but not selectable; the server refuses anyway.
+              const offDuty = a.onDuty === false && a.id !== order.assignedAgentId;
+              return (
+                <option key={a.id} value={a.id} disabled={offDuty}>
+                  {agentLabel(a)}{offDuty ? ' (off duty)' : ''}
+                </option>
+              );
+            })}
           </select>
         )}
       </div>

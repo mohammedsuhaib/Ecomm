@@ -54,6 +54,23 @@ class MeController {
                 request == null ? null : request.newPassword());
     }
 
+    /** Rider availability — DELIVERY_AGENT only (403 otherwise). */
+    @GetMapping("/duty")
+    @Operation(summary = "The calling rider's on-duty status.")
+    DutyStatusDto duty(@AuthenticationPrincipal Long userId) {
+        return authService.dutyStatus(userId);
+    }
+
+    /**
+     * Rider goes on/off duty. Off duty means no NEW assignments; orders already
+     * held stay in their queue until delivered or reported.
+     */
+    @PutMapping("/duty")
+    @Operation(summary = "Set the calling rider's on-duty status.")
+    DutyStatusDto setDuty(@RequestBody DutyStatusDto request, @AuthenticationPrincipal Long userId) {
+        return authService.setDutyStatus(userId, request != null && request.onDuty());
+    }
+
     @GetMapping("/addresses")
     @Operation(summary = "List the user's saved addresses (default first, then newest).")
     List<SavedAddressDto> listAddresses(@AuthenticationPrincipal Long userId) {

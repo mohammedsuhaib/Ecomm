@@ -49,6 +49,10 @@ class UserEntity {
     @Column(nullable = false)
     private boolean active;
 
+    /** Rider's own availability switch; admin's `active` gates the account itself. */
+    @Column(name = "on_duty", nullable = false)
+    private boolean onDuty = true;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -124,6 +128,14 @@ class UserEntity {
 
     boolean isActive() {
         return active;
+    }
+
+    boolean isOnDuty() {
+        return onDuty;
+    }
+
+    void setOnDuty(boolean onDuty) {
+        this.onDuty = onDuty;
     }
 
     void setActive(boolean active) {

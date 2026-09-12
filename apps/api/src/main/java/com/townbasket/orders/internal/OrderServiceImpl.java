@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -285,11 +286,33 @@ class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<OrderDto> listOrders(String status, Pageable pageable) {
-        var page = (status == null || status.isBlank())
-                ? orders.findAllByOrderByPlacedAtDescIdDesc(pageable)
-                : orders.findByStatusOrderByPlacedAtDescIdDesc(parseStatus(status), pageable);
+        return listOrders(status, null, pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<OrderDto> listOrders(String status, String q, Pageable pageable) {
+        OrderStatus st = (status == null || status.isBlank()) ? null : parseStatus(status);
+        String term = q == null ? null : q.trim();
+        Page<OrderEntity> page;
+        if (term == null || term.isEmpty()) {
+            page = st == null
+                    ? orders.findAllByOrderByPlacedAtDescIdDesc(pageable)
+                    : orders.findByStatusOrderByPlacedAtDescIdDesc(st, pageable);
+        } else {
+            // "A customer is on the phone about their order": match the order
+            // number, any part of the phone, or any part of the name — in SQL,
+            // so the pager describes the matches, not the page on screen.
+            String like = "%" + escapeLike(term.toLowerCase()) + "%";
+            page = st == null ? orders.search(like, pageable) : orders.searchByStatus(st, like, pageable);
+        }
         // Admin surface: never expose the delivery OTP (staff collect it at handover).
         return PagedResponse.of(page, o -> toDto(o, false));
+    }
+
+    /** LIKE wildcards typed by a human are literal characters, not patterns. */
+    private static String escapeLike(String term) {
+        return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     @Override
@@ -383,6 +406,12 @@ class OrderServiceImpl implements OrderService {
         if (agentId != null && !authService.isActiveDeliveryAgent(agentId)) {
             throw new BusinessRuleException(
                     "Agent " + agentId + " is not an active delivery agent.");
+        }
+        // Off duty is the rider's own switch: they keep what they hold, but a
+        // NEW job must not land on someone who has gone home.
+        if (agentId != null && !authService.isAvailableDeliveryAgent(agentId)) {
+            throw new BusinessRuleException(
+                    "That rider is off duty right now — pick another, or ask them to go on duty.");
         }
         Long previousAgentId = order.getAssignedAgentId();
         order.setAssignedAgentId(agentId); // null clears the assignment (back to pool)

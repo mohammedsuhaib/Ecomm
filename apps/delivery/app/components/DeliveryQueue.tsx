@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AuthRequiredError, getDeliveryOrders } from '@/app/lib/api';
+import { AuthRequiredError, getDeliveryOrders, getDutyStatus, setDutyStatus } from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import DeliveryCard from './DeliveryCard';
@@ -12,11 +12,32 @@ const POLL_MS = 30_000;
 export default function DeliveryQueue() {
   const { user, logout, refresh } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  // The rider's own availability. null until loaded so the toggle never
+  // flashes a wrong state; a failed load leaves it null and the toggle hidden.
+  const [onDuty, setOnDuty] = useState<boolean | null>(null);
+  const [dutyBusy, setDutyBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [offline, setOffline] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    getDutyStatus().then((d) => setOnDuty(d.onDuty)).catch(() => setOnDuty(null));
+  }, []);
+
+  async function toggleDuty() {
+    if (onDuty === null || dutyBusy) return;
+    setDutyBusy(true);
+    try {
+      const next = await setDutyStatus(!onDuty);
+      setOnDuty(next.onDuty);
+    } catch {
+      /* leave the switch where it was; the next load re-reads the truth */
+    } finally {
+      setDutyBusy(false);
+    }
+  }
 
   // Agents move through network dead zones — surface offline state explicitly
   // instead of letting the queue silently go stale.
@@ -71,6 +92,21 @@ export default function DeliveryQueue() {
             Town Basket Delivery
           </h1>
           <div className="dheader-right">
+            {onDuty !== null && (
+              <button
+                type="button"
+                className={`duty-toggle ${onDuty ? 'on' : 'off'}`}
+                onClick={toggleDuty}
+                disabled={dutyBusy}
+                aria-pressed={onDuty}
+                title={onDuty
+                  ? 'On duty — you can be assigned new deliveries. Tap to go off duty.'
+                  : 'Off duty — no new deliveries will be assigned to you. Tap to go on duty.'}
+              >
+                <span className="duty-dot" aria-hidden />
+                {dutyBusy ? '…' : onDuty ? 'On duty' : 'Off duty'}
+              </button>
+            )}
             <span className="dheader-agent">{user?.name ?? user?.email ?? 'Agent'}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
               Logout
@@ -106,6 +142,13 @@ export default function DeliveryQueue() {
         </div>
 
         <PushOptIn />
+
+        {onDuty === false && (
+          <p className="duty-banner" role="status">
+            You&apos;re off duty — finish what&apos;s in your queue; nothing new will be assigned
+            until you go back on duty.
+          </p>
+        )}
 
         {offline && (
           <p className="offline-banner" role="status">
