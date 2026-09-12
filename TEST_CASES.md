@@ -106,6 +106,10 @@ testing possible without real money or SMS.
 | TC-AUTH-016 | Positive | Change password | Admin → Change password button → current + new password | Success message; log out and log in with the NEW password | P1 |
 | TC-AUTH-017 | Negative | Change password, wrong current | Enter a wrong current password | "Current password is incorrect"; password unchanged | P1 |
 | TC-AUTH-018 | Edge | Change password closes safely | Open Change password, type a new value, press Escape | Confirms before discarding; focus returns to the trigger button | P3 |
+| TC-AUTH-019 | Positive | Admin resets a rider's password | Admin → Riders → **Reset password** on a rider → enter a new password (≥8) | Success message; rider logs in to the delivery app with the NEW password; the OLD password is refused; a delivery-app session opened before the reset is signed out on its next refresh | P1 |
+| TC-AUTH-020 | Positive | Admin resets a staff password | Admin (ADMIN role) → Staff tab → Reset password on the store-staff account | Staff logs in with the new password; the Staff tab is NOT visible when logged in as store staff | P1 |
+| TC-AUTH-021 | Negative | Store staff cannot reset staff/admin | Log in as `staff@` and call `POST /api/v1/admin/users/{adminId}/password` | 403; admin's password unchanged. Store staff CAN reset a rider (TC-AUTH-019 as staff) | P1 |
+| TC-AUTH-022 | Negative | No self-reset, no customer reset, no short password | As admin, try to reset your own account, a customer's account, and a rider with a 5-character password | Each refused with a clear message; nothing changes | P2 |
 
 ---
 

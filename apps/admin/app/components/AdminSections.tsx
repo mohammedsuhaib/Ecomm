@@ -7,8 +7,10 @@ import InventoryPanel from './InventoryPanel';
 import OrderQueue from './OrderQueue';
 import RidersPanel from './RidersPanel';
 import StorePanel from './StorePanel';
+import StaffPanel from './StaffPanel';
+import { useAuth } from './AuthProvider';
 
-type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders' | 'store';
+type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders' | 'store' | 'staff';
 
 const TABS: { value: Section; label: string }[] = [
   { value: 'orders', label: 'Orders' },
@@ -17,6 +19,8 @@ const TABS: { value: Section; label: string }[] = [
   { value: 'catalogue', label: 'Catalogue' },
   { value: 'riders', label: 'Riders' },
   { value: 'store', label: 'Store' },
+  // ADMIN only — filtered out of the tab strip for store staff (see below).
+  { value: 'staff', label: 'Staff' },
 ];
 
 const isSection = (v: string | null): v is Section =>
@@ -36,6 +40,11 @@ const isSection = (v: string | null): v is Section =>
  * semantics to screen readers.
  */
 export default function AdminSections() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  // The staff directory (and the ability to reset staff passwords) is admin
+  // only; the API enforces it too — this just keeps the tab out of the way.
+  const tabs = TABS.filter((t) => t.value !== 'staff' || isAdmin);
   const [section, setSection] = useState<Section>('orders');
 
   // Restore section from the URL on first mount.
@@ -55,7 +64,7 @@ export default function AdminSections() {
   return (
     <>
       <div className="queue-tabs section-tabs" aria-label="Admin section">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.value}
             type="button"
@@ -74,6 +83,7 @@ export default function AdminSections() {
       {section === 'catalogue' && <Catalogue />}
       {section === 'riders' && <RidersPanel />}
       {section === 'store' && <StorePanel />}
+      {section === 'staff' && isAdmin && <StaffPanel />}
     </>
   );
 }

@@ -17,7 +17,12 @@ import com.townbasket.identity.UserDto;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.time.Instant;
+import java.util.ArrayList;
+import com.townbasket.identity.StaffMemberDto;
+import org.springframework.security.access.AccessDeniedException;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +44,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 class AuthServiceImpl implements AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final UserRepository users;
     private final AddressRepository addresses;
@@ -309,6 +316,51 @@ class AuthServiceImpl implements AuthService {
         agent.setActive(active);
         agent.touch();
         return toDeliveryAgentDto(users.saveAndFlush(agent));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<StaffMemberDto> listStaff() {
+        List<UserEntity> staff = new ArrayList<>(users.findByRoleOrderByNameAsc(Role.ADMIN));
+        staff.addAll(users.findByRoleOrderByNameAsc(Role.STORE_STAFF));
+        return staff.stream()
+                .map(u -> new StaffMemberDto(u.getId(), u.getName(), u.getEmail(), u.getRole().name(), u.isActive()))
+                .toList();
+    }
+
+    @Override
+    public void resetPassword(Long callerId, Long targetId, String newPassword) {
+        UserEntity caller = users.findById(callerId)
+                .orElseThrow(() -> new AccessDeniedException("Unknown caller"));
+        UserEntity target = users.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + targetId));
+
+        if (caller.getId().equals(target.getId())) {
+            throw new BusinessRuleException("Use change-password for your own account");
+        }
+        if (target.getPasswordHash() == null || target.getRole() == Role.CUSTOMER) {
+            throw new BusinessRuleException("This account has no password to reset");
+        }
+        boolean allowed = switch (caller.getRole()) {
+            case ADMIN -> true; // any password-login account except themselves
+            case STORE_STAFF -> target.getRole() == Role.DELIVERY_AGENT;
+            default -> false;
+        };
+        if (!allowed) {
+            throw new AccessDeniedException("You may not reset that account's password");
+        }
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new IllegalArgumentException("newPassword must be at least 8 characters");
+        }
+
+        target.setPasswordHash(passwordEncoder.encode(newPassword));
+        target.touch();
+        users.saveAndFlush(target);
+        // Whoever held the old password must not keep a live session: their
+        // refresh tokens die now, and access tokens run out within 15 minutes.
+        refreshTokenRevoker.revokeFamily(target.getId());
+        log.info("Password reset for user {} ({}) by {} ({})",
+                target.getId(), target.getRole(), caller.getId(), caller.getRole());
     }
 
     @Override

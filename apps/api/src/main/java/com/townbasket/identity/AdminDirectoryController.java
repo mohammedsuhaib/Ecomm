@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,6 +42,27 @@ class AdminDirectoryController {
     @Operation(summary = "Onboard a delivery agent (email + password login).")
     DeliveryAgentDto createDeliveryAgent(@RequestBody CreateDeliveryAgentRequest request) {
         return authService.createDeliveryAgent(request);
+    }
+
+    /** ADMIN only (SecurityConfig rule on /admin/staff). */
+    @GetMapping("/staff")
+    @Operation(summary = "List staff and admin accounts (ADMIN only).")
+    List<StaffMemberDto> staff() {
+        return authService.listStaff();
+    }
+
+    /**
+     * Set a new password for a rider or staff member who has forgotten theirs,
+     * signing out all their sessions. Who may reset whom is decided in the
+     * service from the caller's stored role (ADMIN → staff/riders, STORE_STAFF
+     * → riders only); the route itself is open to both roles.
+     */
+    @PostMapping("/users/{id}/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Reset another account's password (ADMIN: staff + riders; STORE_STAFF: riders).")
+    void resetPassword(@PathVariable("id") Long id, @RequestBody ResetPasswordRequest request,
+                       @AuthenticationPrincipal Long callerId) {
+        authService.resetPassword(callerId, id, request == null ? null : request.newPassword());
     }
 
     @PostMapping("/delivery-agents/{id}/active")

@@ -118,4 +118,24 @@ public interface AuthService {
      * agent's queue.
      */
     boolean isActiveDeliveryAgent(Long userId);
+
+    /** Admin: every password-login account (STORE_STAFF and ADMIN), active or not. */
+    List<StaffMemberDto> listStaff();
+
+    /**
+     * Set a new password on another account and sign out all its sessions.
+     * This is the recovery path for a rider or staff member who has forgotten
+     * theirs — there is no self-service reset because staff have no verified
+     * email, so a human with authority does it in person.
+     *
+     * <p>Who may reset whom is decided from the CALLER's role as stored in the
+     * database, not from the token: ADMIN → STORE_STAFF or DELIVERY_AGENT (or
+     * another ADMIN); STORE_STAFF → DELIVERY_AGENT only. Nobody resets a
+     * CUSTOMER (they have no password) or themselves (use change-password,
+     * which proves the current one).
+     *
+     * @throws org.springframework.security.access.AccessDeniedException when the
+     *         caller is not allowed to reset that target
+     */
+    void resetPassword(Long callerId, Long targetId, String newPassword);
 }

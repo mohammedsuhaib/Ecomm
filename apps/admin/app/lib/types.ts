@@ -266,3 +266,12 @@ export interface StoreUpdateRequest {
   closingTime: string;
   minOrderValue: number;
 }
+
+/** GET /admin/staff — password-login accounts (ADMIN + STORE_STAFF). ADMIN only. */
+export interface StaffMember {
+  id: number;
+  name: string | null;
+  email: string | null;
+  role: 'ADMIN' | 'STORE_STAFF' | string;
+  active: boolean;
+}

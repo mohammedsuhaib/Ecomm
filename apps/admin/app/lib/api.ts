@@ -40,6 +40,7 @@ import type {
   TransitionRequest,
   StoreSettings,
   StoreUpdateRequest,
+  StaffMember,
 } from './types';
 
 // Resolve the API base URL per execution context:
@@ -692,4 +693,20 @@ export function closeStoreForToday(reason: string): Promise<StoreSettings> {
 /** POST /admin/store/reopen — lift a manual closure now. */
 export function reopenStore(): Promise<StoreSettings> {
   return apiMutate<StoreSettings>('POST', '/admin/store/reopen');
+}
+
+// ---- Account recovery (admin) ---------------------------------------------
+
+/** GET /admin/staff — ADMIN only. */
+export function getStaff(): Promise<StaffMember[]> {
+  return apiFetch<StaffMember[]>('/admin/staff');
+}
+
+/**
+ * POST /admin/users/{id}/password — set a new password for a rider or staff
+ * member who forgot theirs; all their sessions are signed out. Server decides
+ * who may reset whom from the caller's role.
+ */
+export function resetUserPassword(id: number, newPassword: string): Promise<null> {
+  return apiMutate<null>('POST', `/admin/users/${encodeURIComponent(id)}/password`, { newPassword });
 }

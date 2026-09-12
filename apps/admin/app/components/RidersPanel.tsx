@@ -7,6 +7,7 @@ import {
   createDeliveryAgent,
   getDeliveryAgents,
   getDeliveryStats,
+  resetUserPassword,
   setDeliveryAgentActive,
 } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
@@ -73,6 +74,37 @@ export default function RidersPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [resettingId, setResettingId] = useState<number | null>(null);
+
+  // Forgotten password: staff set a new one here and hand it over in person.
+  // There is no self-service reset — riders have no verified email — so this
+  // is THE recovery path. All the rider's sessions are signed out server-side.
+  async function onResetPassword(a: DeliveryAgent) {
+    const next = window.prompt(
+      `New password for ${a.name ?? a.email ?? 'this rider'} (min ${MIN_PASSWORD} characters).\n` +
+        'They will be signed out everywhere and must log in again with it.',
+      '',
+    );
+    if (next === null) return;
+    if (next.length < MIN_PASSWORD) {
+      setError(`Password must be at least ${MIN_PASSWORD} characters.`);
+      return;
+    }
+    setResettingId(a.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      await resetUserPassword(a.id, next);
+      setSuccess(`Password reset for ${a.name ?? a.email}. Their old sessions are signed out.`);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) { refreshAuth(); return; }
+      setError(err instanceof ApiError && err.status === 403
+        ? 'You are not allowed to reset this account.'
+        : 'Could not reset the password. Please try again.');
+    } finally {
+      setResettingId(null);
+    }
+  }
 
   // Group once per stats change: the table re-renders on every keystroke of
   // the add-rider form, and per-row filters would rescan O(agents × stats)
@@ -259,6 +291,15 @@ export default function RidersPanel() {
                         : a.active
                           ? 'Deactivate'
                           : 'Activate'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: '0.82rem', padding: '0.3rem 0.7rem' }}
+                      disabled={resettingId === a.id}
+                      onClick={() => onResetPassword(a)}
+                    >
+                      {resettingId === a.id ? '…' : 'Reset password'}
                     </button>
                   </td>
                 </tr>

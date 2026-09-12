@@ -63,6 +63,8 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Admin surface — staff/admin only.
+                        // Staff directory is ADMIN-only; must precede the broader /admin/** rule.
+                        .requestMatchers("/api/v1/admin/staff", "/api/v1/admin/staff/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("STORE_STAFF", "ADMIN")
 
                         // Delivery surface — delivery agents and admin only.
