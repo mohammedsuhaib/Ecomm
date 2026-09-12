@@ -26,5 +26,8 @@ ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
 COPY --from=build /repo/apps/admin/.next/standalone ./
 COPY --from=build /repo/apps/admin/.next/static ./apps/admin/.next/static
+# `output: standalone` deliberately excludes public/ — copy it in ourselves
+# (same as the storefront image) or static assets like the logo 404.
+COPY --from=build /repo/apps/admin/public ./apps/admin/public
 EXPOSE 3001
 CMD ["node", "apps/admin/server.js"]
