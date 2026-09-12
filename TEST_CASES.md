@@ -76,6 +76,9 @@ testing possible without real money or SMS.
 | TC-AUTH-006 | Edge | Token refresh | Log in, leave idle >15 min, then browse/act | Access token silently refreshes; no forced re-login (refresh valid 30 days) | P2 |
 | TC-AUTH-007 | Negative | Rate limit | Request OTP 12 times in under a minute from one browser | After ~10, further attempts are rejected until the window resets | P2 |
 | TC-AUTH-008 | Positive | Guest cart merges on login | Add 2 items as guest → log in | Cart still holds both items; cart id may change but nothing is lost | P1 |
+| TC-AUTH-009 | Positive | Resend code | Request an OTP, wait for the countdown to finish, tap **Resend code** | Button reads "Resend code in 30s" and is disabled after each send; once at 0 it re-sends, shows "A new code has been sent.", clears the code field and restarts the countdown. In real-OTP mode a second SMS arrives and the NEW code works | P1 |
+| TC-AUTH-009a | Negative | No rapid re-sends | Tap Resend repeatedly during the countdown | Nothing is sent; the button stays disabled until the countdown ends (protects SMS quota and the 10/60s auth rate limit) | P2 |
+| TC-AUTH-009b | Edge | Resend after changing number | Request a code, tap Change number, enter a different number, send | The code is sent to the NEW number; verifying uses the new session — the old code is rejected | P2 |
 
 **Real-OTP mode only** (run these after switching QA to Firebase phone auth per
 `infra/qa/README.md` — use a Firebase *test* phone number so no SMS is billed):

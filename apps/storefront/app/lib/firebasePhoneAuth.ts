@@ -11,7 +11,23 @@
 // All `firebase/*` imports are dynamic so the SDK never lands in the SSR/build
 // path (mirrors app/lib/firebase.ts). We never log the token.
 
+import type { RecaptchaVerifier as RecaptchaVerifierType } from 'firebase/auth';
 import { getFirebaseAuth } from './firebase';
+
+// The invisible reCAPTCHA can only be rendered ONCE per container element —
+// a second `new RecaptchaVerifier(...)` on the same id throws. "Resend code"
+// calls startPhoneSignIn again on the same page, so the previous widget is
+// torn down first. Module scope is fine: one login page, one attempt at a time.
+let activeVerifier: RecaptchaVerifierType | null = null;
+
+function clearActiveVerifier(): void {
+  try {
+    activeVerifier?.clear();
+  } catch {
+    /* already gone */
+  }
+  activeVerifier = null;
+}
 
 /** A live phone-sign-in attempt: hold it between "send code" and "verify". */
 export interface PhoneSignInSession {
@@ -61,10 +77,12 @@ export async function startPhoneSignIn(
   );
   const auth = await getFirebaseAuth();
 
+  clearActiveVerifier();
   try {
     const verifier = new RecaptchaVerifier(auth, containerId, {
       size: 'invisible',
     });
+    activeVerifier = verifier;
     const confirmationResult = await signInWithPhoneNumber(
       auth,
       `+91${phone10}`,
@@ -82,6 +100,9 @@ export async function startPhoneSignIn(
       },
     };
   } catch (err) {
+    // A failed send leaves the widget in an unknown state; drop it so the
+    // next attempt (or resend) starts clean instead of hitting "already rendered".
+    clearActiveVerifier();
     throw friendlyFirebaseError(err);
   }
 }

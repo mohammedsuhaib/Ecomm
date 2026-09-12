@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ApiError, getMyCart, mergeCart } from '@/app/lib/api';
 import { loadCartId, saveCartId } from '@/app/lib/cart';
 import { useAuth } from '@/app/components/AuthProvider';
@@ -31,6 +31,19 @@ export default function LoginPage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Resend cooldown, in seconds. Starts when a code goes out; the button is
+  // dead until it hits 0 so a nervous double-tap cannot burn SMS quota or the
+  // per-IP auth rate limit. 30 s is about how long an Indian SMS takes to
+  // arrive when it is going to arrive at all.
+  const [resendIn, setResendIn] = useState(0);
+  const [resent, setResent] = useState(false);
+  const RESEND_COOLDOWN_S = 30;
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   const phoneValid = useMemo(() => /^[0-9]{10}$/.test(phone.trim()), [phone]);
   const codeValid = useMemo(() => /^[0-9]{6}$/.test(code.trim()), [code]);
@@ -49,12 +62,34 @@ export default function LoginPage() {
     try {
       await startPhoneLogin(phone.trim(), RECAPTCHA_CONTAINER_ID);
       setStep('code');
+      setResendIn(RESEND_COOLDOWN_S);
+      setResent(false);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : t('couldNotSend'),
       );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Same send again, from the code step. In real mode this re-runs the SMS
+  // (the previous reCAPTCHA widget is torn down first); in dev mode it is a
+  // no-op that just resets the cooldown — the UI must behave identically.
+  async function resend() {
+    if (busy || resendIn > 0) return;
+    setBusy(true);
+    setError(null);
+    setResent(false);
+    try {
+      await startPhoneLogin(phone.trim(), RECAPTCHA_CONTAINER_ID);
+      setCode('');
+      setResent(true);
+      setResendIn(RESEND_COOLDOWN_S);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('couldNotSend'));
     } finally {
       setBusy(false);
     }
@@ -120,6 +155,11 @@ export default function LoginPage() {
 
       {error && <p className="notice error">{error}</p>}
 
+      {/* Invisible reCAPTCHA mount for the real Firebase phone flow. Lives
+          outside the step switch so it exists for BOTH the first send and a
+          resend from the code step; harmless and empty in dev mode. */}
+      <div id={RECAPTCHA_CONTAINER_ID} />
+
       {step === 'phone' ? (
         <form className="auth-form" onSubmit={sendCode}>
           <div className="field">
@@ -159,8 +199,6 @@ export default function LoginPage() {
               {t('devHintPhone')}
             </p>
           )}
-          {/* Invisible reCAPTCHA mount for the real Firebase phone flow. */}
-          <div id={RECAPTCHA_CONTAINER_ID} />
         </form>
       ) : (
         <form className="auth-form" onSubmit={verify}>
@@ -195,6 +233,18 @@ export default function LoginPage() {
           >
             {busy ? t('verifying') : t('verifyContinue')}
           </button>
+          {resent && (
+            <p className="notice" role="status">{t('codeResent')}</p>
+          )}
+          <button
+            type="button"
+            className="btn btn-outline btn-block"
+            disabled={busy || resendIn > 0}
+            aria-live="polite"
+            onClick={resend}
+          >
+            {resendIn > 0 ? t('resendIn', { seconds: resendIn }) : t('resendCode')}
+          </button>
           <button
             type="button"
             className="btn btn-outline btn-block"
@@ -203,6 +253,7 @@ export default function LoginPage() {
               setStep('phone');
               setCode('');
               setError(null);
+              setResent(false);
             }}
           >
             {t('changeNumber')}
