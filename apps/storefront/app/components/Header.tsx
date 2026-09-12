@@ -19,7 +19,8 @@ export default function Header() {
         </Suspense>
         <Link href="/" className="brand">
           <span className="logo" aria-hidden>
-            🧺
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/images/logo-mark.png" alt="" width={24} height={24} />
           </span>
           <span>Town Basket</span>
         </Link>

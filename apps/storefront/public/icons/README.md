@@ -1,16 +1,18 @@
-# App icons — PLACEHOLDERS
+# App icons
 
-These PNGs are flat brand-green placeholders generated so the web app manifest
-resolves and the PWA is installable during development.
+Branded PNGs derived from the master logo in `brand/logo-full.png` (the basket
+mark is `brand/logo-mark.png`). Referenced from `app/manifest.ts`; the service
+worker (`app/sw.ts`) also uses `icon-192.png` for push notifications.
 
-**Before launch, replace with real branded icons:**
-
-- `icon-192.png` — 192×192, `purpose: any`
+- `icon-192.png` — 192×192, `purpose: any` (basket mark on brand off-white)
 - `icon-512.png` — 512×512, `purpose: any`
 - `icon-maskable-512.png` — 512×512, `purpose: maskable`
-  (keep the 🧺 logo inside the ~80% safe zone so Android masking doesn't crop it)
+  (mark scaled to ~62% so it stays inside the ~80% safe zone when Android
+  masks the icon to a circle/squircle)
 
-Brand green is `#2e7d32` (see `holding-site/styles.css` / `app/globals.css`).
-A favicon (`app/favicon.ico`) and an `apple-touch-icon` are also worth adding.
+The favicon is `app/icon.png` and the iOS home-screen icon is
+`app/apple-icon.png` — both picked up automatically by the Next.js App Router
+file conventions. The header logo is `public/images/logo-mark.png`
+(transparent background).
 
-Referenced from `app/manifest.ts`.
+To regenerate at other sizes, scale down from `brand/` — never scale up.

@@ -73,6 +73,10 @@ a {
   background: #fff;
   border-radius: 50%;
 }
+.admin-brand .logo img,
+.login-title .logo img {
+  display: block;
+}
 .admin-sub {
   margin-left: auto;
   font-size: 0.85rem;

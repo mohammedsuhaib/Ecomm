@@ -9,7 +9,7 @@
  * Bump CACHE_VERSION on any breaking change; old caches are dropped on
  * activate.
  */
-const CACHE_VERSION = 'tb-holding-v2';
+const CACHE_VERSION = 'tb-holding-v3';
 
 const PRECACHE = [
   '/',
@@ -25,6 +25,7 @@ const PRECACHE = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/logo-mark.png',
 ];
 
 self.addEventListener('install', (event) => {
