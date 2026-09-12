@@ -261,7 +261,8 @@
     "PACKING": "ಪ್ಯಾಕ್ ಮಾಡಲಾಗುತ್ತಿದೆ",
     "OUT_FOR_DELIVERY": "ತಲುಪಿಸಲು ಹೊರಟಿದೆ",
     "DELIVERED": "ತಲುಪಿಸಲಾಗಿದೆ",
-    "CANCELLED": "ರದ್ದುಮಾಡಲಾಗಿದೆ"
+    "CANCELLED": "ರದ್ದುಮಾಡಲಾಗಿದೆ",
+    "DELIVERY_FAILED": "ಡೆಲಿವರಿ ಪ್ರಯತ್ನ ವಿಫಲವಾಗಿದೆ"
   },
   "orderStamp": {
     "placed": "ಆರ್ಡರ್ ಮಾಡಿದ್ದು {time}"
@@ -273,6 +274,9 @@
     "headlineOutForDelivery": "ತಲುಪಿಸಲು ಹೊರಟಿದೆ",
     "headlineDelivered": "ತಲುಪಿಸಲಾಗಿದೆ!",
     "headlineCancelled": "ಆರ್ಡರ್ ರದ್ದುಮಾಡಲಾಗಿದೆ",
+    "headlineDeliveryFailed": "ನಿಮ್ಮ ಆರ್ಡರ್ ಡೆಲಿವರಿ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
+    "deliveryFailedNotice": "ನಮ್ಮ ರೈಡರ್ ಡೆಲಿವರಿ ಪೂರ್ಣಗೊಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮರು-ಡೆಲಿವರಿ ಏರ್ಪಡಿಸಲು ಅಂಗಡಿ ನಿಮಗೆ ಕರೆ ಮಾಡುತ್ತದೆ — ನಿಮ್ಮ ವಸ್ತುಗಳನ್ನು ಇನ್ನೂ ನಿಮಗಾಗಿ ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ.",
+    "deliveryFailedReason": "ಕಾರಣ: {reason}",
     "orderNumberTime": "ಆರ್ಡರ್ #{id} · {time}",
     "deliveryCode": "ಡೆಲಿವರಿ ಕೋಡ್",
     "deliveryCodeHint": "ಹಸ್ತಾಂತರದ ಸಮಯದಲ್ಲಿ ಈ ಕೋಡ್ ಅನ್ನು ಡೆಲಿವರಿ ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಹಂಚಿಕೊಳ್ಳಿ.",

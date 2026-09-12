@@ -333,6 +333,11 @@ class OrderServiceImpl implements OrderService {
                 throw new BusinessRuleException("Delivery OTP does not match");
             }
         }
+        if (to == OrderStatus.DELIVERY_FAILED && isBlank(request.reason())) {
+            // The reason is the whole point of the state: staff decide between a
+            // re-attempt and a cancel from it, and the customer is told it.
+            throw new BusinessRuleException("A reason is required when a delivery fails");
+        }
 
         order.setStatus(to);
         order.addEvent(new OrderEventEntity(from.name(), to.name(), request.reason()));
@@ -405,12 +410,26 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderDto confirmDelivery(Long orderId, Long agentId, String otp) {
+        requireAssignedTo(orderId, agentId);
+        return transition(orderId, new TransitionRequest("DELIVERED", otp, null));
+    }
+
+    @Override
+    public OrderDto failDelivery(Long orderId, Long agentId, String reason) {
+        requireAssignedTo(orderId, agentId);
+        // Stock stays RESERVED here on purpose: the goods are still in the
+        // rider's bag. Only a later CANCELLED releases them, once staff have
+        // the bag back on the shelf; a re-dispatch keeps the same reservation.
+        return transition(orderId, new TransitionRequest("DELIVERY_FAILED", null, reason));
+    }
+
+    /** An agent may act only on orders assigned to them; anything else is not theirs to touch. */
+    private void requireAssignedTo(Long orderId, Long agentId) {
         OrderEntity order = orders.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
         if (order.getAssignedAgentId() == null || !order.getAssignedAgentId().equals(agentId)) {
             throw new AccessDeniedException("This order is not assigned to you.");
         }
-        return transition(orderId, new TransitionRequest("DELIVERED", otp, null));
     }
 
     /** Mark an order CONFIRMED and record the timeline entry (called within checkout). */
@@ -517,7 +536,7 @@ class OrderServiceImpl implements OrderService {
                         i.getTaxableValue(), i.getCgst(), i.getSgst()))
                 .toList();
         List<OrderTimelineEntryDto> timeline = o.getEvents().stream()
-                .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt()))
+                .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt(), e.getReason()))
                 .toList();
         // The delivery OTP is the proof-of-delivery / COD-fraud code. It is exposed
         // to the customer ONLY while the order is OUT_FOR_DELIVERY (staff collect it

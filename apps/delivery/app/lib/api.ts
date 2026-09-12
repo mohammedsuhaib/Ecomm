@@ -154,6 +154,16 @@ export function confirmDelivery(orderId: string, otp: string): Promise<Order> {
   return apiPost<Order>(`/delivery/orders/${encodeURIComponent(orderId)}/deliver`, { otp });
 }
 
+/**
+ * POST /delivery/orders/{id}/fail — the attempt could not be completed
+ * (nobody home, wrong address, refused). The reason is required: staff decide
+ * re-dispatch vs cancel from it, and the customer is told it. The order leaves
+ * the rider's queue; the goods stay reserved until staff act.
+ */
+export function reportDeliveryFailure(orderId: string, reason: string): Promise<Order> {
+  return apiPost<Order>(`/delivery/orders/${encodeURIComponent(orderId)}/fail`, { reason });
+}
+
 // ---- push notifications -----------------------------------------------------
 
 /** What the deployment supports: the VAPID key, or `enabled: false` when unset. */

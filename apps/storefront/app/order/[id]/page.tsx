@@ -25,6 +25,7 @@ const STATUS_EMOJI: Record<OrderStatus, string> = {
   CONFIRMED: '✅',
   PACKING: '📦',
   OUT_FOR_DELIVERY: '🛵',
+  DELIVERY_FAILED: '⚠️',
   DELIVERED: '🎉',
   CANCELLED: '❌',
 };
@@ -34,6 +35,7 @@ const HEADLINE_KEY = {
   CONFIRMED: 'headlineConfirmed',
   PACKING: 'headlinePacking',
   OUT_FOR_DELIVERY: 'headlineOutForDelivery',
+  DELIVERY_FAILED: 'headlineDeliveryFailed',
   DELIVERED: 'headlineDelivered',
   CANCELLED: 'headlineCancelled',
 } as const satisfies Record<OrderStatus, string>;
@@ -227,9 +229,20 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   }
 
   const cancelled = order.status === 'CANCELLED';
+  const deliveryFailed = order.status === 'DELIVERY_FAILED';
+  // The rider's reason from the latest failed attempt — shown to the customer
+  // verbatim; nothing sensitive is ever written there.
+  const failureReason = deliveryFailed
+    ? [...order.timeline].reverse().find((e) => e.toStatus === 'DELIVERY_FAILED')?.note ?? null
+    : null;
   const headlineEmoji = STATUS_EMOJI[order.status] ?? STATUS_EMOJI.PLACED;
   const headlineTitle = t(HEADLINE_KEY[order.status] ?? 'headlinePlaced');
-  const currentIndex = STATUS_FLOW.indexOf(order.status);
+  // A failed attempt sits beside the flow, not on it: the order DID reach
+  // "out for delivery", so the timeline stays lit to that step while the
+  // notice above it explains what happened next.
+  const currentIndex = STATUS_FLOW.indexOf(
+    deliveryFailed ? 'OUT_FOR_DELIVERY' : order.status,
+  );
   // Map each status to the time it was reached, from the timeline.
   const reachedAt = new Map(order.timeline.map((t) => [t.toStatus, t.at]));
 
@@ -300,6 +313,12 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           )}
         </h2>
 
+        {deliveryFailed && (
+          <p className="notice warn" role="status">
+            {t('deliveryFailedNotice')}
+            {failureReason ? <> {t('deliveryFailedReason', { reason: failureReason })}</> : null}
+          </p>
+        )}
         {cancelled ? (
           <p className="notice error">{t('cancelledNotice')}</p>
         ) : (

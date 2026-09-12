@@ -8,6 +8,7 @@ export type OrderStatus =
   | 'CONFIRMED'
   | 'PACKING'
   | 'OUT_FOR_DELIVERY'
+  | 'DELIVERY_FAILED'
   | 'DELIVERED'
   | 'CANCELLED';
 
@@ -28,6 +29,7 @@ export interface OrderItem {
 export interface OrderTimelineEntry {
   toStatus: OrderStatus;
   at: string; // ISO timestamp
+  note?: string | null; // reason recorded with the step (failed delivery, staff cancel)
 }
 
 export interface Order {

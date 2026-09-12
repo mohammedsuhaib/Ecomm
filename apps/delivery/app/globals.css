@@ -505,3 +505,17 @@ html, body {
 .push-hint.error {
   color: var(--clr-danger);
 }
+
+/* Failed-delivery reporting. Confirm stays the big primary action; "Can't
+   deliver" is a quieter sibling so it is reachable but never the default tap. */
+.dcard-actions { display: flex; gap: .5rem; align-items: stretch; }
+.dcard-actions .dcard-deliver-btn { flex: 1; }
+.dcard-fail-btn { white-space: nowrap; }
+.dcard-reason {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .55rem .25rem; min-height: 44px; cursor: pointer;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+.dcard-reason input { width: 20px; height: 20px; accent-color: var(--clr-primary); }
+.dcard-fail-hint { font-size: .85rem; opacity: .75; margin: .5rem 0 .25rem; }
+.dcard-reported { border-color: #d97706; }

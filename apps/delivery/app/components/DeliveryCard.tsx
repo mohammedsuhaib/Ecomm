@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ApiError, AuthRequiredError, confirmDelivery } from '@/app/lib/api';
+import { ApiError, AuthRequiredError, confirmDelivery, reportDeliveryFailure } from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
@@ -18,6 +18,16 @@ function fmtAmount(n: number) {
   return '₹' + n.toLocaleString('en-IN');
 }
 
+// Fixed reasons: a rider on the road should tap, not type, and staff want
+// comparable data. "Other" still exists so nothing is forced into a wrong bucket.
+const FAIL_REASONS = [
+  'Customer not reachable',
+  'Wrong or incomplete address',
+  'Customer refused the order',
+  'Customer asked to deliver later',
+  'Other',
+] as const;
+
 export default function DeliveryCard({ order, onDelivered }: Props) {
   const { refresh } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -26,6 +36,11 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  // "Can't deliver": pick a fixed reason, confirm, and the order leaves this
+  // queue for staff to re-dispatch or cancel. Goods go back to the store.
+  const [failing, setFailing] = useState(false);
+  const [failReason, setFailReason] = useState('');
+  const [reported, setReported] = useState(false);
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${order.address.lat},${order.address.lng}`;
 
@@ -49,6 +64,22 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
     }
   }
 
+  async function submitFailure() {
+    if (!failReason || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await reportDeliveryFailure(order.id, failReason);
+      setReported(true);
+      setTimeout(() => onDelivered(order.id), 1500); // same exit as a delivery: leaves the queue
+    } catch (err) {
+      if (err instanceof AuthRequiredError) { refresh(); return; }
+      setError('Could not report this. Check your connection and try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (done) {
     return (
       <div className="dcard dcard-done">
@@ -56,9 +87,16 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
       </div>
     );
   }
+  if (reported) {
+    return (
+      <div className="dcard dcard-done dcard-reported">
+        <div className="dcard-done-msg">Reported #{order.id} — bring it back to the store</div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`dcard ${confirming ? 'dcard-active' : ''}`}>
+    <div className={`dcard ${confirming || failing ? 'dcard-active' : ''}`}>
       {/* Header */}
       <div className="dcard-head">
         <span className="dcard-id">#{order.id}</span>
@@ -108,14 +146,61 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
       )}
 
       {/* Actions / OTP area */}
-      {!confirming ? (
-        <button
-          type="button"
-          className="btn btn-primary dcard-deliver-btn"
-          onClick={() => setConfirming(true)}
-        >
-          Confirm Delivery
-        </button>
+      {failing ? (
+        <div className="dcard-otp-area" role="group" aria-label="Why couldn't you deliver?">
+          <p className="dcard-otp-label">Why couldn&apos;t you deliver?</p>
+          {FAIL_REASONS.map((r) => (
+            <label key={r} className="dcard-reason">
+              <input
+                type="radio"
+                name={`fail-${order.id}`}
+                value={r}
+                checked={failReason === r}
+                onChange={() => setFailReason(r)}
+              />
+              <span>{r}</span>
+            </label>
+          ))}
+          <p className="dcard-fail-hint">
+            Bring the order back to the store. Staff will call the customer and re-send or cancel it.
+          </p>
+          <div className="dcard-otp-row">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!failReason || busy}
+              onClick={submitFailure}
+            >
+              {busy ? '…' : 'Report'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => { setFailing(false); setFailReason(''); setError(null); }}
+              disabled={busy}
+            >
+              Back
+            </button>
+          </div>
+          {error && <p className="field-error">{error}</p>}
+        </div>
+      ) : !confirming ? (
+        <div className="dcard-actions">
+          <button
+            type="button"
+            className="btn btn-primary dcard-deliver-btn"
+            onClick={() => setConfirming(true)}
+          >
+            Confirm Delivery
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost dcard-fail-btn"
+            onClick={() => setFailing(true)}
+          >
+            Can&apos;t deliver
+          </button>
+        </div>
       ) : (
         <div className="dcard-otp-area">
           <label className="dcard-otp-label" htmlFor={`otp-${order.id}`}>

@@ -77,6 +77,23 @@ class DeliveryController {
         return orderService.confirmDelivery(id, userId, request.otp());
     }
 
+    /**
+     * POST /api/v1/delivery/orders/{id}/fail — the rider could not complete the
+     * delivery. Records the reason and parks the order in DELIVERY_FAILED for
+     * staff to re-dispatch or cancel; the stock reservation is kept because the
+     * goods are still in the rider's bag. Must be assigned to the caller (ADMIN
+     * may record a failure on any order).
+     */
+    @PostMapping("/orders/{id}/fail")
+    @Operation(summary = "Report a failed delivery attempt with a reason (must be assigned to you; ADMIN may override).")
+    OrderDto fail(@PathVariable Long id, @RequestBody FailDeliveryRequest request,
+                  @AuthenticationPrincipal Long userId) {
+        if (isAdmin()) {
+            return orderService.transition(id, new TransitionRequest("DELIVERY_FAILED", null, request.reason()));
+        }
+        return orderService.failDelivery(id, userId, request.reason());
+    }
+
     private static boolean isAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null && auth.getAuthorities().stream()

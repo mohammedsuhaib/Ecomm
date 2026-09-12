@@ -117,6 +117,7 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 
   ```
   PLACED → CONFIRMED → PACKING → OUT_FOR_DELIVERY → DELIVERED
+  (plus `OUT_FOR_DELIVERY → DELIVERY_FAILED` with a mandatory reason when the rider cannot complete an attempt; from there `→ OUT_FOR_DELIVERY` re-dispatches with the same stock reservation and OTP, or `→ CANCELLED` releases stock once the goods are back on the shelf)
      └────────┴──────────┴──→ CANCELLED (with reason + stock release)
   ```
 

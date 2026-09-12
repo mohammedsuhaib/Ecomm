@@ -73,6 +73,15 @@ class NotificationEventListener {
                 bodyFor(status),
                 event.trackingToken() == null ? null : "/order/" + event.trackingToken()));
 
+        if ("DELIVERY_FAILED".equals(status)) {
+            // Staff must act on this one — re-dispatch or cancel — so it goes to
+            // the dashboard like a new order does, not just to the customer.
+            dispatch(NotificationMessage.forAdmin(
+                    event.orderId(), "DELIVERY_FAILED", status,
+                    "Order #" + event.orderId() + " could not be delivered",
+                    "The rider reported a failed attempt. Re-dispatch or cancel it from the queue."));
+        }
+
         if (event.assignedAgentId() == null) {
             return;
         }
@@ -167,6 +176,7 @@ class NotificationEventListener {
             case "CONFIRMED" -> "Order confirmed";
             case "PACKING" -> "We're packing your order";
             case "OUT_FOR_DELIVERY" -> "Your order is on the way";
+            case "DELIVERY_FAILED" -> "We couldn't deliver your order";
             case "DELIVERED" -> "Order delivered";
             case "CANCELLED" -> "Order cancelled";
             default -> "Order #" + orderId + " updated";
@@ -178,6 +188,7 @@ class NotificationEventListener {
             case "CONFIRMED" -> "We've received your order and will start preparing it shortly.";
             case "PACKING" -> "Your groceries are being packed for delivery.";
             case "OUT_FOR_DELIVERY" -> "Keep your delivery code handy to hand over to the delivery person.";
+            case "DELIVERY_FAILED" -> "Our rider couldn't reach you. The store will call you to arrange a re-delivery.";
             case "DELIVERED" -> "Thank you for shopping with Town Basket!";
             case "CANCELLED" -> "Your order was cancelled and any reserved items released.";
             default -> "Tap to see the latest status of your order.";

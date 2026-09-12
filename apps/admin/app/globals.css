@@ -1317,3 +1317,21 @@ a {
   color: var(--green-dark);
   background: var(--green-light);
 }
+
+/* Failed delivery attempt: amber, because it needs a decision (re-dispatch or
+   cancel) but nothing is broken — red is reserved for cancelled. */
+.order-card.status-DELIVERY_FAILED {
+  border-left: 4px solid #d97706;
+}
+.status-badge.status-DELIVERY_FAILED {
+  background: #fef3c7;
+  color: #92400e;
+}
+.order-fail-reason {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: #78350f;
+  font-size: 0.9rem;
+}

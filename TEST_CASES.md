@@ -211,6 +211,7 @@ testing possible without real money or SMS.
 | TC-ORD-012 | Positive | Invoice PDF | Tracking page → Download invoice | PDF opens: store details, bill-to, itemised lines, totals, payment line | P1 |
 | TC-ORD-013 | Security | Tracking token is the only key | Open a tracking link, then alter the token in the URL | No other customer's order is reachable; 404 | P1 |
 | TC-ORD-014 | Security | Order ids are not enumerable | Try `/order/1`, `/order/2` | Sequential ids do not expose orders — only the UUID token works | P1 |
+| TC-ORD-015 | Positive | Customer sees the failed attempt | Track an order after the rider reports Can't deliver | Headline "We couldn't deliver your order", amber notice with the rider's reason and "the store will call you"; timeline stays lit to Out for delivery; the push/in-app update says the same (en + kn) | P1 |
 
 ---
 
@@ -231,6 +232,10 @@ testing possible without real money or SMS.
 | TC-ADM-011 | Negative | Assign on a closed order | Try to assign a rider to a DELIVERED order | Refused | P2 |
 | TC-ADM-012 | Positive | COD marked paid on delivery | Complete a COD order through DELIVERED | Payment status flips to PAID at delivery | P1 |
 | TC-ADM-013 | Security | Cost price never leaks | Inspect the order payload the admin/storefront receives | No `costPrice` on any order line in either app | P1 |
+| TC-ADM-014 | Positive | Failed delivery lands with staff | After TC-DLV-010, open Admin → Orders | Card shows **Delivery failed** (amber) with the rider's reason; a "Delivery failed" status tab lists it; the dashboard alert fires | P1 |
+| TC-ADM-015 | Positive | Re-dispatch | On a Delivery-failed card tap **Re-dispatch** | Order returns to OUT_FOR_DELIVERY with the SAME rider and the same customer OTP; it reappears in that rider's queue | P1 |
+| TC-ADM-016 | Positive | Cancel after failed attempt | On a Delivery-failed card tap Cancel with a reason | CANCELLED; reserved stock is released ONLY now (check Inventory before/after) | P1 |
+| TC-ADM-017 | Negative | Failed order cannot skip to Delivered | Try to mark a Delivery-failed order DELIVERED | Refused — it must go back out for delivery first | P1 |
 
 ---
 
@@ -256,6 +261,7 @@ testing possible without real money or SMS.
 | TC-INV-016 | Edge | Fast typing | Type a term quickly, then delete a few characters | Final list matches the final search box contents (no stale result overwriting it) | P2 |
 | TC-INV-017 | Edge | Correction keeps the search | Search, correct a stock count, save | List reloads still filtered by the same term, on the same page | P2 |
 | TC-INV-018 | Edge | No matches | Search `zzzzqq` | "No stock matches …" naming the term; pager hidden | P3 |
+| TC-INV-019 | Edge | Failed attempt keeps the reservation | Note available stock, take an order to OUT_FOR_DELIVERY, report Can't deliver | Available stock UNCHANGED (goods are still with the rider); it returns only if staff cancel (TC-ADM-016) | P1 |
 
 ---
 
@@ -340,6 +346,9 @@ testing possible without real money or SMS.
 | TC-DLV-009 | Edge | Auto-poll | Leave the app open while an order is assigned | Queue picks it up within ~30 s without interaction | P2 |
 | TC-DLV-010 | Positive | Logout | Tap Logout | Returns to login; queue no longer reachable | P2 |
 | TC-DLV-011 | Positive | Pinch-zoom allowed | Pinch-zoom the queue on a phone | Zoom works (accessibility requirement) | P3 |
+| TC-DLV-010 | Positive | Can't deliver | On an out-for-delivery card tap **Can't deliver**, pick a reason, Report | Order leaves the rider's queue; a "Reported — bring it back" confirmation shows briefly | P1 |
+| TC-DLV-011 | Negative | Reason is mandatory | Open Can't deliver and tap Report with no reason selected | Report is disabled; nothing is sent | P2 |
+| TC-DLV-012 | Negative | Not my order | Call `POST /delivery/orders/{id}/fail` for an order assigned to another rider | 403; order unchanged | P1 |
 
 ---
 

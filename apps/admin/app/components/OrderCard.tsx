@@ -38,6 +38,12 @@ export default function OrderCard({
 
   const next = nextStatus(order.status);
   const terminal = order.status === 'DELIVERED' || order.status === 'CANCELLED';
+  // Why the bag came back — the rider's reason from the latest failed attempt.
+  // It is the one input staff need to choose between re-dispatch and cancel.
+  const failureReason =
+    order.status === 'DELIVERY_FAILED'
+      ? [...order.timeline].reverse().find((e) => e.toStatus === 'DELIVERY_FAILED')?.note ?? null
+      : null;
   const assignedAgent =
     agents.find((a) => a.id === order.assignedAgentId) ?? null;
 
@@ -139,6 +145,13 @@ export default function OrderCard({
         <span className="muted">{order.address.line}</span>
       </div>
 
+      {failureReason && (
+        <p className="order-fail-reason" role="status">
+          <strong>Couldn&apos;t deliver:</strong> {failureReason}
+          <span className="muted"> — stock is still reserved; re-dispatch, or cancel once the goods are back.</span>
+        </p>
+      )}
+
       <div className="order-assign">
         <label htmlFor={`assign-${order.id}`}>Rider</label>
         {terminal ? (
@@ -231,7 +244,11 @@ export default function OrderCard({
               disabled={busy}
               onClick={onAdvanceClick}
             >
-              {busy ? 'Updating…' : `Mark ${STATUS_LABELS[next]}`}
+              {busy
+                ? 'Updating…'
+                : order.status === 'DELIVERY_FAILED'
+                  ? 'Re-dispatch'
+                  : `Mark ${STATUS_LABELS[next]}`}
             </button>
           ) : (
             <span className="muted">

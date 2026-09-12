@@ -5,6 +5,7 @@ export type OrderStatus =
   | 'CONFIRMED'
   | 'PACKING'
   | 'OUT_FOR_DELIVERY'
+  | 'DELIVERY_FAILED'
   | 'DELIVERED'
   | 'CANCELLED';
 

@@ -104,4 +104,13 @@ public interface OrderService {
      * @throws org.springframework.security.access.AccessDeniedException if the order is not assigned to {@code agentId}
      */
     OrderDto confirmDelivery(Long orderId, Long agentId, String otp);
+
+    /**
+     * The assigned agent reports that a delivery attempt failed (customer
+     * unreachable, wrong address, refused at the door): OUT_FOR_DELIVERY →
+     * DELIVERY_FAILED with the reason on the timeline. Reserved stock is NOT
+     * released — the goods are still with the rider — staff later re-dispatch
+     * or cancel. Rejects orders not assigned to {@code agentId}.
+     */
+    OrderDto failDelivery(Long orderId, Long agentId, String reason);
 }

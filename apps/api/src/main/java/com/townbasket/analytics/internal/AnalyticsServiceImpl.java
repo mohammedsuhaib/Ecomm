@@ -50,7 +50,7 @@ class AnalyticsServiceImpl implements AnalyticsService {
                       = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
                   ) AS today_delivered,
                   COUNT(*) FILTER (
-                    WHERE status IN ('PLACED','CONFIRMED','PACKING','OUT_FOR_DELIVERY')
+                    WHERE status IN ('PLACED','CONFIRMED','PACKING','OUT_FOR_DELIVERY','DELIVERY_FAILED')
                   ) AS pending_orders,
                   COUNT(*) FILTER (
                     WHERE status != 'CANCELLED'

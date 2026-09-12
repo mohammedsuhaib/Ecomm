@@ -59,6 +59,10 @@ class OrderEventEntity {
         return toStatus;
     }
 
+    String getReason() {
+        return reason;
+    }
+
     Instant getAt() {
         return at;
     }

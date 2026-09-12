@@ -261,7 +261,8 @@
     "PACKING": "Being packed",
     "OUT_FOR_DELIVERY": "Out for delivery",
     "DELIVERED": "Delivered",
-    "CANCELLED": "Cancelled"
+    "CANCELLED": "Cancelled",
+    "DELIVERY_FAILED": "Delivery attempt failed"
   },
   "orderStamp": {
     "placed": "Placed {time}"
@@ -273,6 +274,9 @@
     "headlineOutForDelivery": "Out for delivery",
     "headlineDelivered": "Delivered!",
     "headlineCancelled": "Order cancelled",
+    "headlineDeliveryFailed": "We couldn't deliver your order",
+    "deliveryFailedNotice": "Our rider couldn't complete the delivery. The store will call you to arrange a re-delivery — your items are still set aside for you.",
+    "deliveryFailedReason": "Reason: {reason}",
     "orderNumberTime": "Order #{id} · {time}",
     "deliveryCode": "Delivery code",
     "deliveryCodeHint": "Share this code with the delivery person at handover.",
