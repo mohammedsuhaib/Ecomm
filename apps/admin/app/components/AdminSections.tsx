@@ -6,8 +6,9 @@ import Catalogue from './Catalogue';
 import InventoryPanel from './InventoryPanel';
 import OrderQueue from './OrderQueue';
 import RidersPanel from './RidersPanel';
+import StorePanel from './StorePanel';
 
-type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders';
+type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders' | 'store';
 
 const TABS: { value: Section; label: string }[] = [
   { value: 'orders', label: 'Orders' },
@@ -15,6 +16,7 @@ const TABS: { value: Section; label: string }[] = [
   { value: 'inventory', label: 'Inventory' },
   { value: 'catalogue', label: 'Catalogue' },
   { value: 'riders', label: 'Riders' },
+  { value: 'store', label: 'Store' },
 ];
 
 const isSection = (v: string | null): v is Section =>
@@ -71,6 +73,7 @@ export default function AdminSections() {
       {section === 'inventory' && <InventoryPanel />}
       {section === 'catalogue' && <Catalogue />}
       {section === 'riders' && <RidersPanel />}
+      {section === 'store' && <StorePanel />}
     </>
   );
 }

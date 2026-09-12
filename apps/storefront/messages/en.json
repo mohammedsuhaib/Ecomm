@@ -27,6 +27,8 @@
     "storeClosedTitle": "We’re closed right now.",
     "storeClosedOpensTomorrow": "We open again tomorrow at {time}.",
     "storeClosedOpensToday": "We open today at {time}.",
+    "storeClosedTodayTitle": "We’re closed today.",
+    "storeClosedReason": "{reason}.",
     "storeClosedBrowseHint": "You can still browse and fill your cart — you’ll be able to order once we open."
   },
   "veg": {

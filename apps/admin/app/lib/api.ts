@@ -38,6 +38,8 @@ import type {
   TokenPair,
   TopProduct,
   TransitionRequest,
+  StoreSettings,
+  StoreUpdateRequest,
 } from './types';
 
 // Resolve the API base URL per execution context:
@@ -668,4 +670,26 @@ export async function correctStock(
     `/admin/inventory/stock/${encodeURIComponent(variantId)}/correction?storeId=${storeId}`,
     req,
   );
+}
+
+// ---- Store settings (M6 ops) ----------------------------------------------
+
+/** GET /admin/store */
+export function getStoreSettings(): Promise<StoreSettings> {
+  return apiFetch<StoreSettings>('/admin/store');
+}
+
+/** PUT /admin/store — replace hours, minimum, radius, location. */
+export function updateStoreSettings(req: StoreUpdateRequest): Promise<StoreSettings> {
+  return apiMutate<StoreSettings>('PUT', '/admin/store', req);
+}
+
+/** POST /admin/store/close-today — closed for the rest of today (store time). */
+export function closeStoreForToday(reason: string): Promise<StoreSettings> {
+  return apiMutate<StoreSettings>('POST', '/admin/store/close-today', { reason });
+}
+
+/** POST /admin/store/reopen — lift a manual closure now. */
+export function reopenStore(): Promise<StoreSettings> {
+  return apiMutate<StoreSettings>('POST', '/admin/store/reopen');
 }

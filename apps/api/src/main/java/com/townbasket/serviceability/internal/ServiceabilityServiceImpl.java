@@ -7,6 +7,10 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import com.townbasket.serviceability.StoreUpdateRequest;
 import java.time.LocalTime;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -134,8 +138,96 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         return EARTH_RADIUS_M * c;
     }
 
+    @Override
+    @Transactional
+    public StoreDto updateStore(StoreUpdateRequest r) {
+        StoreEntity store = requireActiveStore();
+        if (r == null) {
+            throw new IllegalArgumentException("request body is required");
+        }
+        if (isBlank(r.name()) || isBlank(r.address())) {
+            throw new IllegalArgumentException("name and address are required");
+        }
+        if (r.openingTime() == null || r.closingTime() == null || r.openingTime().equals(r.closingTime())) {
+            throw new IllegalArgumentException("opening and closing time are required and must differ");
+        }
+        if (r.deliveryRadiusMeters() < 500 || r.deliveryRadiusMeters() > 50_000) {
+            throw new IllegalArgumentException("deliveryRadiusMeters must be between 500 and 50000");
+        }
+        if (r.minOrderValue() == null || r.minOrderValue().signum() < 0) {
+            throw new IllegalArgumentException("minOrderValue must be >= 0");
+        }
+        if (r.lat() < -90 || r.lat() > 90 || r.lng() < -180 || r.lng() > 180) {
+            throw new IllegalArgumentException("lat/lng out of range");
+        }
+        store.updateSettings(r.name().trim(), r.address().trim(), r.lat(), r.lng(),
+                r.deliveryRadiusMeters(), r.openingTime(), r.closingTime(), r.minOrderValue());
+        return toDto(storeRepository.saveAndFlush(store));
+    }
+
+    @Override
+    @Transactional
+    public StoreDto closeForToday(String reason) {
+        StoreEntity store = requireActiveStore();
+        // End of today in the STORE's zone (the Clock bean is Asia/Kolkata), so
+        // "today" means the shop's day, never the server's or the admin's laptop.
+        Instant until = LocalDate.now(clock).atTime(LocalTime.MAX).atZone(clock.getZone()).toInstant();
+        store.closeUntil(until, isBlank(reason) ? null : reason.trim());
+        log.info("Store {} closed manually until {} ({})", store.getId(), until, reason);
+        return toDto(storeRepository.saveAndFlush(store));
+    }
+
+    @Override
+    @Transactional
+    public StoreDto reopen() {
+        StoreEntity store = requireActiveStore();
+        store.reopen();
+        log.info("Store {} manual closure lifted", store.getId());
+        return toDto(storeRepository.saveAndFlush(store));
+    }
+
+    private StoreEntity requireActiveStore() {
+        return storeRepository.findFirstByActiveTrueOrderByIdAsc()
+                .orElseThrow(() -> new IllegalStateException("No active store configured"));
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    /**
+     * Whether a manual closure is in force: closed_until set and still ahead of
+     * now. A lapsed closure is simply ignored — no cleanup job needed.
+     */
+    static boolean manuallyClosedAt(Instant now, Instant closedUntil) {
+        return closedUntil != null && now.isBefore(closedUntil);
+    }
+
+    /**
+     * With a manual closure in force, does the store next open on a later day?
+     * True when the closure runs to (or past) today's closing time — there is no
+     * trading left today — and also when today's window has already closed
+     * anyway. False when the closure lifts before closing time, since the shop
+     * can still open later today. {@code closureEnd} is in store-local time.
+     */
+    static boolean manualClosureOpensNextDay(LocalDateTime nowLocal, LocalDateTime closureEnd, LocalTime closing) {
+        if (!closureEnd.toLocalDate().equals(nowLocal.toLocalDate())) {
+            return true; // runs into tomorrow or beyond
+        }
+        return !closureEnd.toLocalTime().isBefore(closing) || nowLocal.toLocalTime().isAfter(closing);
+    }
+
     private StoreDto toDto(StoreEntity s) {
+        Instant nowInstant = clock.instant();
         LocalTime now = LocalTime.now(clock);
+        boolean manuallyClosed = manuallyClosedAt(nowInstant, s.getClosedUntil());
+        boolean open = !manuallyClosed && isOpenAt(now, s.getOpeningTime(), s.getClosingTime());
+        boolean nextDay = manuallyClosed
+                ? manualClosureOpensNextDay(
+                        LocalDateTime.ofInstant(nowInstant, clock.getZone()),
+                        LocalDateTime.ofInstant(s.getClosedUntil(), clock.getZone()),
+                        s.getClosingTime())
+                : opensNextDay(now, s.getOpeningTime(), s.getClosingTime());
         return new StoreDto(
                 s.getName(),
                 s.getAddress(),
@@ -145,7 +237,10 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
                 s.getMinOrderValue(),
                 storeLat(s),
                 storeLng(s),
-                isOpenAt(now, s.getOpeningTime(), s.getClosingTime()),
-                opensNextDay(now, s.getOpeningTime(), s.getClosingTime()));
+                open,
+                nextDay,
+                manuallyClosed,
+                manuallyClosed ? s.getClosedReason() : null,
+                manuallyClosed ? s.getClosedUntil() : null);
     }
 }

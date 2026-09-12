@@ -2,6 +2,8 @@ package com.townbasket.serviceability.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import org.junit.jupiter.api.Test;
 
@@ -51,5 +53,42 @@ class StoreHoursTest {
         assertThat(ServiceabilityServiceImpl.isOpenAt(LocalTime.of(12, 0), open, close)).isFalse();
         // Closed at midday, it reopens the same evening — not "tomorrow".
         assertThat(ServiceabilityServiceImpl.opensNextDay(LocalTime.of(12, 0), open, close)).isFalse();
+    }
+
+    @Test
+    void aManualClosureIsInForceOnlyUntilItsInstant() {
+        Instant until = Instant.parse("2026-09-12T18:29:59Z"); // 23:59:59 IST
+        assertThat(ServiceabilityServiceImpl.manuallyClosedAt(until.minusSeconds(60), until)).isTrue();
+        assertThat(ServiceabilityServiceImpl.manuallyClosedAt(until, until)).isFalse();
+        assertThat(ServiceabilityServiceImpl.manuallyClosedAt(until.plusSeconds(1), until)).isFalse();
+        // No closure recorded at all.
+        assertThat(ServiceabilityServiceImpl.manuallyClosedAt(until, null)).isFalse();
+    }
+
+    @Test
+    void closedForTodayMeansWeOpenTomorrow() {
+        // The "close for today" switch runs to 23:59:59 — past closing time — so
+        // the banner must say tomorrow, not "we open today at 8 AM".
+        LocalDateTime now = LocalDateTime.of(2026, 9, 12, 10, 0);
+        LocalDateTime endOfDay = LocalDateTime.of(2026, 9, 12, 23, 59, 59);
+        assertThat(ServiceabilityServiceImpl.manualClosureOpensNextDay(now, endOfDay, CLOSE)).isTrue();
+    }
+
+    @Test
+    void aShortClosureThatLiftsBeforeClosingTimeReopensToday() {
+        // Closed 10:00-14:00 for a power cut: the shop is back this afternoon.
+        LocalDateTime now = LocalDateTime.of(2026, 9, 12, 10, 0);
+        LocalDateTime twoPm = LocalDateTime.of(2026, 9, 12, 14, 0);
+        assertThat(ServiceabilityServiceImpl.manualClosureOpensNextDay(now, twoPm, CLOSE)).isFalse();
+        // ...unless the trading day is already over when we look.
+        LocalDateTime lateNow = LocalDateTime.of(2026, 9, 12, 21, 30);
+        assertThat(ServiceabilityServiceImpl.manualClosureOpensNextDay(lateNow, twoPm.plusHours(8), CLOSE)).isTrue();
+    }
+
+    @Test
+    void aClosureRunningIntoTomorrowOpensNextDay() {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 12, 10, 0);
+        LocalDateTime tomorrowNoon = LocalDateTime.of(2026, 9, 13, 12, 0);
+        assertThat(ServiceabilityServiceImpl.manualClosureOpensNextDay(now, tomorrowNoon, CLOSE)).isTrue();
     }
 }

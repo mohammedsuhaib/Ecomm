@@ -27,6 +27,8 @@
     "storeClosedTitle": "ನಾವು ಈಗ ಮುಚ್ಚಿದ್ದೇವೆ.",
     "storeClosedOpensTomorrow": "ನಾಳೆ {time} ಕ್ಕೆ ಪುನಃ ತೆರೆಯುತ್ತೇವೆ.",
     "storeClosedOpensToday": "ಇಂದು {time} ಕ್ಕೆ ತೆರೆಯುತ್ತೇವೆ.",
+    "storeClosedTodayTitle": "ನಾವು ಇಂದು ಮುಚ್ಚಿದ್ದೇವೆ.",
+    "storeClosedReason": "{reason}.",
     "storeClosedBrowseHint": "ನೀವು ಈಗಲೂ ವೀಕ್ಷಿಸಿ ಕಾರ್ಟ್ ತುಂಬಿಸಬಹುದು — ನಾವು ತೆರೆದ ನಂತರ ಆರ್ಡರ್ ಮಾಡಬಹುದು."
   },
   "veg": {

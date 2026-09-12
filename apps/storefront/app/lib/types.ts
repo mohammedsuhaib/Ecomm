@@ -46,6 +46,10 @@ export interface Store {
   open: boolean;
   /** True when the next opening is the following day (today's window has closed). */
   opensNextDay: boolean;
+  /** A staff "closed for today" is in force — the reason `open` is false right now. */
+  manuallyClosed?: boolean;
+  /** Staff's reason for that closure, shown to customers; null/absent otherwise. */
+  closedReason?: string | null;
 }
 
 export interface ServiceabilityResult {

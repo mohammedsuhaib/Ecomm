@@ -60,7 +60,15 @@ export default function StoreClosedBanner() {
         🌙
       </span>
       <p className="store-closed-text">
-        <strong>{t('storeClosedTitle')}</strong>{' '}
+        {/* A staff closure reads differently from "outside hours": say it is
+            for today and pass on their reason, so a customer standing outside
+            a shut shop during trading hours isn't told "we open today at 8". */}
+        <strong>
+          {store.manuallyClosed ? t('storeClosedTodayTitle') : t('storeClosedTitle')}
+        </strong>{' '}
+        {store.manuallyClosed && store.closedReason
+          ? <>{t('storeClosedReason', { reason: store.closedReason })}{' '}</>
+          : null}
         {store.opensNextDay
           ? t('storeClosedOpensTomorrow', { time: opensAt })
           : t('storeClosedOpensToday', { time: opensAt })}{' '}

@@ -1335,3 +1335,16 @@ a {
   color: #78350f;
   font-size: 0.9rem;
 }
+
+/* Store panel: the live status card staff read before/after flipping a switch. */
+.store-status {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.85rem 1rem; border-radius: 8px; margin: 0.75rem 0 1rem;
+  border-left: 4px solid #9ca3af; background: #f3f4f6;
+}
+.store-status.open { border-left-color: #16a34a; background: #ecfdf5; }
+.store-status.closed-hours { border-left-color: #9ca3af; }
+.store-status.closed-manual { border-left-color: #d97706; background: #fef3c7; }
+.store-form { flex-wrap: wrap; }
+.store-form .login-field { flex: 1 1 200px; }
+.store-form .store-form-wide { flex: 1 1 100%; }

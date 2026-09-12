@@ -169,6 +169,12 @@ testing possible without real money or SMS.
 | TC-SRV-015 | Edge | Closure mid-checkout | Begin checkout while open, close the store, then submit | Rejected with the specific closed message — not the generic "couldn't place this order" | P1 |
 | TC-SRV-016 | Edge | API unreachable | Block the API, then load a page | No banner shown (a false "closed" would cost orders); page still renders | P2 |
 | TC-SRV-017 | Edge | Frontend newer than the API | Run the storefront against an API build that predates the open/closed fields | No banner at all — a missing `open` must read as unknown, never as closed (it would otherwise show all day and always say "opens today") | P1 |
+| TC-SRV-018 | Positive | Store settings editable in Admin | Admin → Store → change closing time to 5 minutes from now → Save | Saved without SQL; storefront home shows the new hours within ~60 s; at the new closing time the closed banner appears and checkout blocks | P1 |
+| TC-SRV-019 | Positive | Close for today | Admin → Store → **Close for today…** with reason "Power cut" (during trading hours) | Status card turns amber "Closed for today"; storefront banner reads "We're closed today. Power cut. We open again tomorrow at 8:00 am"; Place Order is disabled; API `GET /store` has `open:false, manuallyClosed:true` | P1 |
+| TC-SRV-020 | Positive | Reopen now | With the store closed for today, tap **Reopen now** | Banner disappears within ~5 min (immediately on reload); checkout works; normal hours apply | P1 |
+| TC-SRV-021 | Edge | Closure lapses by itself | Close for today, then check the next morning without touching Admin | Store is open at the normal opening time — a forgotten reopen costs at most the intended day | P2 |
+| TC-SRV-022 | Negative | Invalid settings rejected | Try radius 100 m, or opening time equal to closing time, or a blank name | Save refused with a message; nothing changes on the storefront | P2 |
+| TC-SRV-023 | Negative | Customers cannot touch settings | Call `PUT /api/v1/admin/store` or `POST /api/v1/admin/store/close-today` with a customer token or none | 401/403; store unchanged | P1 |
 
 ---
 

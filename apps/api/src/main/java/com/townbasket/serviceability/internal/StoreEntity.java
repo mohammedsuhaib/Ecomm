@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalTime;
 
 /**
@@ -46,6 +47,13 @@ class StoreEntity {
 
     @Column(nullable = false)
     private boolean active;
+
+    /** Manual closure: closed while now < closedUntil, whatever the hours say. */
+    @Column(name = "closed_until")
+    private Instant closedUntil;
+
+    @Column(name = "closed_reason")
+    private String closedReason;
 
     protected StoreEntity() {
         // JPA
@@ -89,5 +97,37 @@ class StoreEntity {
 
     boolean isActive() {
         return active;
+    }
+
+    Instant getClosedUntil() {
+        return closedUntil;
+    }
+
+    String getClosedReason() {
+        return closedReason;
+    }
+
+    // Settings are edited from the admin app; identity and `active` are not.
+    void updateSettings(String name, String address, double lat, double lng,
+                        int deliveryRadiusM, LocalTime openingTime, LocalTime closingTime,
+                        BigDecimal minOrderValue) {
+        this.name = name;
+        this.address = address;
+        this.lat = lat;
+        this.lng = lng;
+        this.deliveryRadiusM = deliveryRadiusM;
+        this.openingTime = openingTime;
+        this.closingTime = closingTime;
+        this.minOrderValue = minOrderValue;
+    }
+
+    void closeUntil(Instant until, String reason) {
+        this.closedUntil = until;
+        this.closedReason = reason;
+    }
+
+    void reopen() {
+        this.closedUntil = null;
+        this.closedReason = null;
     }
 }

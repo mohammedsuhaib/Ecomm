@@ -235,3 +235,34 @@ export interface StockCorrectionRequest {
   newOnHand: number;
   reason: string;
 }
+
+// ---- Store settings (serviceability, admin) --------------------------------
+
+/** GET /admin/store — the store card, incl. live open state and any manual closure. */
+export interface StoreSettings {
+  name: string;
+  address: string;
+  openingTime: string; // "HH:mm[:ss]" store-local
+  closingTime: string;
+  deliveryRadiusMeters: number;
+  minOrderValue: number;
+  lat: number;
+  lng: number;
+  open: boolean; // serving right now, on the SERVER clock
+  opensNextDay: boolean;
+  manuallyClosed: boolean; // a "closed for today" is in force
+  closedReason: string | null;
+  closedUntil: string | null; // ISO instant when the closure lapses
+}
+
+/** PUT /admin/store body — the whole card, always. */
+export interface StoreUpdateRequest {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  deliveryRadiusMeters: number;
+  openingTime: string; // "HH:mm"
+  closingTime: string;
+  minOrderValue: number;
+}
