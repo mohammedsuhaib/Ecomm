@@ -73,6 +73,10 @@ a:hover {
   font-size: 1.1rem;
 }
 
+.brand .logo img {
+  display: block;
+}
+
 .site-header nav a {
   color: #eafaf0;
   text-decoration: none;

@@ -2,8 +2,7 @@ import type { MetadataRoute } from 'next';
 
 // Web app manifest (served by Next at /manifest.webmanifest). Drives the
 // installable PWA: name, brand colours, standalone display, icons.
-// NOTE: the icon files referenced below are placeholders — see
-// public/icons/README and generate real branded PNGs before launch.
+// Icons are the branded basket mark — see public/icons/README.md and brand/.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'Town Basket',
@@ -14,7 +13,9 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#ffffff',
+    // Matches the off-white ground of the branded icons so the install
+    // splash screen blends with the icon tile.
+    background_color: '#fdfcf3',
     theme_color: '#2e7d32',
     categories: ['shopping', 'food'],
     icons: [

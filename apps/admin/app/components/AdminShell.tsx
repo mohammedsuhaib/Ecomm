@@ -29,7 +29,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         <div className="admin-header-inner">
           <h1 className="admin-brand">
             <span className="logo" aria-hidden>
-              🧺
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-mark.png" alt="" width={22} height={22} />
             </span>
             Town Basket — Store Admin
           </h1>

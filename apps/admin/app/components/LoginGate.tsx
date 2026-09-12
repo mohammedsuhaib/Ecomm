@@ -48,7 +48,8 @@ export default function LoginGate({ children }: { children: ReactNode }) {
       <form className="login-card" onSubmit={onSubmit}>
         <h1 className="login-title">
           <span className="logo" aria-hidden>
-            🧺
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.png" alt="" width={22} height={22} />
           </span>
           Town Basket Admin
         </h1>
