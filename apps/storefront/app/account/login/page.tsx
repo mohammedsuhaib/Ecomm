@@ -100,6 +100,9 @@ export default function LoginPage() {
     if (!codeValid || busy) return;
     setBusy(true);
     setError(null);
+    // Drop a stale "A new code has been sent." notice: if this verify fails,
+    // the invalid-code error must not appear alongside a resend success note.
+    setResent(false);
     try {
       await loginWithPhone(phone.trim(), code.trim());
 

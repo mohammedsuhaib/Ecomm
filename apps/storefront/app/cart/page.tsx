@@ -13,6 +13,10 @@ export default function CartPage() {
   const tc = useTranslations('common');
   const { cart, loading, refresh, setQty, removeItem } = useCart();
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
+  // Server-decided (its clock, not the device's): the shop is shut, so
+  // checkout would refuse the order. Block "Proceed to checkout" here rather
+  // than letting the customer fill the whole checkout form for nothing.
+  const [storeClosed, setStoreClosed] = useState(false);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,11 +25,20 @@ export default function CartPage() {
     void refresh();
   }, [refresh]);
 
-  // Minimum-order threshold comes from store config.
+  // Minimum-order threshold and open/closed both come from store config. Fetch
+  // it live (noStore) so a closure that just happened is seen, not a cached
+  // "open". Strictly `open === false` only — a missing field (older API) or a
+  // failed fetch must not block a customer who could order (see StoreClosedBanner).
   useEffect(() => {
-    getStore()
-      .then((s) => setMinOrderValue(s.minOrderValue))
-      .catch(() => setMinOrderValue(null));
+    getStore({ noStore: true })
+      .then((s) => {
+        setMinOrderValue(s.minOrderValue);
+        setStoreClosed(s.open === false);
+      })
+      .catch(() => {
+        setMinOrderValue(null);
+        setStoreClosed(false);
+      });
   }, []);
 
   async function change(item: CartItem, qty: number) {
@@ -52,6 +65,7 @@ export default function CartPage() {
   const belowMin = minOrderValue != null && subtotal < minOrderValue;
   const canCheckout =
     items.length > 0 &&
+    !storeClosed &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -172,6 +186,9 @@ export default function CartPage() {
               <p className="notice error">
                 {t('someShortage')}
               </p>
+            )}
+            {storeClosed && (
+              <p className="notice warn">{t('storeClosedNotice')}</p>
             )}
 
             {canCheckout ? (

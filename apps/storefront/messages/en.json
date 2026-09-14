@@ -151,7 +151,8 @@
     "noLongerAvailableRemove": "No longer available — remove to continue",
     "onlyNLeft": "Only {count} left — reduce quantity to continue",
     "someNoLongerAvailable": "Some items are no longer available. Remove them to continue.",
-    "someShortage": "Some items don’t have enough stock for the quantity you chose. Reduce the quantity to continue."
+    "someShortage": "Some items don’t have enough stock for the quantity you chose. Reduce the quantity to continue.",
+    "storeClosedNotice": "We’re closed right now, so orders can’t be placed. Your cart is saved — check out once we reopen."
   },
   "checkout": {
     "title": "Checkout",
