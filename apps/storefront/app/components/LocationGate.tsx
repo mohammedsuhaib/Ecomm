@@ -17,7 +17,7 @@ import {
   type StoredServiceability,
 } from '@/app/lib/serviceability';
 import type { ServiceabilityResult } from '@/app/lib/types';
-import LocationPicker from './LocationPicker';
+import LocationPicker from './LocationPickerLazy';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
 
@@ -96,7 +96,7 @@ export default function LocationGate({
       setError(t('errorCheck'));
       setPhase('prompt');
     }
-  }, []);
+  }, [t]);
 
   // Check the point chosen on the map / via "use my current location".
   const checkPicked = useCallback(() => {
@@ -114,7 +114,7 @@ export default function LocationGate({
       return;
     }
     runCheck(lat, lng);
-  }, [pickLat, pickLng, runCheck]);
+  }, [pickLat, pickLng, runCheck, t]);
 
   // "Browse anyway" — let them into the catalogue without a serviceable
   // result. Checkout (M3) will re-verify, per the architecture.

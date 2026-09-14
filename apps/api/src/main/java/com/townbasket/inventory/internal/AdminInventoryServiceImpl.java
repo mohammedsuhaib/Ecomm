@@ -113,8 +113,10 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
 
     @Override
     public void correctStock(Long storeId, Long variantId, int newOnHand, String reason) {
+        // These messages are shown verbatim to store staff in the admin UI, so
+        // they read as sentences and never leak a request field name.
         if (newOnHand < 0) {
-            throw new BusinessRuleException("newOnHand must be >= 0, got " + newOnHand);
+            throw new BusinessRuleException("The count can't be negative (got " + newOnHand + ").");
         }
         StockLevelEntity entity = stockLevels.findByStoreIdAndVariantId(storeId, variantId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -126,8 +128,8 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
         // committed to existing orders; release those first if the count is truly lower.
         if (newOnHand < entity.getReserved()) {
             throw new BusinessRuleException(
-                    "newOnHand (" + newOnHand + ") is below the " + entity.getReserved()
-                            + " unit(s) already reserved for open orders. "
+                    "The count can't be set to " + newOnHand + ": " + entity.getReserved()
+                            + " unit(s) are already reserved for open orders. "
                             + "Cancel or fulfil those orders before lowering the count this far.");
         }
 

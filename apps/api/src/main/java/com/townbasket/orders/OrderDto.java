@@ -7,9 +7,17 @@ import java.util.List;
 /**
  * Public order representation (confirmation + tracking + admin queue).
  *
- * <p>{@code trackingToken} is the unguessable capability the customer uses to
- * fetch/track this order; it replaces the sequential numeric id on the
- * customer-facing endpoints so orders can't be harvested by id enumeration.
+ * <p>Three identifiers, three jobs. {@code id} is the internal key (admin and
+ * delivery routes, foreign keys) and should not be shown to customers — being
+ * sequential, it publishes the store's order volume. {@code trackingToken} is
+ * the unguessable URL handle the customer fetches this order by, so orders
+ * can't be harvested by id enumeration. {@code publicCode} is the short,
+ * speakable order number customers quote and staff search by.
+ *
+ * <p>{@code invoiceNumber} / {@code invoicedAt} are null until a GST invoice is
+ * actually issued for the order, and immutable afterwards — the number comes
+ * from a per-financial-year consecutive series (CGST Rule 46(b)), not from the
+ * order id.
  *
  * <p>{@code deliveryOtp} is the proof-of-delivery / COD-fraud code. It is
  * exposed to the <strong>customer only while the order is OUT_FOR_DELIVERY</strong>
@@ -21,6 +29,7 @@ import java.util.List;
 public record OrderDto(
         Long id,
         String trackingToken,
+        String publicCode,
         String status,
         String paymentMethod,
         String paymentStatus,
@@ -34,5 +43,7 @@ public record OrderDto(
         String deliveryOtp,
         Instant placedAt,
         List<OrderTimelineEntryDto> timeline,
-        Long assignedAgentId) {
+        Long assignedAgentId,
+        String invoiceNumber,
+        Instant invoicedAt) {
 }

@@ -22,6 +22,8 @@ class NotificationRoutingTest {
     private static final Long AGENT = 7L;
     private static final Long OTHER_AGENT = 9L;
     private static final Long CUSTOMER = 42L;
+    /** The customer-facing order code that notification text must quote. */
+    private static final String CODE = "7K4M2QX9";
 
     private RecordingChannel channel;
     private NotificationEventListener listener;
@@ -38,14 +40,14 @@ class NotificationRoutingTest {
         // Orders are normally assigned while still being packed. The rider's
         // queue only lists OUT_FOR_DELIVERY orders, so notifying now would point
         // them at a job they cannot see or collect.
-        listener.on(new OrderAssigned(1L, 1L, AGENT, null, "PACKING", "12 MG Road"));
+        listener.on(new OrderAssigned(1L, CODE, 1L, AGENT, null, "PACKING", "12 MG Road"));
 
         assertThat(channel.messages).isEmpty();
     }
 
     @Test
     void assigningAnOrderAlreadyOutForDeliveryBuzzesTheRiderWithTheAddress() {
-        listener.on(new OrderAssigned(1L, 1L, AGENT, null, "OUT_FOR_DELIVERY", "12 MG Road"));
+        listener.on(new OrderAssigned(1L, CODE, 1L, AGENT, null, "OUT_FOR_DELIVERY", "12 MG Road"));
 
         assertThat(channel.messages).hasSize(1);
         NotificationMessage message = channel.messages.get(0);
@@ -57,7 +59,7 @@ class NotificationRoutingTest {
 
     @Test
     void handingAnOrderToAnotherRiderTellsBothOfThem() {
-        listener.on(new OrderAssigned(1L, 1L, OTHER_AGENT, AGENT, "OUT_FOR_DELIVERY", "12 MG Road"));
+        listener.on(new OrderAssigned(1L, CODE, 1L, OTHER_AGENT, AGENT, "OUT_FOR_DELIVERY", "12 MG Road"));
 
         assertThat(channel.messages).hasSize(2);
         assertThat(channel.messages).allSatisfy(m -> assertThat(m.audience()).isEqualTo(Audience.AGENT));
@@ -72,7 +74,7 @@ class NotificationRoutingTest {
     @Test
     void losingAJobIsAlwaysWorthTellingEvenBeforeDispatch() {
         // Unlike gaining a job, this matters at any status.
-        listener.on(new OrderAssigned(1L, 1L, null, AGENT, "PACKING", "12 MG Road"));
+        listener.on(new OrderAssigned(1L, CODE, 1L, null, AGENT, "PACKING", "12 MG Road"));
 
         assertThat(channel.messages).hasSize(1);
         assertThat(channel.messages.get(0).recipientUserId()).isEqualTo(AGENT);
@@ -134,7 +136,7 @@ class NotificationRoutingTest {
     }
 
     private static OrderStatusChanged statusChange(String to, Long agentId) {
-        return new OrderStatusChanged(1L, 1L, "CONFIRMED", to, CUSTOMER, "tok-123", agentId, "12 MG Road");
+        return new OrderStatusChanged(1L, CODE, 1L, "CONFIRMED", to, CUSTOMER, "tok-123", agentId, "12 MG Road");
     }
 
     /** Captures what the dispatcher hands to a channel, in order. */

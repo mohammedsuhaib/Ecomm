@@ -2,10 +2,11 @@
   "name": "town-basket",
   "version": "0.0.1",
   "private": true,
-  "description": "Town Basket — quick-commerce monorepo (frontends + shared TS packages). Backend lives in apps/api (Maven).",
+  "description": "Town Basket \u2014 quick-commerce monorepo (frontends + shared TS packages). Backend lives in apps/api (Maven).",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
     "build": "pnpm -r --if-present run build"
   },
   "engines": {

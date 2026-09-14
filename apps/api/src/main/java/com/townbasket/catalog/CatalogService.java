@@ -2,7 +2,9 @@ package com.townbasket.catalog;
 
 import com.townbasket.shared.PagedResponse;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 
@@ -41,6 +43,18 @@ public interface CatalogService {
      * Never includes cost price.
      */
     Optional<VariantView> findVariant(Long variantId);
+
+    /**
+     * Resolve many variants at once, keyed by variant id. Missing or unknown ids are
+     * simply absent from the map, so callers treat absence the way they treated an
+     * empty {@link Optional} from {@link #findVariant(Long)}.
+     *
+     * <p>Exists so a caller holding a whole basket resolves it in a fixed number of
+     * queries instead of one lookup per line — the cart's DTO mapping runs on every
+     * add, quantity change, removal and merge, and per-line lookups made a 20-line
+     * basket cost about 60 queries.
+     */
+    Map<Long, VariantView> findVariants(Collection<Long> variantIds);
 
     /**
      * Cost price (COGS) for a variant, for the orders module's per-line

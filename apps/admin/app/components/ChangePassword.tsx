@@ -53,6 +53,10 @@ export default function ChangePassword() {
   // restore focus to the trigger button when the dialog closes.
   useEffect(() => {
     if (!open) return;
+    // Captured at setup, not read in the cleanup: the cleanup runs when the
+    // dialog closes, and a ref read then is not guaranteed to still point at
+    // the node this effect was set up for.
+    const trigger = triggerRef.current;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -78,7 +82,7 @@ export default function ChangePassword() {
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      triggerRef.current?.focus();
+      trigger?.focus();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, dirty]);

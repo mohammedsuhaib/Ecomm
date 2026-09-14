@@ -83,14 +83,14 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
   if (done) {
     return (
       <div className="dcard dcard-done">
-        <div className="dcard-done-msg">Delivered #{order.id}</div>
+        <div className="dcard-done-msg">Delivered #{order.publicCode}</div>
       </div>
     );
   }
   if (reported) {
     return (
       <div className="dcard dcard-done dcard-reported">
-        <div className="dcard-done-msg">Reported #{order.id} — bring it back to the store</div>
+        <div className="dcard-done-msg">Reported #{order.publicCode} — bring it back to the store</div>
       </div>
     );
   }
@@ -99,7 +99,7 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
     <div className={`dcard ${confirming || failing ? 'dcard-active' : ''}`}>
       {/* Header */}
       <div className="dcard-head">
-        <span className="dcard-id">#{order.id}</span>
+        <span className="dcard-id">#{order.publicCode}</span>
         <span className="dcard-time">{fmtTime(order.placedAt)}</span>
         <span className={`dcard-pay ${order.paymentMethod === 'COD' ? 'cod' : 'upi'}`}>
           {order.paymentMethod === 'COD' ? `Collect ${fmtAmount(order.total)}` : `UPI Paid`}

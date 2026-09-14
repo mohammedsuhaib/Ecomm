@@ -25,14 +25,17 @@ import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.Objects;
+import java.util.LinkedHashMap;
 import java.util.regex.Pattern;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -82,19 +85,6 @@ class CatalogServiceImpl implements CatalogService {
     /** Strips diacritics during slug generation so "Café" -> "cafe". */
     private static final Pattern DIACRITICS = Pattern.compile("\\p{M}+");
 
-    /**
-     * Upper bound on how many matching products the in-service sort path loads.
-     * The {@code ?sort=} / {@code ?q=&sort=} paths sort + paginate in memory
-     * (price/discount span variants, so a single SQL ORDER BY is awkward); this
-     * cap stops a public sorted request from pulling the WHOLE catalog into
-     * memory (and triggering a lazy-variant N+1 per row). Sorting therefore
-     * considers at most the first {@code MAX_SORTABLE} matches — ample for this
-     * single-store catalog. If the catalog ever outgrows it, push the sort into
-     * SQL (e.g. a denormalised min_selling_price / max_discount column) rather
-     * than raising this number.
-     */
-    private static final int MAX_SORTABLE = 1000;
-
     CatalogServiceImpl(CategoryRepository categoryRepository,
                        ProductRepository productRepository,
                        ProductVariantRepository variantRepository,
@@ -111,7 +101,18 @@ class CatalogServiceImpl implements CatalogService {
         this.events = events;
     }
 
+    /**
+     * The storefront category nav — read on every storefront page and edited a
+     * few times a year, so it is served from the in-process cache (see
+     * {@code CacheConfig}). The three admin category writes below evict it, so a
+     * staff edit appears on the next request; the cache's TTL only covers changes
+     * made outside the application. Cached here rather than in a collaborator
+     * because this method is only ever called from the controller, i.e. through
+     * the bean's proxy — {@code adminListCategories()} is deliberately left
+     * uncached so the admin screen always reads the live table.
+     */
     @Override
+    @Cacheable(cacheNames = "categories")
     public List<CategoryDto> listCategories() {
         return categoryRepository.findAllByOrderBySortOrderAscNameAsc().stream()
                 .map(CatalogServiceImpl::toCategoryDto)
@@ -120,17 +121,23 @@ class CatalogServiceImpl implements CatalogService {
 
     @Override
     public PagedResponse<ProductDto> listProducts(Long categoryId, boolean featured, ProductSort sort, Pageable pageable) {
-        if (sort != null) {
-            // Sort the filtered set, then page in memory. price/discount sorts
-            // span variants, so a single SQL ORDER BY is awkward. The fetch is
-            // CAPPED at MAX_SORTABLE so a public ?sort= can't load the whole
-            // catalog (memory + lazy-variant N+1).
-            List<ProductEntity> all = findAllFiltered(categoryId, featured);
-            return pageInMemory(sortEntities(all, sort), pageable);
-        }
-        Page<ProductEntity> page = pagedFiltered(categoryId, featured, pageable);
+        // Both paths now order and page in SQL, so a sorted listing sees the whole
+        // catalogue and reports a true total (it used to sort a capped 1 000-row
+        // slice in memory and report that slice's size as totalElements).
+        Page<ProductEntity> page = sort != null
+                ? productRepository.findSorted(categoryId, featured, sort.name(), unsorted(pageable))
+                : pagedFiltered(categoryId, featured, pageable);
         Map<Long, Integer> stock = stockFor(page.getContent());
         return PagedResponse.of(page, e -> toProductDto(e, stock));
+    }
+
+    /**
+     * Strip any {@link Sort} before handing a {@link Pageable} to a native query.
+     * Spring Data would otherwise try to splice the sort into SQL it cannot parse;
+     * ordering for these queries is expressed in the statement itself.
+     */
+    private static Pageable unsorted(Pageable pageable) {
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
     }
 
     private Page<ProductEntity> pagedFiltered(Long categoryId, boolean featured, Pageable pageable) {
@@ -142,10 +149,6 @@ class CatalogServiceImpl implements CatalogService {
         return featured
                 ? productRepository.findByFeaturedTrue(pageable)
                 : productRepository.findAll(pageable);
-    }
-
-    private List<ProductEntity> findAllFiltered(Long categoryId, boolean featured) {
-        return pagedFiltered(categoryId, featured, PageRequest.of(0, MAX_SORTABLE, Sort.by("id"))).getContent();
     }
 
     @Override
@@ -162,74 +165,11 @@ class CatalogServiceImpl implements CatalogService {
         if (q.isEmpty()) {
             return new PagedResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0);
         }
-        if (sort != null) {
-            // Re-rank the relevance-ordered match set, then page in memory.
-            // Capped at MAX_SORTABLE (see field doc) to bound a public sorted search.
-            List<ProductEntity> all = productRepository.search(q, PageRequest.of(0, MAX_SORTABLE)).getContent();
-            return pageInMemory(sortEntities(all, sort), pageable);
-        }
-        Page<ProductEntity> page = productRepository.search(q, pageable);
+        // Re-ranked in SQL over the full match set, not a truncated slice of it.
+        Page<ProductEntity> page = sort != null
+                ? productRepository.searchSorted(q, sort.name(), unsorted(pageable))
+                : productRepository.search(q, pageable);
         Map<Long, Integer> stock = stockFor(page.getContent());
-        return PagedResponse.of(page, e -> toProductDto(e, stock));
-    }
-
-    /** Apply the requested {@link ProductSort} to the full filtered list. */
-    private static List<ProductEntity> sortEntities(List<ProductEntity> products, ProductSort sort) {
-        Comparator<ProductEntity> comparator = switch (sort) {
-            case NAME -> Comparator.comparing(p -> p.getName() == null ? "" : p.getName(),
-                    String.CASE_INSENSITIVE_ORDER);
-            // Ascending by the product's LOWEST available variant selling price.
-            case PRICE_ASC -> Comparator.comparing(CatalogServiceImpl::lowestAvailablePrice);
-            // Descending by that same lowest available variant selling price.
-            case PRICE_DESC -> Comparator.comparing(CatalogServiceImpl::lowestAvailablePrice).reversed();
-            // Descending by the product's MAX variant discount (mrp - sellingPrice).
-            case DISCOUNT -> Comparator.comparing(CatalogServiceImpl::maxDiscount).reversed();
-        };
-        // Stable tie-break on id so paging is deterministic.
-        return products.stream()
-                .sorted(comparator.thenComparing(ProductEntity::getId))
-                .toList();
-    }
-
-    /**
-     * Lowest selling price across a product's AVAILABLE variants. Products with no
-     * available variant sort last for {@code price_asc} (treated as +∞).
-     */
-    private static BigDecimal lowestAvailablePrice(ProductEntity p) {
-        return p.getVariants().stream()
-                .filter(ProductVariantEntity::isAvailable)
-                .map(ProductVariantEntity::getSellingPrice)
-                .min(Comparator.naturalOrder())
-                .orElse(BigDecimal.valueOf(Long.MAX_VALUE));
-    }
-
-    /**
-     * Maximum discount ({@code mrp - sellingPrice}) across a product's variants;
-     * a null mrp counts as zero discount. No variants => zero discount.
-     */
-    private static BigDecimal maxDiscount(ProductEntity p) {
-        return p.getVariants().stream()
-                .map(v -> {
-                    BigDecimal mrp = v.getMrp();
-                    if (mrp == null) {
-                        return BigDecimal.ZERO;
-                    }
-                    BigDecimal discount = mrp.subtract(v.getSellingPrice());
-                    return discount.signum() < 0 ? BigDecimal.ZERO : discount;
-                })
-                .max(Comparator.naturalOrder())
-                .orElse(BigDecimal.ZERO);
-    }
-
-    /** Slice an already-sorted list into the requested page and wrap as a {@link PagedResponse}. */
-    private PagedResponse<ProductDto> pageInMemory(List<ProductEntity> sorted, Pageable pageable) {
-        int total = sorted.size();
-        int size = pageable.getPageSize();
-        int from = Math.min((int) pageable.getOffset(), total);
-        int to = Math.min(from + size, total);
-        List<ProductEntity> slice = sorted.subList(from, to);
-        Map<Long, Integer> stock = stockFor(slice);
-        Page<ProductEntity> page = new PageImpl<>(slice, pageable, total);
         return PagedResponse.of(page, e -> toProductDto(e, stock));
     }
 
@@ -238,18 +178,37 @@ class CatalogServiceImpl implements CatalogService {
         if (variantId == null) {
             return Optional.empty();
         }
-        return variantRepository.findById(variantId).map(v -> {
-            String productName = productRepository.findById(v.getProductId())
-                    .map(ProductEntity::getName)
-                    .orElse(null);
-            return new VariantView(
+        return Optional.ofNullable(findVariants(List.of(variantId)).get(variantId));
+    }
+
+    @Override
+    public Map<Long, VariantView> findVariants(Collection<Long> variantIds) {
+        if (variantIds == null || variantIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = variantIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        // Two queries for the whole set, however many ids: the variants, then the
+        // product names they need. Previously one caller-side loop did two per line.
+        List<ProductVariantEntity> variants = variantRepository.findAllById(ids);
+        Map<Long, String> productNames = productRepository
+                .findAllById(variants.stream().map(ProductVariantEntity::getProductId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(ProductEntity::getId, ProductEntity::getName));
+
+        Map<Long, VariantView> byVariantId = new LinkedHashMap<>();
+        for (ProductVariantEntity v : variants) {
+            byVariantId.put(v.getId(), new VariantView(
                     v.getId(),
                     v.getProductId(),
-                    productName,
+                    productNames.get(v.getProductId()),
                     v.getLabel(),
                     v.getSellingPrice(),
-                    v.isAvailable());
-        });
+                    v.isAvailable()));
+        }
+        return byVariantId;
     }
 
     @Override
@@ -299,6 +258,7 @@ class CatalogServiceImpl implements CatalogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public CategoryDto createCategory(CreateCategoryRequest request) {
         String name = requireText(request.name(), "Category name must not be blank.");
         String slug = resolveSlug(request.slug(), name, this::categorySlugExists);
@@ -310,6 +270,7 @@ class CatalogServiceImpl implements CatalogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public CategoryDto updateCategory(Long id, UpdateCategoryRequest request) {
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> categoryNotFound(id));
@@ -326,6 +287,7 @@ class CatalogServiceImpl implements CatalogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "categories", allEntries = true)
     public void deleteCategory(Long id) {
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> categoryNotFound(id));
@@ -344,8 +306,8 @@ class CatalogServiceImpl implements CatalogService {
         Page<ProductEntity> page;
         if (!query.isEmpty()) {
             page = categoryId != null
-                    ? productRepository.findByCategoryIdAndNameContainingIgnoreCase(categoryId, query, pageable)
-                    : productRepository.findByNameContainingIgnoreCase(query, pageable);
+                    ? productRepository.searchByNameInCategory(categoryId, query, pageable)
+                    : productRepository.searchByName(query, pageable);
         } else if (categoryId != null) {
             page = productRepository.findByCategoryId(categoryId, pageable);
         } else {

@@ -9,6 +9,7 @@ import {
   updateCategory,
 } from '@/app/lib/api';
 import type { Category } from '@/app/lib/types';
+import { ListSkeleton } from './Skeleton';
 
 /**
  * Categories panel: lists categories (name / sort order / image), supports
@@ -121,7 +122,7 @@ export default function CategoriesPanel({
       )}
 
       {loading && categories.length === 0 ? (
-        <p className="queue-empty">Loading categories…</p>
+        <ListSkeleton label="Loading categories…" rows={6} />
       ) : categories.length === 0 ? (
         <p className="queue-empty">No categories yet. Add one to get started.</p>
       ) : (

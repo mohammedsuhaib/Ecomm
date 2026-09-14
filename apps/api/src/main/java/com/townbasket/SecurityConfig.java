@@ -30,9 +30,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *   <li>{@code /api/v1/admin/**} → STORE_STAFF or ADMIN;</li>
  *   <li>{@code /me}, {@code /me/addresses/**}, {@code /orders/mine},
  *       {@code POST /orders} (placing an order — login required, no guest checkout),
- *       {@code POST /orders/&#42;/reorder}, {@code POST /carts/&#42;/merge} → authenticated;</li>
- *   <li>everything else (catalog, serviceability, cart, order tracking
- *       {@code GET /orders/&#42;} + stream, auth, swagger, actuator health/info) → permitAll.</li>
+ *       {@code POST /orders/&#42;/reorder}, {@code POST /carts/&#42;/merge},
+ *       order tracking {@code /orders/track/**} and the per-order SSE stream
+ *       {@code GET /orders/&#42;/stream} (both also OWNER-scoped in the orders
+ *       module — the token/id alone never grants access to someone else's
+ *       order) → authenticated;</li>
+ *   <li>everything else (catalog, serviceability, cart, auth, swagger,
+ *       actuator health/info) → permitAll.</li>
  * </ul>
  */
 @Configuration
@@ -57,6 +61,14 @@ class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Security's own cache-control writer is replaced, not removed:
+                // PublicReadCacheHeaderWriter still sends no-store/Pragma/Expires
+                // for everything except the anonymous catalogue reads, which it
+                // marks publicly cacheable. See that class for why the decision
+                // has to be made by a header writer.
+                .headers(headers -> headers
+                        .cacheControl(cacheControl -> cacheControl.disable())
+                        .addHeaderWriter(new PublicReadCacheHeaderWriter()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Always allow CORS preflight.
@@ -75,9 +87,15 @@ class SecurityConfig {
                         .requestMatchers("/api/v1/me", "/api/v1/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/mine").authenticated()
                         // Placing an order requires a logged-in (OTP-verified) account —
-                        // no guest checkout. GET /orders/{id} + /stream stay public (tracking).
+                        // no guest checkout.
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/reorder").authenticated()
+                        // Order tracking (fetch/cancel/invoice by token) and the per-order
+                        // SSE stream require a login; the orders module additionally
+                        // enforces OWNERSHIP (non-owners get 404). The stream authenticates
+                        // via ?token= (EventSource can't set headers) — see JwtAuthenticationFilter.
+                        .requestMatchers("/api/v1/orders/track/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/*/stream").authenticated()
                         // /carts/mine before the catch-all: without a rule it is
                         // permitAll and the principal is null for guests, which
                         // would read as "no cart" instead of 401.

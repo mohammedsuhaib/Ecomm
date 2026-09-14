@@ -18,7 +18,10 @@ export interface OrderItem {
 }
 
 export interface Order {
+  /** Internal numeric id — keys the confirm/fail endpoints. */
   id: string;
+  /** The short order code the customer has in their app; show this at the door. */
+  publicCode: string;
   status: OrderStatus;
   paymentMethod: 'COD' | 'UPI';
   paymentStatus: string;

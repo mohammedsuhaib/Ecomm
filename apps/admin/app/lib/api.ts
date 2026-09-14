@@ -83,6 +83,28 @@ export class AuthRequiredError extends Error {
   }
 }
 
+/**
+ * The server's own explanation of a failure, or null if it didn't give one.
+ *
+ * The API returns errors as `{ timestamp, status, error, message, path }` and
+ * {@link ApiError} carries that body verbatim, so a business-rule rejection
+ * arrives as JSON rather than prose and is unreadable if shown as-is. Pull out
+ * `message`: on a 422 the server names both the cause and the remedy — "below
+ * the 3 unit(s) already reserved for open orders. Cancel or fulfil those orders
+ * before lowering the count this far" — which no generic string invented here
+ * could match, and which the operator needs in order to get unstuck.
+ */
+export function serverMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null;
+  try {
+    const body = JSON.parse(err.message) as { message?: unknown };
+    const message = typeof body.message === 'string' ? body.message.trim() : '';
+    return message || null;
+  } catch {
+    return null; // not the JSON error envelope (proxy error page, empty body)
+  }
+}
+
 function buildUrl(path: string, query?: Record<string, unknown>): string {
   const base = getApiBaseUrl().replace(/\/$/, '');
   const url = new URL(`${base}${path.startsWith('/') ? path : `/${path}`}`);

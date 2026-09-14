@@ -39,6 +39,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,8 +48,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -78,6 +81,7 @@ class OrderServiceImpl implements OrderService {
     private static final Duration CUSTOMER_CANCEL_WINDOW = Duration.ofMinutes(1);
 
     private final OrderRepository orders;
+    private final InvoiceSeriesRepository invoiceSeries;
     private final CartService cartService;
     private final CatalogService catalogService;
     private final ServiceabilityService serviceabilityService;
@@ -87,8 +91,11 @@ class OrderServiceImpl implements OrderService {
     private final TaxService taxService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    /** Prefix of the GST invoice series, e.g. "TB" in {@code TB/25-26/00001}. */
+    private final String invoicePrefix;
 
     OrderServiceImpl(OrderRepository orders,
+                     InvoiceSeriesRepository invoiceSeries,
                      CartService cartService,
                      CatalogService catalogService,
                      ServiceabilityService serviceabilityService,
@@ -97,8 +104,10 @@ class OrderServiceImpl implements OrderService {
                      AuthService authService,
                      TaxService taxService,
                      ApplicationEventPublisher events,
-                     Clock clock) {
+                     Clock clock,
+                     @Value("${townbasket.invoice.series-prefix:TB}") String invoicePrefix) {
         this.orders = orders;
+        this.invoiceSeries = invoiceSeries;
         this.cartService = cartService;
         this.catalogService = catalogService;
         this.serviceabilityService = serviceabilityService;
@@ -108,6 +117,7 @@ class OrderServiceImpl implements OrderService {
         this.taxService = taxService;
         this.events = events;
         this.clock = clock;
+        this.invoicePrefix = invoicePrefix == null ? "TB" : invoicePrefix.trim();
     }
 
     @Override
@@ -238,9 +248,9 @@ class OrderServiceImpl implements OrderService {
 
         OrderEntity reloaded = orders.findById(saved.getId()).orElseThrow();
 
-        events.publishEvent(new OrderPlaced(reloaded.getId(), storeId));
+        events.publishEvent(new OrderPlaced(reloaded.getId(), reloaded.getPublicCode(), storeId));
         if (reloaded.getStatus() == OrderStatus.CONFIRMED) {
-            events.publishEvent(new OrderConfirmed(reloaded.getId(), storeId));
+            events.publishEvent(new OrderConfirmed(reloaded.getId(), reloaded.getPublicCode(), storeId));
         }
 
         cartService.markCheckedOut(cart.cartId());
@@ -252,13 +262,79 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<OrderDto> getOrderByToken(UUID trackingToken) {
-        return orders.findByPublicToken(trackingToken).map(o -> toDto(o, true));
+    public Optional<OrderDto> getOrderByToken(UUID trackingToken, Long userId) {
+        // Owner-scoped: a non-owner (or a legacy ownerless order) reads as "no
+        // such order" — never as a 403 that would confirm the token is real.
+        return orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
+                .map(o -> toDto(o, true));
     }
 
     @Override
-    public OrderDto cancelByToken(UUID trackingToken) {
+    public OrderDto issueInvoice(UUID trackingToken, Long userId) {
         OrderEntity order = orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        // An already-issued invoice is always served, whatever the order's
+        // status: a tax invoice that has been handed out has to stay
+        // retrievable. DELIVERED is terminal, so this can never serve a
+        // document issued before the goods actually changed hands.
+        //
+        // Otherwise this is a FIRST issue: require the supply to have happened,
+        // then take the next number in this financial year's series and stamp it
+        // on the order. Numbering at issue time (not order time) keeps the
+        // series chronological within its year by construction, and the
+        // write-once stamp means a re-download reproduces this same document
+        // rather than minting a second invoice for one supply.
+        if (order.getInvoiceNumber() == null) {
+            requireDelivered(order);
+            String fy = InvoiceNumbers.financialYear(LocalDate.now(clock));
+            invoiceSeries.ensureSeries(fy);
+            long sequence = invoiceSeries.findAndLockByFy(fy)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Invoice series row missing for financial year " + fy))
+                    .nextSeq();
+            order.markInvoiced(
+                    InvoiceNumbers.format(invoicePrefix, fy, sequence), Instant.now(clock));
+        }
+        return toDto(order, true);
+    }
+
+    /**
+     * A tax invoice records a supply that has actually taken place, so one is
+     * issued only once the order has been DELIVERED. Until handover the goods
+     * are still the store's — on a shelf, in a packing crate, or in a bag on a
+     * rider's bike — and a failed delivery attempt brings them back, so none of
+     * those states is a supply. Numbering before handover would also put the
+     * series out of order relative to when supplies occurred, which is the one
+     * property the per-financial-year counter exists to guarantee.
+     */
+    private static void requireDelivered(OrderEntity order) {
+        OrderStatus status = order.getStatus();
+        if (status == OrderStatus.DELIVERED) {
+            return;
+        }
+        if (status == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException(
+                    "This order was cancelled, so there is no invoice for it.");
+        }
+        throw new BusinessRuleException(
+                "Your invoice will be available once this order has been delivered.");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isOwnedBy(Long orderId, Long userId) {
+        return userId != null && orders.findById(orderId)
+                .map(o -> userId.equals(o.getUserId()))
+                .orElse(false);
+    }
+
+    @Override
+    public OrderDto cancelByToken(UUID trackingToken, Long userId) {
+        OrderEntity order = orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         OrderStatus status = order.getStatus();
@@ -301,13 +377,43 @@ class OrderServiceImpl implements OrderService {
                     : orders.findByStatusOrderByPlacedAtDescIdDesc(st, pageable);
         } else {
             // "A customer is on the phone about their order": match the order
-            // number, any part of the phone, or any part of the name — in SQL,
+            // code, any part of the phone, or any part of the name — in SQL,
             // so the pager describes the matches, not the page on screen.
             String like = "%" + escapeLike(term.toLowerCase()) + "%";
-            page = st == null ? orders.search(like, pageable) : orders.searchByStatus(st, like, pageable);
+            // The code branch searches the normalised term, so a dictated "oh"
+            // for zero or a typed-in hyphen still lands. "~" is outside the
+            // Crockford alphabet, so an unusable term matches no code at all
+            // rather than every one of them.
+            String normalized = OrderCodes.normalize(term);
+            String codeLike = normalized.isEmpty()
+                    ? "~"
+                    : "%" + escapeLike(normalized.toLowerCase()) + "%";
+            // An all-digit term might be an order id quoted from a support note.
+            // Matched by equality (not a substring of the id) so the predicate can
+            // use the primary key — see OrderRepository#search for why that
+            // matters to the whole query's plan, not just this branch.
+            Long idExact = parseOrderId(term);
+            // Native queries, so the Pageable must carry no Sort (the ORDER BY is in
+            // the statement) and the status binds as its enum name.
+            Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+            page = st == null
+                    ? orders.search(like, codeLike, idExact, unsorted)
+                    : orders.searchByStatus(st.name(), like, codeLike, idExact, unsorted);
         }
         // Admin surface: never expose the delivery OTP (staff collect it at handover).
         return PagedResponse.of(page, o -> toDto(o, false));
+    }
+
+    /** The term as an order id when it is plausibly one, else null. */
+    private static Long parseOrderId(String term) {
+        if (term.isEmpty() || term.length() > 18 || !term.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(term);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** LIKE wildcards typed by a human are literal characters, not patterns. */
@@ -370,13 +476,14 @@ class OrderServiceImpl implements OrderService {
         }
 
         events.publishEvent(new OrderStatusChanged(
-                order.getId(), order.getStoreId(), from.name(), to.name(),
+                order.getId(), order.getPublicCode(), order.getStoreId(), from.name(), to.name(),
                 order.getUserId(), order.getPublicToken().toString(),
                 order.getAssignedAgentId(), order.getAddressLine()));
         if (to == OrderStatus.DELIVERED) {
-            events.publishEvent(new OrderDelivered(order.getId(), order.getStoreId()));
+            events.publishEvent(new OrderDelivered(order.getId(), order.getPublicCode(), order.getStoreId()));
         } else if (to == OrderStatus.CANCELLED) {
-            events.publishEvent(new OrderCancelled(order.getId(), order.getStoreId(), request.reason()));
+            events.publishEvent(new OrderCancelled(
+                    order.getId(), order.getPublicCode(), order.getStoreId(), request.reason()));
         }
 
         // Admin surface: never expose the delivery OTP.
@@ -385,8 +492,9 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AgentDeliveryStat> deliveryStatsByAgent() {
-        return orders.countDeliveredByAgentAndDay().stream()
+    public List<AgentDeliveryStat> deliveryStatsByAgent(int days) {
+        Instant since = Instant.now(clock).minus(Duration.ofDays(Math.max(days, 1)));
+        return orders.countDeliveredByAgentAndDay(since).stream()
                 .map(r -> new AgentDeliveryStat(r.getAgentId(), r.getDay(), r.getDeliveries(), r.getAmount()))
                 .toList();
     }
@@ -420,7 +528,7 @@ class OrderServiceImpl implements OrderService {
         // rider's phone again for an order they already have.
         if (!Objects.equals(previousAgentId, agentId)) {
             events.publishEvent(new OrderAssigned(
-                    order.getId(), order.getStoreId(), agentId, previousAgentId,
+                    order.getId(), order.getPublicCode(), order.getStoreId(), agentId, previousAgentId,
                     status.name(), order.getAddressLine()));
         }
         return toDto(order, false);
@@ -578,6 +686,7 @@ class OrderServiceImpl implements OrderService {
         return new OrderDto(
                 o.getId(),
                 o.getPublicToken().toString(),
+                o.getPublicCode(),
                 o.getStatus().name(),
                 o.getPaymentMethod(),
                 o.getPaymentStatus(),
@@ -591,6 +700,8 @@ class OrderServiceImpl implements OrderService {
                 deliveryOtp,
                 o.getPlacedAt(),
                 timeline,
-                o.getAssignedAgentId());
+                o.getAssignedAgentId(),
+                o.getInvoiceNumber(),
+                o.getInvoicedAt());
     }
 }

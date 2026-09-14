@@ -63,7 +63,10 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
 
-  const useCurrentLocation = useCallback(
+  // NOT named useCurrentLocation: a plain callback whose name begins with
+  // "use" reads as a hook to both people and react-hooks/rules-of-hooks, which
+  // flagged all three call sites as "hooks called inside a callback".
+  const requestCurrentLocation = useCallback(
     (onLocated?: (lat: number, lng: number) => void) => {
       setGeoError(null);
       if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -86,7 +89,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
       );
     },
-    [onChange],
+    [onChange, t],
   );
 
   // ---- Fallback (no key, or before mount): geolocation button + readout ----
@@ -97,7 +100,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
           <button
             type="button"
             className="btn btn-block"
-            onClick={() => useCurrentLocation()}
+            onClick={() => requestCurrentLocation()}
             disabled={locating || !mounted}
           >
             {locating ? t('locating') : t('useCurrent')}
@@ -121,7 +124,7 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
     <MapPicker
       coords={coords}
       onChange={onChange}
-      useCurrentLocation={useCurrentLocation}
+      requestCurrentLocation={requestCurrentLocation}
       locating={locating}
       geoError={geoError}
     />
@@ -133,13 +136,13 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
 function MapPicker({
   coords,
   onChange,
-  useCurrentLocation,
+  requestCurrentLocation,
   locating,
   geoError,
 }: {
   coords: { lat: number; lng: number } | null;
   onChange: (lat: number, lng: number) => void;
-  useCurrentLocation: (onLocated?: (lat: number, lng: number) => void) => void;
+  requestCurrentLocation: (onLocated?: (lat: number, lng: number) => void) => void;
   locating: boolean;
   geoError: string | null;
 }) {
@@ -180,7 +183,7 @@ function MapPicker({
           <button
             type="button"
             className="btn btn-block"
-            onClick={() => useCurrentLocation()}
+            onClick={() => requestCurrentLocation()}
             disabled={locating}
           >
             {locating ? t('locating') : t('useCurrent')}
@@ -206,7 +209,7 @@ function MapPicker({
           type="button"
           className="btn btn-outline"
           onClick={() =>
-            useCurrentLocation((la, ln) => {
+            requestCurrentLocation((la, ln) => {
               mapRef.current?.panTo({ lat: la, lng: ln });
             })
           }

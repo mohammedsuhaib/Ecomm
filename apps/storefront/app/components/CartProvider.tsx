@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import {
+  ApiError,
   addCartItem,
   createCart,
   getCart,
@@ -18,38 +19,103 @@ import {
 } from '@/app/lib/api';
 import { loadAuth } from '@/app/lib/auth';
 import { clearCartId, loadCartId, saveCartId } from '@/app/lib/cart';
+import {
+  acceptCartPrices,
+  acceptVariantPrice,
+  cartPriceChanges,
+  clearCartPrices,
+  type PriceChange,
+} from '@/app/lib/cartPrices';
 import type { Cart } from '@/app/lib/types';
 
 // Cart state shared across the storefront shell: the header badge, the
 // AddToCartButton, and the cart page all read/mutate through this context.
 // The server is the source of truth; every mutation returns the fresh cart.
-interface CartContextValue {
+//
+// Split deliberately into TWO contexts. The actions never change identity —
+// they read the current cart from a ref rather than closing over it — so a
+// component that only needs `refresh` or `reset` subscribes to a value that is
+// created once and never re-renders it. Only the components that actually
+// display cart data subscribe to the state.
+
+/** Why a quantity change was rejected, for the control to phrase as it likes. */
+export type VariantError = 'stock' | 'failed';
+
+interface CartStateValue {
   cart: Cart | null;
   itemCount: number;
   loading: boolean;
-  /** Ensure a cart exists, add a variant, and refresh state. Returns the cart. */
-  addItem: (variantId: string, qty: number) => Promise<Cart>;
-  /** Set a line's quantity (0 removes). */
+  /**
+   * Quantity of a given variant as the customer should see it right now: the
+   * pending target while taps are still being coalesced, otherwise the
+   * server-confirmed line quantity.
+   */
+  qtyOf: (variantId: string) => number;
+  /** True while this variant has a coalesced change not yet acknowledged. */
+  isSyncing: (variantId: string) => boolean;
+  /** Why this variant's last quantity change failed, if it did. */
+  errorOf: (variantId: string) => VariantError | undefined;
+  /**
+   * Lines whose unit price changed since the customer accepted it — a store
+   * admin edited the selling price while the item sat in the cart. Non-empty
+   * blocks checkout until {@link CartActionsValue.acknowledgePriceChanges} is
+   * called, so a reprice can never be adopted silently on the customer's behalf.
+   */
+  priceChanges: PriceChange[];
+}
+
+interface CartActionsValue {
+  /**
+   * Move a variant's quantity by {@code delta}, the control for both steppers.
+   *
+   * <p>Returns immediately and never rejects: the new quantity is shown at once
+   * and the server call is coalesced. Tapping "+" five times quickly sends ONE
+   * request for +5 rather than five requests — and, more to the point, no longer
+   * loses four of the taps. The steppers used to disable themselves for the
+   * duration of each round-trip, so on a phone on mobile data every tap after
+   * the first landed on a disabled button and was silently dropped.
+   */
+  nudgeVariant: (variantId: string, delta: number) => void;
+  /** Set a line's quantity by line id (0 removes) — the cart page's editor. */
   setQty: (itemId: string, qty: number) => Promise<Cart>;
-  /** Decrement a variant's quantity by one (0 removes), resolving its line. */
-  decrementVariant: (variantId: string) => Promise<Cart>;
   /** Remove a line entirely. */
   removeItem: (itemId: string) => Promise<Cart>;
   /** Re-fetch the cart from the server (e.g. on cart-page mount). */
   refresh: () => Promise<void>;
-  /** Quantity of a given variant currently in the cart (for inline controls). */
-  qtyOf: (variantId: string) => number;
   /** Forget the local cart (called after a successful order). */
   reset: () => void;
+  /** The customer has seen the new prices: accept them and unblock checkout. */
+  acknowledgePriceChanges: () => void;
 }
 
-const CartContext = createContext<CartContextValue | null>(null);
+const CartStateContext = createContext<CartStateValue | null>(null);
+const CartActionsContext = createContext<CartActionsValue | null>(null);
 
-export function useCart(): CartContextValue {
-  const ctx = useContext(CartContext);
-  if (!ctx) throw new Error('useCart must be used within <CartProvider>');
+/**
+ * Cart actions only. Prefer this wherever the component does not display cart
+ * data: the value is created once, so cart updates never re-render the caller.
+ */
+export function useCartActions(): CartActionsValue {
+  const ctx = useContext(CartActionsContext);
+  if (!ctx) throw new Error('useCartActions must be used within <CartProvider>');
   return ctx;
 }
+
+/** Cart state and actions together, for components that render cart data. */
+export function useCart(): CartStateValue & CartActionsValue {
+  const state = useContext(CartStateContext);
+  const actions = useContext(CartActionsContext);
+  if (!state || !actions) throw new Error('useCart must be used within <CartProvider>');
+  return useMemo(() => ({ ...state, ...actions }), [state, actions]);
+}
+
+/**
+ * How long to wait for more taps before sending a variant's new quantity. Long
+ * enough to fold a burst of taps into one request, short enough that a single
+ * tap is confirmed by the time the customer looks away. The displayed number
+ * does not wait for this — it changes on the tap.
+ */
+const COALESCE_MS = 250;
 
 // Recompute a cart locally after setting one variant's quantity, so the UI can
 // update instantly (optimistically) before the server round-trip returns. A
@@ -67,6 +133,10 @@ function withVariantQty(cart: Cart, variantId: string, qty: number): Cart {
   return { ...cart, items, subtotal: Math.round(subtotal * 100) / 100, itemCount };
 }
 
+function lineQty(cart: Cart | null, variantId: string): number {
+  return cart?.items.find((i) => i.variantId === variantId)?.qty ?? 0;
+}
+
 export default function CartProvider({
   children,
 }: {
@@ -77,16 +147,59 @@ export default function CartProvider({
   // Guards lazy cart creation against concurrent first-adds.
   const creating = useRef<Promise<string> | null>(null);
 
+  // The cart, readable synchronously from a callback. This is what lets every
+  // action below keep a stable identity: none of them closes over `cart`.
+  const cartRef = useRef<Cart | null>(null);
+  const commit = useCallback((next: Cart | null) => {
+    cartRef.current = next;
+    setCart(next);
+  }, []);
+
+  // Coalescing state for the steppers. The refs are the authority (callbacks
+  // read them synchronously); the state copies exist only so rendering updates.
+  // Both are written together, so they cannot drift.
+  const targetsRef = useRef(new Map<string, number>());
+  const errorsRef = useRef(new Map<string, VariantError>());
+  const [targets, setTargets] = useState<ReadonlyMap<string, number>>(new Map());
+  const [errors, setErrors] = useState<ReadonlyMap<string, VariantError>>(new Map());
+  const publishTargets = useCallback(() => setTargets(new Map(targetsRef.current)), []);
+  const publishErrors = useCallback(() => setErrors(new Map(errorsRef.current)), []);
+
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
+  /**
+   * Cart writes run one at a time, across all variants — not one per variant.
+   * Every write returns the WHOLE cart, so two in flight together can finish
+   * out of order and the older response then overwrites the newer one: tap
+   * variant A (a POST that creates a line) and variant B (a cheaper PUT)
+   * within the same breath, and A's reply — computed before B's write
+   * committed — lands last and drops B's line from the display. The server has
+   * both, and nothing re-reads the cart, so the wrong number sits there until
+   * the customer opens the cart page. Serialising makes the last response
+   * always the newest.
+   */
+  const writes = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueue = useCallback((task: () => Promise<void>): Promise<void> => {
+    // Chained through `finally` so one failed write cannot stall the queue.
+    const next = writes.current.then(task, task);
+    writes.current = next.catch(() => undefined);
+    return next;
+  }, []);
+
   // Hydrate from a persisted cartId on mount.
   useEffect(() => {
     const id = loadCartId();
     if (!id) return;
     setLoading(true);
     getCart(id)
-      .then(setCart)
+      .then((fetched) => {
+        cartRef.current = fetched;
+        setCart(fetched);
+      })
       .catch(() => {
         // Stale/expired cartId — forget it and start fresh on next add.
         clearCartId();
+        cartRef.current = null;
         setCart(null);
       })
       .finally(() => setLoading(false));
@@ -101,6 +214,7 @@ export default function CartProvider({
     const onAuthChanged = () => {
       if (!loadAuth()) {
         clearCartId();
+        cartRef.current = null;
         setCart(null);
       }
     };
@@ -123,128 +237,229 @@ export default function CartProvider({
     return creating.current;
   }, []);
 
-  const addItem = useCallback(
-    async (variantId: string, qty: number): Promise<Cart> => {
-      const id = await ensureCartId();
-      // Optimistic increment when the line already exists (the common stepper
-      // case); a brand-new line has no known price, so wait for the server.
-      const prev = cart;
-      const existing = prev?.items.find((i) => i.variantId === variantId);
-      if (prev && existing) {
-        setCart(withVariantQty(prev, variantId, existing.qty + qty));
-      }
-      try {
-        const updated = await addCartItem(id, variantId, qty);
-        setCart(updated);
-        return updated;
-      } catch (err) {
-        if (prev) setCart(prev); // roll back the optimistic change
-        throw err;
-      }
+  const refresh = useCallback(async (): Promise<void> => {
+    const id = loadCartId();
+    if (!id) {
+      commit(null);
+      return;
+    }
+    setLoading(true);
+    try {
+      commit(await getCart(id));
+    } catch {
+      clearCartId();
+      commit(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [commit]);
+
+  /**
+   * Send one variant's coalesced quantity. Reads the target at the moment of
+   * sending, so every tap up to then is included in a single request.
+   */
+  const flush = useCallback(
+    (variantId: string): Promise<void> => {
+      timers.current.delete(variantId);
+      return enqueue(async () => {
+        const target = targetsRef.current.get(variantId);
+        if (target === undefined) return;
+        try {
+          const id = await ensureCartId();
+          const line = cartRef.current?.items.find((i) => i.variantId === variantId);
+          const updated = line
+            ? await updateCartItem(id, line.itemId, target)
+            : await addCartItem(id, variantId, target);
+
+          // Clear the pending target only if it is still the number we just
+          // sent. A tap during the request left a newer one, which must survive
+          // so the display does not jump backwards to the quantity the server
+          // confirmed — its own flush is already queued behind this one.
+          if (targetsRef.current.get(variantId) === target) {
+            targetsRef.current.delete(variantId);
+            publishTargets();
+          }
+          commit(updated);
+          // The price the customer was looking at when they chose the quantity
+          // is the baseline a later admin edit is measured against.
+          acceptVariantPrice(updated, variantId);
+        } catch (err) {
+          // The server refused (no stock left, line gone). Its cart is the
+          // truth: drop the optimistic target, resync, and tell the control why.
+          targetsRef.current.delete(variantId);
+          publishTargets();
+          const outOfStock = err instanceof ApiError && err.status === 409;
+          errorsRef.current.set(variantId, outOfStock ? 'stock' : 'failed');
+          publishErrors();
+          await refresh();
+        }
+      });
     },
-    [ensureCartId, cart],
+    [commit, enqueue, ensureCartId, publishErrors, publishTargets, refresh],
   );
+
+  const nudgeVariant = useCallback(
+    (variantId: string, delta: number): void => {
+      // Count from the pending target, not from the cart: three quick taps must
+      // reach 3, and the first two are not in the server's cart yet.
+      const base = targetsRef.current.get(variantId) ?? lineQty(cartRef.current, variantId);
+      const next = Math.max(0, base + delta);
+      if (next === base) return;
+
+      targetsRef.current.set(variantId, next);
+      publishTargets();
+      if (errorsRef.current.delete(variantId)) {
+        publishErrors();
+      }
+
+      // Optimistic totals, but only for a line already in the cart: a brand-new
+      // line has no known unit price, so its money waits for the server even
+      // though its quantity does not.
+      const current = cartRef.current;
+      if (current?.items.some((i) => i.variantId === variantId)) {
+        commit(withVariantQty(current, variantId, next));
+      }
+
+      const existing = timers.current.get(variantId);
+      if (existing) clearTimeout(existing);
+      timers.current.set(
+        variantId,
+        setTimeout(() => void flush(variantId), COALESCE_MS),
+      );
+    },
+    [commit, flush, publishErrors, publishTargets],
+  );
+
+  /**
+   * Send every coalesced change now, without waiting out its debounce.
+   *
+   * <p>Called when the page is being hidden or torn down. A tap in the last
+   * 250 ms before the customer switches apps or closes the tab would otherwise
+   * be dropped on the floor: its timer dies with the page. `pagehide` rather
+   * than `beforeunload` because iOS Safari never fires the latter, and
+   * `visibilitychange` as well because a backgrounded tab can be discarded
+   * without either. The request may still be cut short if the tab is killed
+   * instantly — this narrows the window, it cannot close it — but the customer
+   * is far likelier to keep what they tapped than to lose it.
+   */
+  const flushAllPending = useCallback(() => {
+    [...targetsRef.current.keys()].forEach((variantId) => {
+      const timer = timers.current.get(variantId);
+      if (timer) clearTimeout(timer);
+      void flush(variantId);
+    });
+  }, [flush]);
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flushAllPending();
+    };
+    window.addEventListener('pagehide', flushAllPending);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flushAllPending);
+      document.removeEventListener('visibilitychange', onHide);
+      flushAllPending();
+    };
+  }, [flushAllPending]);
 
   const setQty = useCallback(
     async (itemId: string, qty: number): Promise<Cart> => {
       const id = loadCartId();
       if (!id) throw new Error('No cart');
-      const prev = cart;
+      const prev = cartRef.current;
       const line = prev?.items.find((i) => i.itemId === itemId);
-      if (prev && line) setCart(withVariantQty(prev, line.variantId, qty));
+      if (prev && line) commit(withVariantQty(prev, line.variantId, qty));
       try {
         const updated = await updateCartItem(id, itemId, qty);
-        setCart(updated);
+        commit(updated);
         return updated;
       } catch (err) {
-        if (prev) setCart(prev);
+        if (prev) commit(prev);
         throw err;
       }
     },
-    [cart],
+    [commit],
   );
 
-  const decrementVariant = useCallback(
-    async (variantId: string): Promise<Cart> => {
+  const removeItem = useCallback(
+    async (itemId: string): Promise<Cart> => {
       const id = loadCartId();
       if (!id) throw new Error('No cart');
-      const prev = cart;
-      const line = prev?.items.find((i) => i.variantId === variantId);
-      if (!line) throw new Error('Variant not in cart');
-      setCart(withVariantQty(prev!, variantId, line.qty - 1));
-      try {
-        const updated = await updateCartItem(id, line.itemId, line.qty - 1);
-        setCart(updated);
-        return updated;
-      } catch (err) {
-        if (prev) setCart(prev);
-        throw err;
-      }
+      const updated = await removeCartItem(id, itemId);
+      commit(updated);
+      return updated;
     },
-    [cart],
+    [commit],
   );
-
-  const removeItem = useCallback(async (itemId: string): Promise<Cart> => {
-    const id = loadCartId();
-    if (!id) throw new Error('No cart');
-    const updated = await removeCartItem(id, itemId);
-    setCart(updated);
-    return updated;
-  }, []);
-
-  const refresh = useCallback(async (): Promise<void> => {
-    const id = loadCartId();
-    if (!id) {
-      setCart(null);
-      return;
-    }
-    setLoading(true);
-    try {
-      setCart(await getCart(id));
-    } catch {
-      clearCartId();
-      setCart(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const reset = useCallback(() => {
     clearCartId();
-    setCart(null);
-  }, []);
+    clearCartPrices();
+    targetsRef.current.clear();
+    errorsRef.current.clear();
+    publishTargets();
+    publishErrors();
+    commit(null);
+  }, [commit, publishErrors, publishTargets]);
 
-  const qtyOf = useCallback(
-    (variantId: string): number =>
-      cart?.items.find((i) => i.variantId === variantId)?.qty ?? 0,
-    [cart],
-  );
+  const acknowledgePriceChanges = useCallback(() => {
+    const current = cartRef.current;
+    if (current) {
+      acceptCartPrices(current);
+      // Re-run the diff against the new pin by nudging the cart reference; the
+      // object is unchanged, only the baseline it is compared to.
+      commit({ ...current });
+    }
+  }, [commit]);
 
-  const value = useMemo<CartContextValue>(
+  // Created once. Every action reads the live cart from a ref, so none of them
+  // depends on it and this object never changes identity — a consumer of
+  // actions alone never re-renders because the cart changed.
+  const actions = useMemo<CartActionsValue>(
     () => ({
-      cart,
-      itemCount: cart?.itemCount ?? 0,
-      loading,
-      addItem,
+      nudgeVariant,
       setQty,
-      decrementVariant,
       removeItem,
       refresh,
-      qtyOf,
       reset,
+      acknowledgePriceChanges,
     }),
-    [
-      cart,
-      loading,
-      addItem,
-      setQty,
-      decrementVariant,
-      removeItem,
-      refresh,
-      qtyOf,
-      reset,
-    ],
+    [nudgeVariant, setQty, removeItem, refresh, reset, acknowledgePriceChanges],
   );
 
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+  // Derived, not stored: every render compares the live cart against the pinned
+  // prices, so a refresh that repriced a line shows up immediately instead of
+  // being folded into the displayed total.
+  const priceChanges = useMemo(() => cartPriceChanges(cart), [cart]);
+
+  const state = useMemo<CartStateValue>(() => {
+    const displayedQty = (variantId: string) =>
+      targets.get(variantId) ?? lineQty(cart, variantId);
+    // The badge counts what the customer just tapped, including a quantity
+    // still on its way to the server — over the union of the cart's lines and
+    // the pending targets, since a first add is not a line yet.
+    const counted = new Set<string>([
+      ...(cart?.items ?? []).map((i) => i.variantId),
+      ...targets.keys(),
+    ]);
+    return {
+      cart,
+      itemCount:
+        targets.size === 0
+          ? cart?.itemCount ?? 0
+          : [...counted].reduce((sum, variantId) => sum + displayedQty(variantId), 0),
+      loading,
+      qtyOf: displayedQty,
+      isSyncing: (variantId: string) => targets.has(variantId),
+      errorOf: (variantId: string) => errors.get(variantId),
+      priceChanges,
+    };
+  }, [cart, loading, targets, errors, priceChanges]);
+
+  return (
+    <CartActionsContext.Provider value={actions}>
+      <CartStateContext.Provider value={state}>{children}</CartStateContext.Provider>
+    </CartActionsContext.Provider>
+  );
 }

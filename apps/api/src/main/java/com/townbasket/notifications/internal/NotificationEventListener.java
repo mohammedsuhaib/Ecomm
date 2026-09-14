@@ -47,7 +47,7 @@ class NotificationEventListener {
     void on(OrderPlaced event) {
         dispatch(NotificationMessage.forAdmin(
                 event.orderId(), "ORDER_PLACED", "PLACED",
-                "New order #" + event.orderId(),
+                "New order #" + label(event.publicCode(), event.orderId()),
                 "A new order just came in."));
     }
 
@@ -57,7 +57,7 @@ class NotificationEventListener {
         // only refreshes the live streams (see the class note on double-buzzing).
         dispatch(NotificationMessage.forAdmin(
                 event.orderId(), "ORDER_CONFIRMED", "CONFIRMED",
-                "Order #" + event.orderId() + " confirmed",
+                "Order #" + label(event.publicCode(), event.orderId()) + " confirmed",
                 "Payment accepted."));
     }
 
@@ -69,7 +69,7 @@ class NotificationEventListener {
                 event.userId(),
                 "STATUS_CHANGED",
                 status,
-                titleFor(status, event.orderId()),
+                titleFor(status, label(event.publicCode(), event.orderId())),
                 bodyFor(status),
                 event.trackingToken() == null ? null : "/order/" + event.trackingToken()));
 
@@ -78,7 +78,7 @@ class NotificationEventListener {
             // the dashboard like a new order does, not just to the customer.
             dispatch(NotificationMessage.forAdmin(
                     event.orderId(), "DELIVERY_FAILED", status,
-                    "Order #" + event.orderId() + " could not be delivered",
+                    "Order #" + label(event.publicCode(), event.orderId()) + " could not be delivered",
                     "The rider reported a failed attempt. Re-dispatch or cancel it from the queue."));
         }
 
@@ -96,7 +96,7 @@ class NotificationEventListener {
             dispatch(NotificationMessage.forAgent(
                     event.orderId(), event.assignedAgentId(), "ORDER_CANCELLED", status,
                     "Delivery cancelled",
-                    "Order #" + event.orderId() + " was cancelled — no need to deliver it."));
+                    "Order #" + label(event.publicCode(), event.orderId()) + " was cancelled — no need to deliver it."));
         }
     }
 
@@ -125,7 +125,7 @@ class NotificationEventListener {
             dispatch(NotificationMessage.forAgent(
                     event.orderId(), event.previousAgentId(), "ORDER_UNASSIGNED", event.status(),
                     "Delivery reassigned",
-                    "Order #" + event.orderId() + " is no longer assigned to you."));
+                    "Order #" + label(event.publicCode(), event.orderId()) + " is no longer assigned to you."));
         }
     }
 
@@ -133,7 +133,7 @@ class NotificationEventListener {
     void on(OrderDelivered event) {
         dispatch(NotificationMessage.forAdmin(
                 event.orderId(), "ORDER_DELIVERED", "DELIVERED",
-                "Order #" + event.orderId() + " delivered",
+                "Order #" + label(event.publicCode(), event.orderId()) + " delivered",
                 "Handover confirmed."));
     }
 
@@ -141,7 +141,7 @@ class NotificationEventListener {
     void on(OrderCancelled event) {
         dispatch(NotificationMessage.forAdmin(
                 event.orderId(), "ORDER_CANCELLED", "CANCELLED",
-                "Order #" + event.orderId() + " cancelled",
+                "Order #" + label(event.publicCode(), event.orderId()) + " cancelled",
                 "Reserved items have been released."));
     }
 
@@ -171,7 +171,18 @@ class NotificationEventListener {
                 : "Deliver to " + addressLine;
     }
 
-    private static String titleFor(String status, Long orderId) {
+    /**
+     * The order's public name for notification text: the short customer-facing
+     * code, falling back to the numeric id only for an event that was
+     * serialised into the outbox before the code existed and is being
+     * republished on restart. Customer-facing text must never show the id on
+     * its own — being sequential, it publishes the store's order volume.
+     */
+    private static String label(String publicCode, Long orderId) {
+        return publicCode == null || publicCode.isBlank() ? String.valueOf(orderId) : publicCode;
+    }
+
+    private static String titleFor(String status, String orderLabel) {
         return switch (status) {
             case "CONFIRMED" -> "Order confirmed";
             case "PACKING" -> "We're packing your order";
@@ -179,7 +190,7 @@ class NotificationEventListener {
             case "DELIVERY_FAILED" -> "We couldn't deliver your order";
             case "DELIVERED" -> "Order delivered";
             case "CANCELLED" -> "Order cancelled";
-            default -> "Order #" + orderId + " updated";
+            default -> "Order #" + orderLabel + " updated";
         };
     }
 

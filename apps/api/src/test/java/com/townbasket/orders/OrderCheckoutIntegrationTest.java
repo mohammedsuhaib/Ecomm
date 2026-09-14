@@ -11,9 +11,11 @@ import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
+import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +40,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     private static final double STORE_LAT = 12.21;
     private static final double STORE_LNG = 76.89;
 
+    /** Units per test order — enough of a ₹120+ variant to clear the ₹299 minimum. */
+    private static final int QTY = 5;
+
     @Autowired
     OrderService orderService;
     @Autowired
@@ -49,16 +54,36 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     AuthService authService;
 
-    /** A variant whose selling price * qty clears the ₹299 minimum. */
+    /**
+     * A variant that is priced high enough to clear the minimum order value AND
+     * still has room for the orders this class places.
+     *
+     * <p>The stock requirement is not belt-and-braces, it is the reason this
+     * method exists in this form. Integration tests share ONE Postgres for the
+     * whole suite ({@link com.townbasket.AbstractIntegrationTest} keeps the
+     * container static and never stops it), and nothing resets inventory between
+     * classes. Seven classes place orders against the first variant priced over
+     * ₹120, and an order left CONFIRMED holds its reservation for the life of the
+     * suite, so `available` on that one variant only ever falls. Without this
+     * check the class quietly depends on how much the classes before it happened
+     * to consume. main was green; this branch added two more orders and six
+     * tests in this class then errored at "requested 5, available 4" — four
+     * units left of a hundred, so the margin had been thin for a while rather
+     * than the new orders being unreasonable. Asking for headroom makes each
+     * test roll onto a variant that can actually satisfy it, which is what the
+     * four sibling classes that hit this first already do.
+     */
     private ProductVariantDto pickPricyVariant() {
-        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content()) {
+        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 200)).content()) {
             for (ProductVariantDto v : p.variants()) {
-                if (v.available() && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
+                if (v.available() && v.availableStock() >= QTY * 4
+                        && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
                     return v;
                 }
             }
         }
-        throw new IllegalStateException("No suitable seeded variant found");
+        throw new IllegalStateException(
+                "No seeded variant with price >= 120 and enough stock left in the shared database");
     }
 
     private CartDto cartWithValue(ProductVariantDto variant, int qty) {
@@ -73,12 +98,17 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
                 method, null, null);
     }
 
+    /** Sign in (upsert) a CUSTOMER via the dev/fake phone verifier and return the user id. */
+    private Long customer(String phone10) {
+        return authService.phoneVerify(new PhoneVerifyRequest("dev:" + phone10)).user().id();
+    }
+
     @Test
     void codCheckoutReservesStockConfirmsAndHidesOtpAndCostPrice() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
 
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cod-key-1", null);
 
         assertThat(order.status()).isEqualTo("CONFIRMED");
@@ -112,7 +142,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void upiFakeCheckoutConfirmsAndMarksPaid() {
         ProductVariantDto variant = pickPricyVariant();
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
 
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.UPI), "upi-key-1", null);
 
@@ -125,7 +155,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void checkoutIsIdempotentOnKey() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
 
         OrderDto first = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1", null);
         OrderDto second = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "idem-key-1", null);
@@ -138,7 +168,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void sameCartCannotBeOrderedTwice() {
         ProductVariantDto variant = pickPricyVariant();
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
         orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "dup-key-1", null);
 
         // A second checkout of the SAME cart under a DIFFERENT idempotency key is
@@ -153,7 +183,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void belowMinimumOrderValueIsRejected() {
         // Cheapest single unit (≤ ₹40) is well below the ₹299 minimum.
-        ProductVariantDto cheap = catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content().stream()
+        ProductVariantDto cheap = catalogService.listProducts(null, false, null, PageRequest.of(0, 200)).content().stream()
                 .flatMap(p -> p.variants().stream())
                 .filter(v -> v.sellingPrice().compareTo(BigDecimal.valueOf(40)) <= 0)
                 .findFirst().orElseThrow();
@@ -166,7 +196,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void outOfRadiusAddressIsRejected() {
         ProductVariantDto variant = pickPricyVariant();
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
         PlaceOrderRequest req = new PlaceOrderRequest(
                 cart.cartId(), "Asha Rao", "9999900000",
                 new AddressDto("Far away", 12.2958, 76.6394), // ~25 km
@@ -180,8 +210,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void adminTransitionFlowDeliveredRequiresMatchingOtp() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
-        CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", null);
+        CartDto cart = cartWithValue(variant, QTY);
+        Long customerId = customer("9990001111");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", customerId);
 
         Long id = order.id();
         // Assign a rider so the delivery lands in the per-agent stats.
@@ -191,8 +222,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
-        // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY).
-        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+        // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY) — and
+        // only to the OWNER: token reads are scoped to the placing account.
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
                 .orElseThrow().deliveryOtp();
         assertThat(otp).hasSize(6);
 
@@ -211,7 +243,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
 
         // The delivery shows up in the per-agent date-wise stats, with the
         // order's value summed in (>= because other tests may add deliveries).
-        assertThat(orderService.deliveryStatsByAgent())
+        // The report is windowed now; 30 days comfortably covers a delivery the
+        // fixed test clock just recorded.
+        assertThat(orderService.deliveryStatsByAgent(30))
                 .anySatisfy(s -> {
                     assertThat(s.agentId()).isEqualTo(agentId);
                     assertThat(s.deliveries()).isGreaterThanOrEqualTo(1);
@@ -222,12 +256,13 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void concurrentDeliveredTransitionsCommitExactlyOnce() throws Exception {
         ProductVariantDto variant = pickPricyVariant();
-        CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", null);
+        CartDto cart = cartWithValue(variant, QTY);
+        Long customerId = customer("9990002222");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", customerId);
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
-        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
                 .orElseThrow().deliveryOtp();
 
         // A rider double-tapping "confirm delivery" on a flaky connection: two
@@ -260,7 +295,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
             pool.shutdown();
         }
 
-        OrderDto after = orderService.getOrderByToken(UUID.fromString(order.trackingToken())).orElseThrow();
+        OrderDto after = orderService
+                .getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
+                .orElseThrow();
         assertThat(after.status()).isEqualTo("DELIVERED");
         assertThat(after.paymentStatus()).isEqualTo("PAID");
         // Exactly one DELIVERED row in the timeline (= orders.order_events).
@@ -272,7 +309,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     @Test
     void illegalTransitionIsRejected() {
         ProductVariantDto variant = pickPricyVariant();
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "illegal-key-1", null);
 
         // CONFIRMED cannot jump straight to DELIVERED.
@@ -285,7 +322,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void cancellationReleasesStock() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
-        CartDto cart = cartWithValue(variant, 5);
+        CartDto cart = cartWithValue(variant, QTY);
 
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cancel-key-1", null);
         assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5);
@@ -298,12 +335,48 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void trackingIsOwnerScoped_notAnonymousAndNotAnotherUser() {
+        ProductVariantDto variant = pickPricyVariant();
+        Long owner = customer("9990003333");
+        Long stranger = customer("9990004444");
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "own-key-1", owner);
+        UUID token = UUID.fromString(order.trackingToken());
+
+        // The unguessable token alone is NOT a capability: no user, wrong user,
+        // and an ownerless (legacy guest) order all read as "no such order".
+        assertThat(orderService.getOrderByToken(token, owner)).isPresent();
+        assertThat(orderService.getOrderByToken(token, null)).isEmpty();
+        assertThat(orderService.getOrderByToken(token, stranger)).isEmpty();
+
+        // Same for self-service cancel — a stranger can't cancel someone
+        // else's order, and the refusal never confirms the order exists.
+        assertThatThrownBy(() -> orderService.cancelByToken(token, stranger))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> orderService.cancelByToken(token, null))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        // The SSE-stream ownership gate agrees.
+        assertThat(orderService.isOwnedBy(order.id(), owner)).isTrue();
+        assertThat(orderService.isOwnedBy(order.id(), stranger)).isFalse();
+        assertThat(orderService.isOwnedBy(order.id(), null)).isFalse();
+
+        // The owner can still self-cancel within the window.
+        assertThat(orderService.cancelByToken(token, owner).status()).isEqualTo("CANCELLED");
+
+        // An order placed with NO owner (legacy guest path) is trackable by nobody.
+        OrderDto guestOrder = orderService.placeOrder(
+                request(cartWithValue(variant, QTY).cartId(), PaymentMethod.COD), "own-key-2", null);
+        assertThat(orderService.getOrderByToken(UUID.fromString(guestOrder.trackingToken()), owner)).isEmpty();
+    }
+
+    @Test
     void adminListReturnsNewestFirst() {
         ProductVariantDto variant = pickPricyVariant();
         OrderDto o1 = orderService.placeOrder(
-                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-1", null);
+                request(cartWithValue(variant, QTY).cartId(), PaymentMethod.COD), "list-key-1", null);
         OrderDto o2 = orderService.placeOrder(
-                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "list-key-2", null);
+                request(cartWithValue(variant, QTY).cartId(), PaymentMethod.COD), "list-key-2", null);
 
         List<OrderDto> all = orderService.listOrders(null, PageRequest.of(0, 50)).content();
         List<Long> ids = all.stream().map(OrderDto::id).toList();

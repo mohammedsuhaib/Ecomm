@@ -14,10 +14,11 @@
 import type { RecaptchaVerifier as RecaptchaVerifierType } from 'firebase/auth';
 import { getFirebaseAuth } from './firebase';
 
-// The invisible reCAPTCHA can only be rendered ONCE per container element —
-// a second `new RecaptchaVerifier(...)` on the same id throws. "Resend code"
-// calls startPhoneSignIn again on the same page, so the previous widget is
-// torn down first. Module scope is fine: one login page, one attempt at a time.
+// The invisible reCAPTCHA can only be rendered ONCE per element, and clearing
+// an invisible verifier does NOT detach its DOM — so "Resend code" destroys
+// the previous verifier instance here AND renders the next attempt on a fresh
+// child of the container (see startPhoneSignIn). Module scope is fine: one
+// login page, one attempt at a time.
 let activeVerifier: RecaptchaVerifierType | null = null;
 
 function clearActiveVerifier(): void {
@@ -37,10 +38,11 @@ export interface PhoneSignInSession {
 
 /**
  * Map the common Firebase auth error codes to friendly, user-facing messages.
- * Anything else falls through to a generic message; the raw code is preserved
- * on the thrown Error for debugging (never the token).
+ * Anything else falls through to a generic message for the stage that failed —
+ * a failed CONFIRM must never claim the code "could not be sent", or a wrong
+ * OTP reads as a resend problem instead of an invalid code.
  */
-function friendlyFirebaseError(err: unknown): Error {
+function friendlyFirebaseError(err: unknown, stage: 'send' | 'confirm'): Error {
   const code =
     typeof err === 'object' && err !== null && 'code' in err
       ? String((err as { code: unknown }).code)
@@ -49,6 +51,7 @@ function friendlyFirebaseError(err: unknown): Error {
     case 'auth/invalid-phone-number':
       return new Error('That mobile number looks invalid. Please check it.');
     case 'auth/invalid-verification-code':
+    case 'auth/missing-verification-code':
       return new Error('That code is incorrect. Please re-enter it.');
     case 'auth/code-expired':
       return new Error('That code has expired. Please request a new one.');
@@ -59,7 +62,9 @@ function friendlyFirebaseError(err: unknown): Error {
     case 'auth/captcha-check-failed':
       return new Error('Verification failed. Please reload and try again.');
     default:
-      return new Error('Could not send the code. Please try again.');
+      return stage === 'confirm'
+        ? new Error('That code could not be verified. Please re-enter it.')
+        : new Error('Could not send the code. Please try again.');
   }
 }
 
@@ -78,8 +83,22 @@ export async function startPhoneSignIn(
   const auth = await getFirebaseAuth();
 
   clearActiveVerifier();
+
+  // grecaptcha refuses to render a second widget into an element it has
+  // already used, and for an INVISIBLE verifier `clear()` does not detach the
+  // widget's DOM (the SDK only empties the container for visible sizes). So a
+  // resend on the same container id throws "already been rendered". Mount
+  // every attempt on a fresh child element instead of the container itself.
+  const container = document.getElementById(containerId);
+  if (!container) {
+    throw new Error('Could not send the code. Please reload and try again.');
+  }
+  container.replaceChildren();
+  const mount = document.createElement('div');
+  container.appendChild(mount);
+
   try {
-    const verifier = new RecaptchaVerifier(auth, containerId, {
+    const verifier = new RecaptchaVerifier(auth, mount, {
       size: 'invisible',
     });
     activeVerifier = verifier;
@@ -95,7 +114,7 @@ export async function startPhoneSignIn(
           const cred = await confirmationResult.confirm(otp);
           return await cred.user.getIdToken();
         } catch (err) {
-          throw friendlyFirebaseError(err);
+          throw friendlyFirebaseError(err, 'confirm');
         }
       },
     };
@@ -103,6 +122,6 @@ export async function startPhoneSignIn(
     // A failed send leaves the widget in an unknown state; drop it so the
     // next attempt (or resend) starts clean instead of hitting "already rendered".
     clearActiveVerifier();
-    throw friendlyFirebaseError(err);
+    throw friendlyFirebaseError(err, 'send');
   }
 }

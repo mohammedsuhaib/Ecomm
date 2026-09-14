@@ -34,25 +34,63 @@ public interface OrderService {
 
     /**
      * Customer-facing fetch by unguessable tracking token (confirmation +
-     * tracking). The numeric id is never accepted here, so order details cannot
-     * be harvested by enumerating sequential ids. The delivery OTP is included
-     * only while the order is OUT_FOR_DELIVERY.
+     * tracking), AUTHENTICATED and owner-scoped: the order is returned only when
+     * {@code userId} matches the account that placed it (an order with no owner —
+     * a legacy guest order — is returned to nobody here; staff read those via the
+     * admin listing). A non-owner gets the same empty result as an unknown token,
+     * so the response never confirms the order exists. The numeric id is never
+     * accepted here, so order details cannot be harvested by enumerating
+     * sequential ids. The delivery OTP is included only while the order is
+     * OUT_FOR_DELIVERY.
      */
-    Optional<OrderDto> getOrderByToken(UUID trackingToken);
+    Optional<OrderDto> getOrderByToken(UUID trackingToken, Long userId);
 
     /**
-     * Customer self-service cancellation by tracking token (PUBLIC-by-token,
-     * same capability model as {@link #getOrderByToken}). Allowed only within
-     * the published cancellation window (1 minute of placing — refund policy)
-     * and while the order is still PLACED/CONFIRMED. Cancelling releases the
-     * stock reservation via the normal CANCELLED transition events. Idempotent:
-     * an already-cancelled order is returned as-is.
+     * Customer self-service cancellation by tracking token (AUTHENTICATED and
+     * owner-scoped, same access model as {@link #getOrderByToken}). Allowed only
+     * within the published cancellation window (1 minute of placing — refund
+     * policy) and while the order is still PLACED/CONFIRMED. Cancelling releases
+     * the stock reservation via the normal CANCELLED transition events.
+     * Idempotent: an already-cancelled order is returned as-is.
      *
-     * @throws com.townbasket.shared.ResourceNotFoundException if the token is unknown
+     * @throws com.townbasket.shared.ResourceNotFoundException if the token is
+     *     unknown OR the order is not owned by {@code userId} (indistinguishable
+     *     on purpose)
      * @throws com.townbasket.shared.BusinessRuleException if the window has
      *     passed or fulfilment has already started (mapped to 422)
      */
-    OrderDto cancelByToken(UUID trackingToken);
+    OrderDto cancelByToken(UUID trackingToken, Long userId);
+
+    /**
+     * Issue the GST invoice for an order and return it with the invoice number
+     * set (AUTHENTICATED and owner-scoped, same access model as
+     * {@link #getOrderByToken}).
+     *
+     * <p>An invoice is issued only once the order has been <strong>DELIVERED</strong>
+     * — it records a supply that has actually taken place, and until handover
+     * the goods are still the store's. The number is taken from a
+     * per-financial-year consecutive series (CGST Rule 46(b)) on the FIRST call
+     * and stamped on the order with the issue timestamp; later calls return the
+     * same number, so a re-download reproduces the same document instead of
+     * billing one supply twice. An already-issued invoice is always served,
+     * whatever the order's status.
+     *
+     * @throws com.townbasket.shared.ResourceNotFoundException if the token is
+     *     unknown or the order is not owned by {@code userId}
+     * @throws com.townbasket.shared.BusinessRuleException if no invoice has been
+     *     issued yet and the order is not delivered — whether it is still in
+     *     flight or was cancelled (mapped to 422; the message distinguishes the
+     *     two)
+     */
+    OrderDto issueInvoice(UUID trackingToken, Long userId);
+
+    /**
+     * Whether the order belongs to {@code userId} — the ownership gate for the
+     * per-order SSE tracking stream (which is keyed by the enumerable numeric
+     * id, so it must not leak activity to non-owners). False for a null user,
+     * an unknown order, or an order with no owner.
+     */
+    boolean isOwnedBy(Long orderId, Long userId);
 
     /** A customer's own orders, newest first (AUTHENTICATED). */
     PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable);
@@ -81,8 +119,14 @@ public interface OrderService {
      * Admin reporting: delivered-order counts and summed order value per agent
      * per date, newest date first. Only DELIVERED orders with an assigned
      * agent are counted.
+     *
+     * @param days how far back to report, in days. Bounded deliberately: the
+     *     unwindowed version returned one row per agent per delivery date for
+     *     the life of the store and rescanned every order event to do it, so
+     *     both the response and the work grew without limit. The caller clamps
+     *     the value.
      */
-    List<AgentDeliveryStat> deliveryStatsByAgent();
+    List<AgentDeliveryStat> deliveryStatsByAgent(int days);
 
     /**
      * Admin: apply a state-machine transition. Enforces the allowed transitions;

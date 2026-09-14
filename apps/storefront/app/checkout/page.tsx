@@ -16,14 +16,25 @@ import { formatRupees, subtractRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
-import LocationPicker from '@/app/components/LocationPicker';
+import LocationPicker from '@/app/components/LocationPickerLazy';
+import { CheckoutSkeleton } from '@/app/components/Skeleton';
+import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
+
+/**
+ * Whether two coordinates are the same place. 1e-6 degrees is roughly 10 cm —
+ * far below the gap between any two real addresses, and well above the noise
+ * from formatting a float through a string and back.
+ */
+function sameCoord(a: number, b: number): boolean {
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < 1e-6;
+}
 
 export default function CheckoutPage() {
   const t = useTranslations('checkout');
   const tc = useTranslations('common');
   const router = useRouter();
-  const { cart, refresh } = useCart();
+  const { cart, refresh, priceChanges } = useCart();
   const { user, isAuthenticated } = useAuth();
   // Auth hydrates from localStorage after mount; wait a tick before gating so a
   // logged-in customer isn't bounced. Placing an order requires login.
@@ -41,6 +52,11 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   // Track whether the name/phone have been touched so we don't clobber typing.
   const prefilled = useRef(false);
+  // Set once the customer decides the address themselves — typing a line,
+  // moving the map pin, or picking a saved address. The saved-address prefill
+  // below arrives from the network, so "the field is still empty" is not a
+  // reliable test for "untouched"; this is.
+  const addressTouched = useRef(false);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
 
@@ -112,7 +128,9 @@ export default function CheckoutPage() {
       .catch(() => setMethods(['COD']));
   }, []);
 
-  // Prefill the delivery coordinates from the location the LocationGate captured.
+  // Fallback pin: wherever the LocationGate last checked. This is all a guest
+  // (or a customer with no saved addresses) has to go on. A saved default
+  // address supersedes it once the address list arrives — see below.
   useEffect(() => {
     const stored = loadServiceability();
     if (stored) {
@@ -141,18 +159,30 @@ export default function CheckoutPage() {
     listAddresses()
       .then((list) => {
         setSavedAddresses(list);
-        // Pre-pick the default address if the form is still empty.
+        // Pre-pick the default address, line AND pin together.
+        //
+        // These must move as one: the LocationGate's coordinates are prefilled
+        // synchronously on mount, so a per-field "only if empty" guard kept
+        // those and paired them with this address's text — a form whose label
+        // read "221B Kuvempunagar" while its pin sat wherever the browser
+        // happened to be. The rider navigates by the pin, so that is a delivery
+        // to the wrong place, and it also left the default's chip unhighlighted
+        // (the chip is "selected" only when line and pin both match it).
+        //
+        // A saved default is a deliberate choice and outranks the gate's guess;
+        // only the customer's own edit (addressTouched) outranks the default.
         const def = list.find((a) => a.isDefault) ?? list[0];
-        if (def) {
-          setLine((prev) => (prev.trim() ? prev : def.line));
-          setLat((prev) => (prev.trim() ? prev : String(def.lat)));
-          setLng((prev) => (prev.trim() ? prev : String(def.lng)));
+        if (def && !addressTouched.current) {
+          setLine(def.line);
+          setLat(String(def.lat));
+          setLng(String(def.lng));
         }
       })
       .catch(() => setSavedAddresses([]));
   }, [isAuthenticated]);
 
   function pickAddress(a: SavedAddress) {
+    addressTouched.current = true;
     setLine(a.line);
     setLat(String(a.lat));
     setLng(String(a.lng));
@@ -179,6 +209,9 @@ export default function CheckoutPage() {
   const formValid =
     items.length > 0 &&
     !storeClosed &&
+    // expectedTotal is only a real guard if the prices behind it are ones the
+    // customer accepted; until then there is nothing safe to submit.
+    priceChanges.length === 0 &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -246,9 +279,12 @@ export default function CheckoutPage() {
     }
   }
 
-  // Gate: login required to check out (no guest checkout).
+  // Gate: login required to check out (no guest checkout). The check runs on
+  // the client, so this is the first frame the customer sees — a skeleton that
+  // holds the form's shape rather than one line of text that the real page then
+  // shoves off the screen.
   if (!checked) {
-    return <p className="empty-state">{tc('loading')}</p>;
+    return <CheckoutSkeleton label={tc('loading')} />;
   }
   if (!isAuthenticated) {
     return (
@@ -323,10 +359,14 @@ export default function CheckoutPage() {
               <span className="field-label">{t('savedAddresses')}</span>
               <div className="saved-address-picks">
                 {savedAddresses.map((a) => {
+                  // Compared numerically, not as text: coordinates round-trip
+                  // through strings and the map picker, so "12.22" vs
+                  // "12.220000000000001" is the same doorstep but would fail an
+                  // exact string match and leave the chip looking unselected.
                   const active =
                     line.trim() === a.line.trim() &&
-                    String(a.lat) === lat &&
-                    String(a.lng) === lng;
+                    sameCoord(a.lat, latNum) &&
+                    sameCoord(a.lng, lngNum);
                   return (
                     <button
                       key={a.id}
@@ -352,7 +392,10 @@ export default function CheckoutPage() {
               rows={3}
               placeholder={t('addressPlaceholder')}
               value={line}
-              onChange={(e) => setLine(e.target.value)}
+              onChange={(e) => {
+                addressTouched.current = true;
+                setLine(e.target.value);
+              }}
               required
             />
           </div>
@@ -363,6 +406,7 @@ export default function CheckoutPage() {
               lat={lat}
               lng={lng}
               onChange={(la, ln) => {
+                addressTouched.current = true;
                 setLat(String(la));
                 setLng(String(ln));
               }}
@@ -436,6 +480,7 @@ export default function CheckoutPage() {
               })}
             </p>
           )}
+          <PriceChangeNotice />
           <button
             type="submit"
             className="btn btn-block"

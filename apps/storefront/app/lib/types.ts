@@ -129,8 +129,15 @@ export interface OrderTimelineEntry {
 }
 
 export interface Order {
+  /** Internal numeric id — keys the SSE stream and reorder. Never shown to customers. */
   id: string;
   trackingToken: string; // unguessable token used to fetch/track this order
+  /**
+   * The short, speakable order number the customer quotes (Crockford base32,
+   * e.g. "7K4M2QX9"). Show THIS, not `id`: the id is sequential, so displaying
+   * it publishes the store's order volume.
+   */
+  publicCode: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: string;
@@ -145,6 +152,13 @@ export interface Order {
   deliveryOtp: string | null; // present only while OUT_FOR_DELIVERY
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
+  /**
+   * GST invoice number from the per-financial-year series (e.g. "TB/25-26/00001"),
+   * and when it was issued. Both null until an invoice is actually issued —
+   * downloading one assigns it.
+   */
+  invoiceNumber: string | null;
+  invoicedAt: string | null; // ISO timestamp
 }
 
 export interface PlaceOrderRequest {

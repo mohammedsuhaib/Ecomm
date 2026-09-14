@@ -51,6 +51,20 @@ class OrderEntity {
     @Column(name = "public_token", nullable = false, updatable = false)
     private UUID publicToken;
 
+    // The short, speakable order number customers quote (see OrderCodes). A
+    // display label, not a capability — access is login + ownership.
+    @Column(name = "public_code", nullable = false, updatable = false)
+    private String publicCode;
+
+    // GST invoice number and the moment it was issued. Both stay null until an
+    // invoice is actually issued, then never change: a tax invoice, once handed
+    // out, must reproduce byte-for-byte on a re-download (CGST Rule 46(b)).
+    @Column(name = "invoice_number")
+    private String invoiceNumber;
+
+    @Column(name = "invoiced_at")
+    private Instant invoicedAt;
+
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
@@ -117,6 +131,7 @@ class OrderEntity {
         this.cartId = cartId;
         this.userId = userId;
         this.publicToken = UUID.randomUUID();
+        this.publicCode = OrderCodes.newCode();
         this.storeId = storeId;
         this.customerName = customerName;
         this.phone = phone;
@@ -152,6 +167,30 @@ class OrderEntity {
 
     UUID getPublicToken() {
         return publicToken;
+    }
+
+    String getPublicCode() {
+        return publicCode;
+    }
+
+    String getInvoiceNumber() {
+        return invoiceNumber;
+    }
+
+    Instant getInvoicedAt() {
+        return invoicedAt;
+    }
+
+    /**
+     * Record that a GST invoice was issued for this order. Write-once: an
+     * already-issued number is kept, so a re-download reproduces the same
+     * document rather than minting a second invoice for one supply.
+     */
+    void markInvoiced(String number, Instant at) {
+        if (this.invoiceNumber == null) {
+            this.invoiceNumber = number;
+            this.invoicedAt = at;
+        }
     }
 
     Long getStoreId() {

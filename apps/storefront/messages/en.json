@@ -95,6 +95,7 @@
     "label": "Sort",
     "recommended": "Recommended",
     "name": "A–Z",
+    "name_desc": "Z–A",
     "price_asc": "Price: low to high",
     "price_desc": "Price: high to low",
     "discount": "Biggest discount",
@@ -151,7 +152,8 @@
     "noLongerAvailableRemove": "No longer available — remove to continue",
     "onlyNLeft": "Only {count} left — reduce quantity to continue",
     "someNoLongerAvailable": "Some items are no longer available. Remove them to continue.",
-    "someShortage": "Some items don’t have enough stock for the quantity you chose. Reduce the quantity to continue."
+    "someShortage": "Some items don’t have enough stock for the quantity you chose. Reduce the quantity to continue.",
+    "storeClosedNotice": "We’re closed right now, so orders can’t be placed. Your cart is saved — check out once we reopen."
   },
   "checkout": {
     "title": "Checkout",
@@ -186,7 +188,7 @@
     "someNoLongerAvailableEdit": "Some items are no longer available. Please <link>edit your cart</link> first.",
     "someShortageEdit": "Some items don’t have enough stock for the quantity you chose. Please <link>edit your cart</link> first.",
     "errorStoreClosed": "We’re closed right now, so this order can’t be placed. Your cart is saved — please order once we reopen.",
-    "upiComingSoon": "Paying online in advance is coming soon. For now, pay on delivery \u2014 cash or UPI at your door."
+    "upiComingSoon": "Paying online in advance is coming soon. For now, pay on delivery — cash or UPI at your door."
   },
   "login": {
     "signIn": "Sign in",
@@ -254,7 +256,7 @@
     "couldNotReorder": "Could not start a reorder. Some items may be unavailable.",
     "loadingOrders": "Loading your orders…",
     "none": "You haven’t placed any orders yet.",
-    "orderNumber": "Order #{id}",
+    "orderNumber": "Order #{code}",
     "itemsCount": "{count, plural, one {# item} other {# items}} · {total}",
     "view": "View",
     "reorder": "Reorder",
@@ -282,7 +284,7 @@
     "headlineDeliveryFailed": "We couldn't deliver your order",
     "deliveryFailedNotice": "Our rider couldn't complete the delivery. The store will call you to arrange a re-delivery — your items are still set aside for you.",
     "deliveryFailedReason": "Reason: {reason}",
-    "orderNumberTime": "Order #{id} · {time}",
+    "orderNumberTime": "Order #{code} · {time}",
     "deliveryCode": "Delivery code",
     "deliveryCodeHint": "Share this code with the delivery person at handover.",
     "orderStatusHeading": "Order status",
@@ -297,7 +299,10 @@
     "includesGst": "Includes GST of {amount}",
     "payment": "Payment",
     "deliveringTo": "Delivering to",
-    "notFound": "We couldn’t find this order.",
+    "notFound": "We couldn’t find this order. Make sure you’re signed in with the mobile number that placed it.",
+    "signInPrompt": "Please sign in to view this order.",
+    "invoicePreparing": "Preparing your invoice…",
+    "invoiceFailed": "Could not download the invoice. Please try again.",
     "couldNotLoad": "Could not load your order. Please try again.",
     "loadingOrder": "Loading your order…",
     "deliveryCodeHintOnTheWay": "Your order is on the way. Share this code with the delivery person at handover.",
@@ -321,7 +326,9 @@
     "notifyOnHint": "We'll notify you as this order progresses. Tap to turn off.",
     "notifyWorking": "Just a moment…",
     "notifyBlocked": "Notifications are blocked for this site. Enable them in your browser settings to get order updates.",
-    "notifyFailed": "Could not change your notification setting. Please try again."
+    "notifyFailed": "Could not change your notification setting. Please try again.",
+    "invoiceCancelled": "This order was cancelled, so there’s no invoice for it.",
+    "invoiceAfterDelivery": "Your invoice will be available here once your order is delivered."
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",
@@ -340,5 +347,11 @@
     "title": "You’re offline",
     "body": "Town Basket needs an internet connection to load fresh groceries. Please reconnect and try again — pages you’ve already visited may still be available.",
     "tryAgain": "Try again"
+  },
+  "priceChange": {
+    "title": "Prices changed.",
+    "body": "The store updated the price of these items while they were in your cart. Please check the new total before you continue.",
+    "wasNow": "was {was}, now {now}",
+    "accept": "Accept the new prices"
   }
 }

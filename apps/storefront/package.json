@@ -2,12 +2,12 @@
   "name": "@town-basket/storefront",
   "version": "0.0.1",
   "private": true,
-  "description": "Town Basket customer storefront — installable Next.js PWA.",
+  "description": "Town Basket customer storefront \u2014 installable Next.js PWA.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "next lint",
+    "lint": "next lint --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -23,6 +23,8 @@
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.15",
     "serwist": "9.0.11",
     "typescript": "5.5.4"
   }

@@ -27,11 +27,14 @@ import org.springframework.web.bind.annotation.RestController;
  * order fetch (confirmation + tracking), the caller's order history and reorder.
  * Returns {@link OrderDto} / {@link CartDto} only.
  *
- * <p>{@code POST /orders} is AUTHENTICATED (login required — no guest checkout),
- * as are {@code /orders/mine} and {@code /orders/&#42;/reorder}; {@code GET /orders/{id}}
- * stays public for confirmation + tracking. The user id is the security
- * principal (a plain {@code Long} set by the JWT filter); orders does not depend
- * on the identity module for this.
+ * <p>The whole surface is AUTHENTICATED: {@code POST /orders} (login required —
+ * no guest checkout), {@code /orders/mine}, {@code /orders/&#42;/reorder}, and the
+ * {@code /orders/track/&#42;&#42;} tracking endpoints, which are additionally
+ * owner-scoped — the unguessable token alone is no longer enough to read an
+ * order; the caller must be the account that placed it (a non-owner gets 404,
+ * never a confirming 403). The user id is the security principal (a plain
+ * {@code Long} set by the JWT filter); orders does not depend on the identity
+ * module for this.
  */
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -70,32 +73,33 @@ class OrderController {
     }
 
     @GetMapping("/track/{token}")
-    @Operation(summary = "Fetch an order by its unguessable tracking token (confirmation + live tracking).")
-    ResponseEntity<OrderDto> trackOrder(@PathVariable UUID token) {
-        return orderService.getOrderByToken(token)
+    @Operation(summary = "Fetch an order by its tracking token (AUTHENTICATED, owner only — non-owners get 404).")
+    ResponseEntity<OrderDto> trackOrder(@PathVariable UUID token, @AuthenticationPrincipal Long userId) {
+        return orderService.getOrderByToken(token, userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/track/{token}/cancel")
-    @Operation(summary = "Customer self-service cancel — within 1 minute of placing, before packing (public-by-token).")
-    OrderDto cancelByToken(@PathVariable UUID token) {
-        return orderService.cancelByToken(token);
+    @Operation(summary = "Customer self-service cancel — within 1 minute of placing, before packing (AUTHENTICATED, owner only).")
+    OrderDto cancelByToken(@PathVariable UUID token, @AuthenticationPrincipal Long userId) {
+        return orderService.cancelByToken(token, userId);
     }
 
     @GetMapping("/track/{token}/invoice.pdf")
-    @Operation(summary = "Download a PDF invoice for an order, fetched by its tracking token (public-by-token).")
-    ResponseEntity<byte[]> invoice(@PathVariable UUID token) {
-        return orderService.getOrderByToken(token)
-                .map(order -> {
-                    byte[] pdf = invoiceService.renderInvoicePdf(order);
-                    return ResponseEntity.ok()
-                            .contentType(MediaType.APPLICATION_PDF)
-                            .header(HttpHeaders.CONTENT_DISPOSITION,
-                                    "attachment; filename=\"townbasket-invoice-" + order.id() + ".pdf\"")
-                            .body(pdf);
-                })
-                .orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Download the GST invoice PDF — delivered orders only (AUTHENTICATED, owner only).")
+    ResponseEntity<byte[]> invoice(@PathVariable UUID token, @AuthenticationPrincipal Long userId) {
+        // Issuing assigns this order's invoice number from the per-financial-year
+        // series on the first download after delivery, and returns the same
+        // number thereafter. An order that is not delivered yet — or was
+        // cancelled — has no invoice and comes back as 422.
+        OrderDto order = orderService.issueInvoice(token, userId);
+        byte[] pdf = invoiceService.renderInvoicePdf(order);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"townbasket-invoice-" + order.publicCode() + ".pdf\"")
+                .body(pdf);
     }
 
     @PostMapping("/{id}/reorder")

@@ -60,6 +60,10 @@ export default async function RootLayout({
               href="https://fonts.gstatic.com"
               crossOrigin="anonymous"
             />
+            {/* eslint-disable-next-line @next/next/no-page-custom-font --
+                the rule is about the Pages Router, where a font link outside
+                _document.js loads for one page only. This is the App Router's
+                ROOT layout, so the link is on every route by construction. */}
             <link
               href="https://fonts.googleapis.com/css2?family=Noto+Sans+Kannada:wght@400;500;600;700&display=swap"
               rel="stylesheet"

@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, cancelOrder, getOrder, orderInvoiceUrl, orderStreamUrl } from '@/app/lib/api';
+import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
-import { useCart } from '@/app/components/CartProvider';
+import { useAuth } from '@/app/components/AuthProvider';
+import { useCartActions } from '@/app/components/CartProvider';
 import PushOptIn from '@/app/components/PushOptIn';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
@@ -54,14 +56,30 @@ function formatTime(iso: string): string {
 export default function OrderPage({ params }: { params: { id: string } }) {
   // The route param is the unguessable tracking token, not the numeric id.
   const trackingToken = params.id;
-  const { reset } = useCart();
+  const router = useRouter();
+  const { reset } = useCartActions();
+  const { isAuthenticated } = useAuth();
   const t = useTranslations('order');
   const ts = useTranslations('orderStatus');
   const tc = useTranslations('common');
   const tCheckout = useTranslations('checkout');
 
+  // Orders are owner-scoped server-side: the token alone grants nothing, so a
+  // signed-out visitor is sent to log in first (and brought back here). Auth
+  // hydrates from localStorage after mount — wait a tick before gating.
+  const [checked, setChecked] = useState(false);
+  useEffect(() => setChecked(true), []);
+  const loginUrl = `/account/login?next=${encodeURIComponent(`/order/${trackingToken}`)}`;
+  useEffect(() => {
+    if (checked && !isAuthenticated) {
+      router.replace(loginUrl);
+    }
+  }, [checked, isAuthenticated, router, loginUrl]);
+
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   // Ticks once a second while the self-cancel window is open so the countdown
@@ -88,8 +106,10 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     [reset],
   );
 
-  // Initial load.
+  // Initial load — only once the login gate has settled, so a signed-out
+  // visitor is redirected instead of burning a doomed 401 fetch.
   useEffect(() => {
+    if (!checked || !isAuthenticated) return;
     let cancelled = false;
     getOrder(trackingToken)
       .then((o) => {
@@ -97,6 +117,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       })
       .catch((err) => {
         if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          // Session expired and the refresh failed: sign in again, come back.
+          router.replace(loginUrl);
+          return;
+        }
         setError(
           err instanceof ApiError && err.status === 404
             ? t('notFound')
@@ -106,7 +131,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [trackingToken, applyOrder]);
+  }, [checked, isAuthenticated, trackingToken, applyOrder, router, loginUrl, t]);
 
   // Live updates: subscribe to the order SSE stream (keyed by the resolved
   // numeric id) and ALSO poll by the unguessable tracking token as the reliable
@@ -206,6 +231,54 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     }
   }
 
+  // Authenticated fetch + browser-side save: the invoice endpoint is
+  // owner-scoped, so a plain <a href> (which can't carry the Bearer) won't do.
+  async function onDownloadInvoice() {
+    if (invoiceBusy) return;
+    setInvoiceBusy(true);
+    setInvoiceError(null);
+    try {
+      const blob = await fetchOrderInvoice(trackingToken);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `townbasket-invoice-${order?.publicCode ?? trackingToken}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      // 422: no invoice for this order yet — either it isn't delivered (the
+      // button is hidden then, so this is a race: it was cancelled or the
+      // status moved in another tab) or it was cancelled outright.
+      setInvoiceError(
+        err instanceof ApiError && err.status === 422
+          ? order?.status === 'CANCELLED'
+            ? t('invoiceCancelled')
+            : t('invoiceAfterDelivery')
+          : t('invoiceFailed'),
+      );
+    } finally {
+      setInvoiceBusy(false);
+    }
+  }
+
+  // Login gate: don't render (or fetch) someone's order details until the
+  // session has hydrated and the visitor is signed in.
+  if (!checked) {
+    return <p className="empty-state">{tc('loading')}</p>;
+  }
+  if (!isAuthenticated) {
+    return (
+      <div className="empty-state">
+        <p>{t('signInPrompt')}</p>
+        <Link href={loginUrl} className="btn">
+          {tCheckout('signInContinue')}
+        </Link>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="empty-state">
@@ -255,7 +328,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         <h1>{headlineTitle}</h1>
         <p className="muted">
           {t('orderNumberTime', {
-            id: order.id,
+            code: order.publicCode,
             time: formatTime(order.placedAt),
           })}
         </p>
@@ -388,15 +461,27 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             </span>
           </div>
         </div>
-        <a
-          className="btn btn-outline btn-block"
-          href={orderInvoiceUrl(trackingToken)}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ marginTop: '0.75rem' }}
-        >
-          {t('downloadInvoice')}
-        </a>
+        {/* A GST invoice records a supply that has happened, so the server
+            issues one only after handover. Offer the download once the order is
+            delivered (or once an invoice already exists), say when it will
+            appear while the order is still in flight, and say nothing at all
+            for a cancelled order — there will never be one. */}
+        {order.status === 'DELIVERED' || order.invoiceNumber ? (
+          <button
+            type="button"
+            className="btn btn-outline btn-block"
+            onClick={onDownloadInvoice}
+            disabled={invoiceBusy}
+            style={{ marginTop: '0.75rem' }}
+          >
+            {invoiceBusy ? t('invoicePreparing') : t('downloadInvoice')}
+          </button>
+        ) : cancelled ? null : (
+          <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem' }}>
+            {t('invoiceAfterDelivery')}
+          </p>
+        )}
+        {invoiceError && <p className="notice error">{invoiceError}</p>}
       </section>
 
       <section className="order-address">

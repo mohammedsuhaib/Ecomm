@@ -45,10 +45,15 @@ class AdminOrderController {
         return orderService.listOrders(status, q, pageable(page, size));
     }
 
+    /** Longest reporting window this endpoint will serve, in days. */
+    private static final int MAX_STATS_DAYS = 90;
+
     @GetMapping("/delivery-stats")
-    @Operation(summary = "Delivered-order counts and summed order value per agent per date, newest date first.")
-    List<AgentDeliveryStat> deliveryStats() {
-        return orderService.deliveryStatsByAgent();
+    @Operation(summary = "Delivered-order counts and summed value per agent per date, newest first (windowed, default 30 days).")
+    List<AgentDeliveryStat> deliveryStats(@RequestParam(defaultValue = "30") int days) {
+        // Clamped like the analytics endpoints: an unbounded window grew one row
+        // per agent per day forever and rescanned the whole event log each call.
+        return orderService.deliveryStatsByAgent(Math.min(Math.max(days, 1), MAX_STATS_DAYS));
     }
 
     @PostMapping("/{id}/transitions")

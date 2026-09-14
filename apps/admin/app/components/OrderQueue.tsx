@@ -12,6 +12,7 @@ import type { DeliveryAgent, Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import OrderCard from './OrderCard';
 import { useNewOrderAlert } from './useNewOrderAlert';
+import { ListSkeleton } from './Skeleton';
 
 /**
  * Live admin order queue. Loads orders for the selected status filter, then
@@ -171,8 +172,8 @@ export default function OrderQueue() {
         <input
           type="search"
           className="queue-search-input"
-          placeholder="Search order no., phone or name…"
-          aria-label="Search orders by order number, phone or customer name"
+          placeholder="Search order code, phone or name…"
+          aria-label="Search orders by order code, phone or customer name"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -218,7 +219,7 @@ export default function OrderQueue() {
       {error && <p className="order-error queue-error">{error}</p>}
 
       {loading && orders.length === 0 ? (
-        <p className="queue-empty">Loading orders…</p>
+        <ListSkeleton label="Loading orders…" rows={4} />
       ) : orders.length === 0 ? (
         <p className="queue-empty">No orders here right now.</p>
       ) : (

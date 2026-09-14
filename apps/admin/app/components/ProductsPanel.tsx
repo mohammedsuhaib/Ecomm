@@ -12,6 +12,7 @@ import {
 import { formatRupees } from '@/app/lib/format';
 import type { AdminProduct, Category, ProductImportResult } from '@/app/lib/types';
 import ProductForm from './ProductForm';
+import { ListSkeleton } from './Skeleton';
 
 const PAGE_SIZE = 50;
 
@@ -340,7 +341,7 @@ export default function ProductsPanel({
       {error && <p className="account-banner err">{error}</p>}
 
       {loading && products.length === 0 ? (
-        <p className="queue-empty">Loading products…</p>
+        <ListSkeleton label="Loading products…" rows={6} />
       ) : products.length === 0 ? (
         <p className="queue-empty">No products match these filters.</p>
       ) : (

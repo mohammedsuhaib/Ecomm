@@ -3,6 +3,7 @@ import type { ProductSort } from './api';
 /** Sort options exposed in the listing dropdown, in display order (labels come from i18n). */
 export const SORT_OPTIONS: readonly ProductSort[] = [
   'name',
+  'name_desc',
   'price_asc',
   'price_desc',
   'discount',

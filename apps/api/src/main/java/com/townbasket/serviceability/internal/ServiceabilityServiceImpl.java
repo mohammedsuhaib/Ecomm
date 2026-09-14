@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import com.townbasket.serviceability.StoreUpdateRequest;
 import java.time.LocalTime;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,16 +36,26 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
     private static final double EARTH_RADIUS_M = 6_371_000.0;
 
     private final StoreRepository storeRepository;
+
+    /**
+     * The read path for the active store row. Every read goes through here so it
+     * is served from memory; the write paths below use {@link #storeRepository}
+     * directly (they need the managed entity) and then invalidate.
+     */
+    private final ActiveStoreCache activeStoreCache;
+
     private final Clock clock;
     private final Double overrideLat;
     private final Double overrideLng;
 
     ServiceabilityServiceImpl(
             StoreRepository storeRepository,
+            ActiveStoreCache activeStoreCache,
             Clock clock,
             @Value("${townbasket.serviceability.store-lat:}") String overrideLatRaw,
             @Value("${townbasket.serviceability.store-lng:}") String overrideLngRaw) {
         this.storeRepository = storeRepository;
+        this.activeStoreCache = activeStoreCache;
         this.clock = clock;
         this.overrideLat = parseCoord(overrideLatRaw);
         this.overrideLng = parseCoord(overrideLngRaw);
@@ -59,12 +70,12 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         return overrideLat != null && overrideLng != null;
     }
 
-    private double storeLat(StoreEntity store) {
-        return overrideActive() ? overrideLat : store.getLat();
+    private double storeLat(StoreSnapshot store) {
+        return overrideActive() ? overrideLat : store.lat();
     }
 
-    private double storeLng(StoreEntity store) {
-        return overrideActive() ? overrideLng : store.getLng();
+    private double storeLng(StoreSnapshot store) {
+        return overrideActive() ? overrideLng : store.lng();
     }
 
     /** Parse an optional coordinate override; blank/missing/malformed => no override. */
@@ -81,23 +92,23 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
 
     @Override
     public ServiceabilityCheckDto check(double lat, double lng) {
-        StoreEntity store = storeRepository.findFirstByActiveTrueOrderByIdAsc()
+        StoreSnapshot store = activeStoreCache.get()
                 .orElseThrow(() -> new IllegalStateException("No active store configured"));
 
         int distanceMeters = (int) Math.round(
                 haversineMeters(storeLat(store), storeLng(store), lat, lng));
-        boolean serviceable = distanceMeters <= store.getDeliveryRadiusM();
+        boolean serviceable = distanceMeters <= store.deliveryRadiusM();
 
         return new ServiceabilityCheckDto(
                 serviceable,
                 distanceMeters,
-                store.getDeliveryRadiusM(),
-                store.getName());
+                store.deliveryRadiusM(),
+                store.name());
     }
 
     @Override
     public Optional<StoreDto> activeStore() {
-        return storeRepository.findFirstByActiveTrueOrderByIdAsc().map(this::toDto);
+        return activeStoreCache.get().map(this::toDto);
     }
 
     /**
@@ -140,6 +151,7 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeStore", allEntries = true)
     public StoreDto updateStore(StoreUpdateRequest r) {
         StoreEntity store = requireActiveStore();
         if (r == null) {
@@ -162,11 +174,12 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         }
         store.updateSettings(r.name().trim(), r.address().trim(), r.lat(), r.lng(),
                 r.deliveryRadiusMeters(), r.openingTime(), r.closingTime(), r.minOrderValue());
-        return toDto(storeRepository.saveAndFlush(store));
+        return saveAndPublish(store);
     }
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeStore", allEntries = true)
     public StoreDto closeForToday(String reason) {
         StoreEntity store = requireActiveStore();
         // End of today in the STORE's zone (the Clock bean is Asia/Kolkata), so
@@ -174,16 +187,28 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         Instant until = LocalDate.now(clock).atTime(LocalTime.MAX).atZone(clock.getZone()).toInstant();
         store.closeUntil(until, isBlank(reason) ? null : reason.trim());
         log.info("Store {} closed manually until {} ({})", store.getId(), until, reason);
-        return toDto(storeRepository.saveAndFlush(store));
+        return saveAndPublish(store);
     }
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = "activeStore", allEntries = true)
     public StoreDto reopen() {
         StoreEntity store = requireActiveStore();
         store.reopen();
         log.info("Store {} manual closure lifted", store.getId());
-        return toDto(storeRepository.saveAndFlush(store));
+        return saveAndPublish(store);
+    }
+
+    /**
+     * Persist a staff edit and make it visible immediately: the cached snapshot is
+     * dropped, so the next read — including the storefront's store-status poll and
+     * the checkout serviceability gate — reloads the row rather than waiting out
+     * the cache's TTL. The returned DTO is built from the just-saved state, so the
+     * admin screen never shows the value it replaced.
+     */
+    private StoreDto saveAndPublish(StoreEntity store) {
+        return toDto(StoreSnapshot.of(storeRepository.saveAndFlush(store)));
     }
 
     private StoreEntity requireActiveStore() {
@@ -217,30 +242,36 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         return !closureEnd.toLocalTime().isBefore(closing) || nowLocal.toLocalTime().isAfter(closing);
     }
 
-    private StoreDto toDto(StoreEntity s) {
+    /**
+     * Build the public DTO from a (possibly cached) row snapshot. Everything
+     * time-dependent — {@code open}, {@code opensNextDay}, {@code manuallyClosed}
+     * — is recomputed here against the current clock, which is why the snapshot
+     * and not this DTO is what gets cached.
+     */
+    private StoreDto toDto(StoreSnapshot s) {
         Instant nowInstant = clock.instant();
         LocalTime now = LocalTime.now(clock);
-        boolean manuallyClosed = manuallyClosedAt(nowInstant, s.getClosedUntil());
-        boolean open = !manuallyClosed && isOpenAt(now, s.getOpeningTime(), s.getClosingTime());
+        boolean manuallyClosed = manuallyClosedAt(nowInstant, s.closedUntil());
+        boolean open = !manuallyClosed && isOpenAt(now, s.openingTime(), s.closingTime());
         boolean nextDay = manuallyClosed
                 ? manualClosureOpensNextDay(
                         LocalDateTime.ofInstant(nowInstant, clock.getZone()),
-                        LocalDateTime.ofInstant(s.getClosedUntil(), clock.getZone()),
-                        s.getClosingTime())
-                : opensNextDay(now, s.getOpeningTime(), s.getClosingTime());
+                        LocalDateTime.ofInstant(s.closedUntil(), clock.getZone()),
+                        s.closingTime())
+                : opensNextDay(now, s.openingTime(), s.closingTime());
         return new StoreDto(
-                s.getName(),
-                s.getAddress(),
-                s.getOpeningTime(),
-                s.getClosingTime(),
-                s.getDeliveryRadiusM(),
-                s.getMinOrderValue(),
+                s.name(),
+                s.address(),
+                s.openingTime(),
+                s.closingTime(),
+                s.deliveryRadiusM(),
+                s.minOrderValue(),
                 storeLat(s),
                 storeLng(s),
                 open,
                 nextDay,
                 manuallyClosed,
-                manuallyClosed ? s.getClosedReason() : null,
-                manuallyClosed ? s.getClosedUntil() : null);
+                manuallyClosed ? s.closedReason() : null,
+                manuallyClosed ? s.closedUntil() : null);
     }
 }

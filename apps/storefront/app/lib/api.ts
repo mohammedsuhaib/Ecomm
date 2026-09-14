@@ -210,7 +210,12 @@ export function getCategories(opts?: FetchOpts): Promise<Category[]> {
 }
 
 /** Catalogue sort options accepted by /products and /products/search. */
-export type ProductSort = 'name' | 'price_asc' | 'price_desc' | 'discount';
+export type ProductSort =
+  | 'name'
+  | 'name_desc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'discount';
 
 /** Optional product-list filters layered on top of paging. */
 export interface ProductListOpts {
@@ -389,41 +394,62 @@ async function ensureFreshAccessToken(): Promise<void> {
 /**
  * GET /orders/track/{token} — order summary + status timeline (live), fetched
  * by the unguessable tracking token (never the sequential id, so orders can't
- * be harvested by enumeration).
+ * be harvested by enumeration). AUTHENTICATED and owner-scoped: the server
+ * returns the order only to the account that placed it (anyone else — signed
+ * out included — gets 401/404), so an order URL alone grants nothing.
  */
 export function getOrder(token: string): Promise<Order> {
-  return apiFetch<Order>(`/orders/track/${encodeURIComponent(token)}`, undefined, {
-    noStore: true,
-  });
+  return authGet<Order>(`/orders/track/${encodeURIComponent(token)}`);
 }
 
 /**
- * Customer self-service cancel (public-by-token, same capability model as
- * getOrder). Server enforces the policy window: within 1 minute of placing,
+ * Customer self-service cancel (AUTHENTICATED, owner only — same access model
+ * as getOrder). Server enforces the policy window: within 1 minute of placing,
  * before packing starts. 422 = window passed / already being prepared.
  */
 export function cancelOrder(token: string): Promise<Order> {
-  return apiMutate<Order>('POST', `/orders/track/${encodeURIComponent(token)}/cancel`);
+  return authMutate<Order>('POST', `/orders/track/${encodeURIComponent(token)}/cancel`);
 }
 
 /**
  * URL for the per-order SSE stream (GET /orders/{id}/stream). The numeric id is
  * only known after the order is fetched by token; the stream carries non-PII
- * status pings. Consumed by the tracking page with `new EventSource(...)`, so it
- * must use the public (browser-reachable) base URL.
+ * status pings. Consumed with `new EventSource(...)`, which cannot set headers,
+ * so the (short-lived) access token rides as ?token= — the server authenticates
+ * it and only streams the caller's OWN order. Must use the public
+ * (browser-reachable) base URL.
  */
 export function orderStreamUrl(id: string): string {
-  return `${API_BASE_URL.replace(/\/$/, '')}/orders/${encodeURIComponent(id)}/stream`;
+  const base = `${API_BASE_URL.replace(/\/$/, '')}/orders/${encodeURIComponent(id)}/stream`;
+  const access = loadAccessToken();
+  return access ? `${base}?token=${encodeURIComponent(access)}` : base;
 }
 
 /**
- * URL for the order's PDF invoice (GET /orders/track/{token}/invoice.pdf). The
- * endpoint streams a PDF with a Content-Disposition: attachment header, so a
- * plain link triggers a download. Public-by-token, like order tracking — must
- * use the browser-reachable base URL.
+ * GET /orders/track/{token}/invoice.pdf — download the order's PDF invoice.
+ * AUTHENTICATED + owner-scoped like getOrder, so a plain <a href> can't carry
+ * the Bearer header: fetch the bytes here (with the usual one-refresh retry)
+ * and let the caller hand the Blob to the browser as a download.
  */
-export function orderInvoiceUrl(token: string): string {
-  return `${API_BASE_URL.replace(/\/$/, '')}/orders/track/${encodeURIComponent(token)}/invoice.pdf`;
+export function fetchOrderInvoice(token: string): Promise<Blob> {
+  const path = `/orders/track/${encodeURIComponent(token)}/invoice.pdf`;
+  return authRequest<Blob>(async () => {
+    const access = loadAccessToken();
+    const url = `${API_BASE_URL.replace(/\/$/, '')}${path}`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        cache: 'no-store',
+        headers: access ? { Authorization: `Bearer ${access}` } : undefined,
+      });
+    } catch (cause) {
+      throw new ApiError(0, url, `Network error reaching API: ${String(cause)}`);
+    }
+    if (!res.ok) {
+      throw new ApiError(res.status, url, res.statusText);
+    }
+    return res.blob();
+  });
 }
 
 // ---- Auth endpoints (M4, PUBLIC, browser-side) --------------------------

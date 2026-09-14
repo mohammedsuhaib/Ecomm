@@ -38,7 +38,7 @@ export default function LocationIndicator() {
       window.removeEventListener('tb:serviceability-changed', onStorage);
       window.removeEventListener('storage', onStorage);
     };
-  }, []);
+  }, [t]);
 
   return (
     <button

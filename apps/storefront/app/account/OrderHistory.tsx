@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getMyOrders, reorder } from '@/app/lib/api';
 import { saveCartId } from '@/app/lib/cart';
 import { formatRupees } from '@/app/lib/format';
-import { useCart } from '@/app/components/CartProvider';
+import { useCartActions } from '@/app/components/CartProvider';
 import LiveOrderStamp from './LiveOrderStamp';
 import type { Order } from '@/app/lib/types';
 
@@ -15,7 +15,7 @@ import type { Order } from '@/app/lib/types';
 export default function OrderHistory() {
   const t = useTranslations('orders');
   const router = useRouter();
-  const { refresh } = useCart();
+  const { refresh } = useCartActions();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +33,7 @@ export default function OrderHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -74,7 +74,7 @@ export default function OrderHistory() {
           <li key={o.id} className="order-history-row">
             <div className="order-history-info">
               <span className="order-history-id">
-                {t('orderNumber', { id: o.id })}
+                {t('orderNumber', { code: o.publicCode })}
               </span>
               <LiveOrderStamp order={o} />
               <span className="muted">
