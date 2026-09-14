@@ -1,6 +1,7 @@
 package com.townbasket.orders.internal;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -49,6 +50,7 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
                 SELECT order_id, MIN(at) AS delivered_at
                 FROM orders.order_events
                 WHERE to_status = 'DELIVERED'
+                  AND at >= :since
                 GROUP BY order_id
             ) d
             JOIN orders.orders o ON o.id = d.order_id
@@ -56,7 +58,7 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             GROUP BY o.assigned_agent_id, CAST(d.delivered_at AS date)
             ORDER BY "day" DESC, "agentId"
             """, nativeQuery = true)
-    List<AgentDeliveryRow> countDeliveredByAgentAndDay();
+    List<AgentDeliveryRow> countDeliveredByAgentAndDay(@Param("since") Instant since);
 
     Optional<OrderEntity> findByIdempotencyKey(String idempotencyKey);
 
@@ -67,41 +69,80 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Page<OrderEntity> findByStatusOrderByPlacedAtDescIdDesc(OrderStatus status, Pageable pageable);
 
     /**
-     * Admin search: order code, phone, customer name, or the internal numeric
-     * id (kept so older references and support notes still resolve).
+     * Admin search: order code, phone, customer name, or the internal numeric id.
      *
-     * <p>{@code like} arrives lower-cased with wildcards and escaping already
-     * applied by the caller. {@code codeLike} is the same term folded through
-     * {@link OrderCodes#normalize} first, so a customer who dictates "o" for
-     * zero or types a hyphen still finds their order; when the term can't be a
-     * code at all the caller passes a pattern that matches nothing.
+     * <p>{@code like} arrives lower-cased with wildcards and escaping already applied
+     * by the caller. {@code codeLike} is the same term folded through
+     * {@link OrderCodes#normalize} first, so a customer who dictates "o" for zero or
+     * types a hyphen still finds their order; when the term can't be a code at all the
+     * caller passes a pattern that matches nothing. {@code idExact} matches the
+     * numeric id by EQUALITY and is null unless the term is all digits.
      *
-     * <p>Two queries rather than one with a nullable status: Postgres cannot
-     * infer a type for a NULL enum parameter in {@code :status IS NULL}.
+     * <p>Native, and shaped as a MATERIALIZED CTE, for a specific measured reason.
+     * The predicates are all leading-wildcard {@code LIKE}s, which the GIN trigram
+     * indexes from V6_10 serve well — combining them takes 0.13 ms on a 50 000-order
+     * table. But written as one flat statement with {@code ORDER BY placed_at DESC
+     * LIMIT 20}, the planner instead walks the placed_at index hoping to fill the
+     * limit early, and because trigram selectivity is badly estimated it walks the
+     * WHOLE index: 33 ms, discarding 49 995 rows to return 5. MATERIALIZED forces the
+     * filter to resolve through the indexes first, so only the matches are sorted.
+     * Two branches of one OR chain cannot use indexes unless every branch can, which
+     * is why the id is an equality test rather than the substring cast it once was.
      */
-    @Query("""
-            SELECT o FROM OrderEntity o
-            WHERE LOWER(o.publicCode) LIKE :codeLike ESCAPE '\\'
-               OR CAST(o.id AS string) LIKE :like ESCAPE '\\'
-               OR o.phone LIKE :like ESCAPE '\\'
-               OR LOWER(o.customerName) LIKE :like ESCAPE '\\'
-            ORDER BY o.placedAt DESC, o.id DESC
-            """)
-    Page<OrderEntity> search(
-            @Param("like") String like, @Param("codeLike") String codeLike, Pageable pageable);
-
-    @Query("""
-            SELECT o FROM OrderEntity o
-            WHERE o.status = :status
-              AND (LOWER(o.publicCode) LIKE :codeLike ESCAPE '\\'
-                   OR CAST(o.id AS string) LIKE :like ESCAPE '\\'
+    @Query(value = """
+            WITH matches AS MATERIALIZED (
+                SELECT o.id FROM orders.orders o
+                WHERE lower(o.public_code) LIKE :codeLike ESCAPE '\\'
                    OR o.phone LIKE :like ESCAPE '\\'
-                   OR LOWER(o.customerName) LIKE :like ESCAPE '\\')
-            ORDER BY o.placedAt DESC, o.id DESC
-            """)
+                   OR lower(o.customer_name) LIKE :like ESCAPE '\\'
+                   OR (CAST(:idExact AS bigint) IS NOT NULL AND o.id = CAST(:idExact AS bigint))
+            )
+            SELECT o.* FROM orders.orders o
+            JOIN matches m ON m.id = o.id
+            ORDER BY o.placed_at DESC, o.id DESC
+            """,
+            countQuery = """
+            SELECT count(*) FROM orders.orders o
+            WHERE lower(o.public_code) LIKE :codeLike ESCAPE '\\'
+               OR o.phone LIKE :like ESCAPE '\\'
+               OR lower(o.customer_name) LIKE :like ESCAPE '\\'
+               OR (CAST(:idExact AS bigint) IS NOT NULL AND o.id = CAST(:idExact AS bigint))
+            """,
+            nativeQuery = true)
+    Page<OrderEntity> search(
+            @Param("like") String like, @Param("codeLike") String codeLike,
+            @Param("idExact") Long idExact, Pageable pageable);
+
+    /**
+     * The same search narrowed to one status. {@code status} is bound as the enum's
+     * name because this is native SQL; see {@link #search} for the CTE's rationale.
+     */
+    @Query(value = """
+            WITH matches AS MATERIALIZED (
+                SELECT o.id FROM orders.orders o
+                WHERE o.status = :status
+                  AND (lower(o.public_code) LIKE :codeLike ESCAPE '\\'
+                       OR o.phone LIKE :like ESCAPE '\\'
+                       OR lower(o.customer_name) LIKE :like ESCAPE '\\'
+                       OR (CAST(:idExact AS bigint) IS NOT NULL AND o.id = CAST(:idExact AS bigint)))
+            )
+            SELECT o.* FROM orders.orders o
+            JOIN matches m ON m.id = o.id
+            ORDER BY o.placed_at DESC, o.id DESC
+            """,
+            countQuery = """
+            SELECT count(*) FROM orders.orders o
+            WHERE o.status = :status
+              AND (lower(o.public_code) LIKE :codeLike ESCAPE '\\'
+                   OR o.phone LIKE :like ESCAPE '\\'
+                   OR lower(o.customer_name) LIKE :like ESCAPE '\\'
+                   OR (CAST(:idExact AS bigint) IS NOT NULL AND o.id = CAST(:idExact AS bigint)))
+            """,
+            nativeQuery = true)
     Page<OrderEntity> searchByStatus(
-            @Param("status") OrderStatus status, @Param("like") String like,
-            @Param("codeLike") String codeLike, Pageable pageable);
+            @Param("status") String status, @Param("like") String like,
+            @Param("codeLike") String codeLike, @Param("idExact") Long idExact,
+            Pageable pageable);
 
     Page<OrderEntity> findByUserIdOrderByPlacedAtDescIdDesc(Long userId, Pageable pageable);
 

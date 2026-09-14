@@ -53,6 +53,19 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Caching — IN-PROCESS ONLY (Caffeine), deliberately not Redis. The app
+             runs as a single JVM on one droplet (ARCHITECTURE §7); a cache server
+             would add an operational dependency and a network hop to replace a
+             ConcurrentHashMap lookup. See CacheConfig for what is cached and why. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- Security — stateless JWT auth + BCrypt password hashing (M4 identity).
              We issue our OWN JWTs; the security layer is resource-server-style
              (a custom OncePerRequestFilter validates the Bearer token). -->

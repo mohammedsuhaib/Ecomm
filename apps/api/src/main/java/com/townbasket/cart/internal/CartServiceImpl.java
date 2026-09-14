@@ -86,6 +86,8 @@ class CartServiceImpl implements CartService {
     @Override
     public CartDto addItems(UUID cartId, Map<Long, Integer> qtyByVariantId) {
         CartEntity cart = require(cartId);
+        // One catalogue lookup for the whole reorder, not one per line.
+        Map<Long, VariantView> variants = catalog.findVariants(qtyByVariantId.keySet());
         for (Map.Entry<Long, Integer> line : qtyByVariantId.entrySet()) {
             Long variantId = line.getKey();
             int qty = line.getValue();
@@ -94,10 +96,8 @@ class CartServiceImpl implements CartService {
             }
             // Contract: silently skip missing/unavailable variants (reorder
             // semantics) — unlike addItem, which lets unavailable-but-known in.
-            boolean available = catalog.findVariant(variantId)
-                    .map(VariantView::available)
-                    .orElse(false);
-            if (!available) {
+            VariantView v = variants.get(variantId);
+            if (v == null || !v.available()) {
                 continue;
             }
             addLine(cart, variantId, qty);
@@ -192,15 +192,29 @@ class CartServiceImpl implements CartService {
     }
 
     private CartDto toDto(CartEntity cart) {
+        // Resolve the whole basket up front rather than per line. This mapping runs
+        // on every add, quantity change, removal, merge and plain read, and the old
+        // per-line lookups cost two catalogue queries plus one stock query each — a
+        // 20-line basket was ~60 queries for one response. Both lookups are now
+        // fixed-cost regardless of basket size.
+        List<Long> variantIds = cart.getItems().stream()
+                .map(CartItemEntity::getVariantId)
+                .toList();
+        Map<Long, VariantView> variants = catalog.findVariants(variantIds);
+        Map<Long, Integer> stockByVariant = inventory.availability(variantIds);
+
         List<CartItemDto> items = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
         int itemCount = 0;
         for (CartItemEntity item : cart.getItems()) {
-            VariantView v = catalog.findVariant(item.getVariantId()).orElse(null);
+            VariantView v = variants.get(item.getVariantId());
             BigDecimal unitPrice = v != null ? v.unitPrice() : BigDecimal.ZERO;
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQty()));
             boolean available = v != null && v.available() && unitPrice.signum() >= 0;
-            int availableStock = available ? inventory.availability(item.getVariantId()) : 0;
+            // Absent key means no stock row, which reads as zero — same as before.
+            int availableStock = available
+                    ? stockByVariant.getOrDefault(item.getVariantId(), 0)
+                    : 0;
             items.add(new CartItemDto(
                     item.getId(),
                     item.getVariantId(),

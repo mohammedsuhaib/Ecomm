@@ -119,8 +119,14 @@ public interface OrderService {
      * Admin reporting: delivered-order counts and summed order value per agent
      * per date, newest date first. Only DELIVERED orders with an assigned
      * agent are counted.
+     *
+     * @param days how far back to report, in days. Bounded deliberately: the
+     *     unwindowed version returned one row per agent per delivery date for
+     *     the life of the store and rescanned every order event to do it, so
+     *     both the response and the work grew without limit. The caller clamps
+     *     the value.
      */
-    List<AgentDeliveryStat> deliveryStatsByAgent();
+    List<AgentDeliveryStat> deliveryStatsByAgent(int days);
 
     /**
      * Admin: apply a state-machine transition. Enforces the allowed transitions;

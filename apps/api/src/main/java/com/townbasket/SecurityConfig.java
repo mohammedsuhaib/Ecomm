@@ -61,6 +61,14 @@ class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Security's own cache-control writer is replaced, not removed:
+                // PublicReadCacheHeaderWriter still sends no-store/Pragma/Expires
+                // for everything except the anonymous catalogue reads, which it
+                // marks publicly cacheable. See that class for why the decision
+                // has to be made by a header writer.
+                .headers(headers -> headers
+                        .cacheControl(cacheControl -> cacheControl.disable())
+                        .addHeaderWriter(new PublicReadCacheHeaderWriter()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Always allow CORS preflight.

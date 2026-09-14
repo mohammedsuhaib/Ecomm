@@ -18,6 +18,27 @@ spring:
     username: ${DB_USERNAME:townbasket}
     password: ${DB_PASSWORD:townbasket}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Sized deliberately rather than left at Hikari's default 10. One droplet,
+      # one API container: ~100 orders/day means the pool is idle almost all the
+      # time, and the binding constraint is the DB's own backend limit (the
+      # smallest DO Managed Postgres plans allow ~22), not our concurrency. 16
+      # leaves headroom for Flyway, the scheduled jobs and a psql session while
+      # still being more than this workload can saturate.
+      maximum-pool-size: ${DB_POOL_MAX:16}
+      # No floor-hugging idle pool: connections are cheap to reopen here and a
+      # managed DB reaps idle ones anyway.
+      minimum-idle: ${DB_POOL_MIN_IDLE:4}
+      connection-timeout: 10000      # fail fast (10s) instead of Hikari's 30s
+      idle-timeout: 300000           # 5 min
+      # Stay below the managed DB's own idle/lifetime reaping so we retire
+      # connections before it does, avoiding "connection closed" surprises.
+      max-lifetime: 900000           # 15 min
+      # Was OFF (Hikari's default 0). With no APM on this deployment a leaked
+      # connection is otherwise invisible until the pool starves; 20s is well
+      # clear of any legitimate query here, so a warning means a real leak.
+      leak-detection-threshold: 20000
+      pool-name: townbasket-pool
 
   jpa:
     hibernate:
@@ -28,6 +49,14 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # Load lazy associations for a whole page in ONE "... WHERE id IN (?,?,…)"
+        # instead of one query per parent row. This is the single highest-leverage
+        # setting in this file: without it, mapping a page of orders to DTOs cost
+        # one query per order for items and another per order for events (a
+        # 50-row delivery queue was ~102 queries), and the same shape applied to
+        # cart lines and product variants. Sized above the largest page any
+        # endpoint allows (100) so no page ever splits into a second batch.
+        default_batch_fetch_size: 100
 
   flyway:
     enabled: true
@@ -82,6 +111,16 @@ management:
 server:
   port: 8080
   shutdown: graceful
+  compression:
+    # Caddy already compresses what it proxies to browsers, but the storefront's
+    # server-side rendering calls the API container directly (INTERNAL_API_BASE_URL
+    # -> http://api:8080) and never passes through Caddy — so the highest-volume
+    # path in the system was shipping plain JSON. A 50-product page is ~14.7 KB
+    # uncompressed and ~2.5 KB gzipped.
+    enabled: true
+    mime-types: application/json,application/problem+json,text/plain,text/css,text/html,application/javascript
+    # Below ~1 KB the CPU and the header overhead cost more than the saved bytes.
+    min-response-size: 1024
 
 logging:
   level:

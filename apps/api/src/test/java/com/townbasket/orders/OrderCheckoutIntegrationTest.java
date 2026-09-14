@@ -220,7 +220,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
 
         // The delivery shows up in the per-agent date-wise stats, with the
         // order's value summed in (>= because other tests may add deliveries).
-        assertThat(orderService.deliveryStatsByAgent())
+        // The report is windowed now; 30 days comfortably covers a delivery the
+        // fixed test clock just recorded.
+        assertThat(orderService.deliveryStatsByAgent(30))
                 .anySatisfy(s -> {
                     assertThat(s.agentId()).isEqualTo(agentId);
                     assertThat(s.deliveries()).isGreaterThanOrEqualTo(1);

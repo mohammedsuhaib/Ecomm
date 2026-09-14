@@ -51,6 +51,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -387,15 +388,35 @@ class OrderServiceImpl implements OrderService {
             String codeLike = normalized.isEmpty()
                     ? "~"
                     : "%" + escapeLike(normalized.toLowerCase()) + "%";
+            // An all-digit term might be an order id quoted from a support note.
+            // Matched by equality (not a substring of the id) so the predicate can
+            // use the primary key — see OrderRepository#search for why that
+            // matters to the whole query's plan, not just this branch.
+            Long idExact = parseOrderId(term);
+            // Native queries, so the Pageable must carry no Sort (the ORDER BY is in
+            // the statement) and the status binds as its enum name.
+            Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
             page = st == null
-                    ? orders.search(like, codeLike, pageable)
-                    : orders.searchByStatus(st, like, codeLike, pageable);
+                    ? orders.search(like, codeLike, idExact, unsorted)
+                    : orders.searchByStatus(st.name(), like, codeLike, idExact, unsorted);
         }
         // Admin surface: never expose the delivery OTP (staff collect it at handover).
         return PagedResponse.of(page, o -> toDto(o, false));
     }
 
     /** LIKE wildcards typed by a human are literal characters, not patterns. */
+    /** The term as an order id when it is plausibly one, else null. */
+    private static Long parseOrderId(String term) {
+        if (term.isEmpty() || term.length() > 18 || !term.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(term);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
     private static String escapeLike(String term) {
         return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
@@ -471,8 +492,9 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AgentDeliveryStat> deliveryStatsByAgent() {
-        return orders.countDeliveredByAgentAndDay().stream()
+    public List<AgentDeliveryStat> deliveryStatsByAgent(int days) {
+        Instant since = Instant.now(clock).minus(Duration.ofDays(Math.max(days, 1)));
+        return orders.countDeliveredByAgentAndDay(since).stream()
                 .map(r -> new AgentDeliveryStat(r.getAgentId(), r.getDay(), r.getDeliveries(), r.getAmount()))
                 .toList();
     }
