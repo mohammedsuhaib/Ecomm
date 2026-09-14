@@ -45,6 +45,14 @@ services:
       CATALOG_TRANSLITERATION_ENABLED: ${CATALOG_TRANSLITERATION_ENABLED:-true}
       CATALOG_TRANSLITERATION_INTERVAL_MS: ${CATALOG_TRANSLITERATION_INTERVAL_MS:-60000}
       CATALOG_TRANSLITERATION_BATCH_SIZE: ${CATALOG_TRANSLITERATION_BATCH_SIZE:-50}
+      # Web Push (order notifications). Empty => channel off, which is the local
+      # default; generate a pair with `npx web-push generate-vapid-keys` and
+      # export these to try it (see NOTIFICATIONS.md). Without these lines the
+      # keys never reach the container however they are set in your shell, and
+      # the API logs "Web Push channel disabled" regardless.
+      WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
+      WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
+      WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-mailto:support@town-basket.com}
     ports:
       - "8080:8080"
     depends_on:
