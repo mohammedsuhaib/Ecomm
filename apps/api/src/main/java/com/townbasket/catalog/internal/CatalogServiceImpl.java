@@ -76,6 +76,14 @@ class CatalogServiceImpl implements CatalogService {
     private final Optional<ProductNameTransliterator> transliterator;
     private final ApplicationEventPublisher events;
 
+    /**
+     * Object storage for uploaded product photos. Consulted when a product is
+     * deleted or re-imaged so the old object goes with it — a catalogue that
+     * only ever adds to the bucket quietly bills for pictures of products that
+     * no longer exist.
+     */
+    private final ProductImageStorage imageStorage;
+
     /** Default gap between auto-assigned category sort orders. */
     private static final int SORT_ORDER_GAP = 10;
 
@@ -91,7 +99,8 @@ class CatalogServiceImpl implements CatalogService {
                        InventoryService inventory,
                        TaxService taxService,
                        Optional<ProductNameTransliterator> transliterator,
-                       ApplicationEventPublisher events) {
+                       ApplicationEventPublisher events,
+                       ProductImageStorage imageStorage) {
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
         this.variantRepository = variantRepository;
@@ -99,6 +108,7 @@ class CatalogServiceImpl implements CatalogService {
         this.taxService = taxService;
         this.transliterator = transliterator;
         this.events = events;
+        this.imageStorage = imageStorage;
     }
 
     /**
@@ -393,7 +403,15 @@ class CatalogServiceImpl implements CatalogService {
             product.setVegMarker(request.vegMarker());
         }
         if (request.imageUrl() != null) {
-            product.setImageUrl(trimToNull(request.imageUrl()));
+            // Swapping the picture strands the old object, so drop it — but only
+            // once the new value is actually different, or re-saving the form
+            // unchanged would delete the image it is still pointing at.
+            String replacement = trimToNull(request.imageUrl());
+            String previous = product.getImageUrl();
+            product.setImageUrl(replacement);
+            if (previous != null && !previous.equals(replacement)) {
+                imageStorage.deleteByUrl(previous);
+            }
         }
         if (request.available() != null) {
             product.setAvailable(request.available());
@@ -436,8 +454,16 @@ class CatalogServiceImpl implements CatalogService {
     @Transactional
     public void deleteProduct(Long id) {
         ProductEntity product = requireProduct(id);
+        String imageUrl = product.getImageUrl();
         // Hard delete; CascadeType.ALL on the variants association removes them too.
         productRepository.delete(product);
+        // The photo goes with the product. Only images we uploaded are touched:
+        // the seeded catalogue points at relative paths served from the
+        // storefront bundle, and staff may paste someone else's URL — neither is
+        // ours to delete (see ProductImages.keyOf). Best-effort by design, so a
+        // bucket hiccup cannot fail a delete the caller has already been told
+        // succeeded.
+        imageStorage.deleteByUrl(imageUrl);
     }
 
     @Override

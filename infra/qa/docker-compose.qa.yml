@@ -76,6 +76,16 @@ services:
       - WEB_PUSH_PUBLIC_KEY
       - WEB_PUSH_PRIVATE_KEY
       - WEB_PUSH_SUBJECT
+      # Product image uploads -> Spaces. Pass-throughs again: all absent means
+      # upload is simply off and staff paste an image URL instead. Point QA at a
+      # DIFFERENT bucket from production — test photos must never be written
+      # into the bucket the real shop serves from.
+      - CATALOG_IMAGES_BUCKET
+      - CATALOG_IMAGES_ENDPOINT
+      - CATALOG_IMAGES_REGION
+      - CATALOG_IMAGES_PUBLIC_BASE_URL
+      - CATALOG_IMAGES_ACCESS_KEY
+      - CATALOG_IMAGES_SECRET_KEY
     expose:
       - "8080"
     depends_on:

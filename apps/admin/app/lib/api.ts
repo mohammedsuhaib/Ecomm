@@ -341,6 +341,50 @@ export function transitionOrder(
 }
 
 /**
+ * POST /admin/catalog/images — upload a product photo, returning the stored
+ * URL to save as the product's `imageUrl`.
+ *
+ * Sends multipart rather than JSON, so this cannot go through `apiMutate`: the
+ * Content-Type header must be left unset for `fetch` to add the multipart
+ * boundary itself. Otherwise it mirrors apiMutate exactly, including the single
+ * rotating-refresh retry — an upload is slow enough that a token expiring
+ * mid-request is a realistic way to lose one.
+ */
+export async function uploadProductImage(file: File): Promise<{ url: string }> {
+  const url = buildUrl('/admin/catalog/images');
+
+  const run = async (): Promise<Response> => {
+    // A fresh FormData per attempt: a body is consumed by the first send, so
+    // reusing it on the retry would upload nothing.
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      return await fetch(url, {
+        method: 'POST',
+        headers: withAuthHeader({ Accept: 'application/json' }),
+        body: form,
+        cache: 'no-store',
+      });
+    } catch (cause) {
+      throw new ApiError(0, url, `Network error reaching API: ${String(cause)}`);
+    }
+  };
+
+  let res = await run();
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (!refreshed) throw new AuthRequiredError();
+    res = await run();
+    if (res.status === 401) {
+      clearAuth();
+      throw new AuthRequiredError();
+    }
+  }
+  if (!res.ok) throw await errorFromResponse(res, url);
+  return (await res.json()) as { url: string };
+}
+
+/**
  * GET /admin/delivery-agents — delivery agents for dispatch (active-only) or,
  * with `includeInactive`, the full roster for the rider-management panel.
  */

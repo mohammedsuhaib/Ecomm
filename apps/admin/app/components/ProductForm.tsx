@@ -11,6 +11,8 @@ import {
   getHsnSuggestions,
   updateProduct,
   updateVariant,
+  uploadProductImage,
+  serverMessage,
   type VariantWriteRequest,
 } from '@/app/lib/api';
 import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
@@ -124,6 +126,39 @@ export default function ProductForm({
   const [description, setDescription] = useState('');
   const [vegMarker, setVegMarker] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
+  // Image upload runs on its own, before the product is saved: it returns a URL
+  // that then travels with the form like any pasted one. That is what lets a
+  // brand-new product carry a photo — there is no product id to attach it to
+  // until the save succeeds.
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      const { url } = await uploadProductImage(file);
+      setImageUrl(url);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        setImageError('Session expired — please log in again.');
+      } else {
+        // The API explains precisely what it refused and why ("Only JPEG and
+        // PNG…", "larger than 6 MB…", "upload isn't set up…"), and each needs a
+        // different action from the person holding the file.
+        setImageError(
+          serverMessage(err) ?? 'Could not upload that image. Please try again.',
+        );
+      }
+    } finally {
+      setImageBusy(false);
+      // Clear the picker so choosing the SAME file again still fires onChange
+      // after a failure.
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  }
   const [available, setAvailable] = useState(true);
   const [featured, setFeatured] = useState(false);
   const [hsnCode, setHsnCode] = useState('');
@@ -413,16 +448,46 @@ export default function ProductForm({
             </label>
 
             <label className="login-field" htmlFor="pf-image">
-              Image URL (optional)
+              Product photo (optional)
               <input
                 id="pf-image"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://…"
+                placeholder="Upload below, or paste an image URL"
               />
-              <span className="field-hint neutral">
-                A follow-up will add real image upload.
-              </span>
+              <div className="image-upload-row">
+                <input
+                  ref={imageInputRef}
+                  id="pf-image-file"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  disabled={imageBusy}
+                  onChange={(e) => void onPickImage(e.target.files?.[0])}
+                />
+                {imageBusy && <span className="field-hint neutral">Uploading…</span>}
+              </div>
+              {imageUrl ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="image-upload-preview"
+                  onError={(e) => {
+                    // A URL that does not resolve is worth seeing now rather
+                    // than discovering on the storefront.
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : null}
+              {imageError ? (
+                <span className="field-hint error">{imageError}</span>
+              ) : (
+                <span className="field-hint neutral">
+                  JPEG or PNG. Large photos are resized automatically — upload
+                  straight from a phone. The old picture is removed when you
+                  replace it or delete the product.
+                </span>
+              )}
             </label>
 
             <label className="login-field" htmlFor="pf-gst">

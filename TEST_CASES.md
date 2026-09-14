@@ -302,6 +302,15 @@ testing possible without real money or SMS.
 | TC-ACAT-011 | Positive | Variant CRUD | Add, edit, then delete a variant | Each change reflected on the storefront | P1 |
 | TC-ACAT-012 | Edge | Retry-safe save | Interrupt a product edit mid-save (kill network), then save again | No duplicate variants created and nothing double-deleted | P2 |
 | TC-ACAT-013 | Positive | Veg / non-veg marker | Create one veg and one non-veg product | Storefront shows the green dot vs the non-veg triangle correctly | P2 |
+| TC-ACAT-014 | Positive | Upload a product photo | Admin → product form → choose a JPEG straight from a phone | Uploads, preview appears, URL fills in; after save the storefront tile shows it; the stored file is a resized JPEG, not the multi-MB original | P1 |
+| TC-ACAT-015 | Positive | Photo on a NEW product | Upload a photo while creating a product that does not exist yet | Works — upload is independent of the product id — and the photo is attached when the product saves | P1 |
+| TC-ACAT-016 | Security | Disguised file refused | Rename an SVG (or a PDF/zip) to `.jpg` and upload it | Refused naming JPEG/PNG; nothing is stored. The check is on the file's bytes, so renaming never gets past it | P1 |
+| TC-ACAT-017 | Negative | Oversized photo | Upload an image larger than 6 MB | Refused with a message naming the size limit, not a container error page | P2 |
+| TC-ACAT-018 | Positive | Replacing a photo cleans up | Upload photo A, save, upload photo B, save; check the bucket | Product shows B; A's object is gone — the bucket does not accumulate orphans | P2 |
+| TC-ACAT-019 | Positive | Deleting a product deletes its photo | Delete a product that has an uploaded photo; check the bucket | The object is gone with the product | P1 |
+| TC-ACAT-020 | Edge | Seeded images are left alone | Delete a seeded product whose image is a bundled `/images/products/…` path | Product deletes cleanly; no attempt to delete anything from the bucket, no error | P1 |
+| TC-ACAT-021 | Edge | Upload unconfigured | With no storage configured, open the product form and try to upload | API startup logged "Product image upload disabled"; the attempt is refused with a message pointing at pasting a URL, and pasting one still works | P2 |
+| TC-ACAT-022 | Edge | Transparent PNG | Upload a packshot cut out on a transparent background | Transparent areas render white on the storefront, never black | P2 |
 
 ### 10.2 GST & HSN
 
