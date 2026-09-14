@@ -196,14 +196,28 @@ class NotificationEventListener {
         };
     }
 
+    /**
+     * One line on a lock screen, so each says the single thing the customer
+     * would want to know at that moment — what the shop is doing, or what they
+     * need to do next.
+     *
+     * <p>Written for a grocery shop, deliberately. "Preparing your order" reads
+     * like a kitchen cooking something; nobody here is cooking, they are taking
+     * packets off shelves and putting them in a bag. The words the staff and the
+     * app already use — accepted, packed, on its way — are the accurate ones,
+     * and they match the status the customer sees on the tracking page.
+     *
+     * <p>No stock or fulfilment vocabulary either: "reserved items released" is
+     * a warehouse fact about our inventory table, not news about their shopping.
+     */
     private static String bodyFor(String status) {
         return switch (status) {
-            case "CONFIRMED" -> "We've received your order and will start preparing it shortly.";
-            case "PACKING" -> "Your groceries are being packed for delivery.";
-            case "OUT_FOR_DELIVERY" -> "Keep your delivery code handy to hand over to the delivery person.";
-            case "DELIVERY_FAILED" -> "Our rider couldn't reach you. The store will call you to arrange a re-delivery.";
-            case "DELIVERED" -> "Thank you for shopping with Town Basket!";
-            case "CANCELLED" -> "Your order was cancelled and any reserved items released.";
+            case "CONFIRMED" -> "The store has accepted your order and will start packing it shortly.";
+            case "PACKING" -> "Your items are being picked off the shelves and packed.";
+            case "OUT_FOR_DELIVERY" -> "Your delivery code is in the app — have it ready for the delivery person.";
+            case "DELIVERY_FAILED" -> "Our rider couldn't reach you. The store will call you to arrange another attempt.";
+            case "DELIVERED" -> "Your groceries have been handed over. Thank you for shopping with Town Basket!";
+            case "CANCELLED" -> "Your order was cancelled. Tap to see the details.";
             default -> "Tap to see the latest status of your order.";
         };
     }
