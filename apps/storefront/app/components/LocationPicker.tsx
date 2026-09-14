@@ -1,7 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { requestNotificationPermissionQuietly } from '@/app/lib/push';
+import {
+  primePushConfig,
+  requestNotificationPermissionOnGesture,
+} from '@/app/lib/push';
 import { useTranslations } from 'next-intl';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
@@ -57,6 +60,12 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Fetch whether push is available NOW, so the "use my current location"
+  // handler can read the answer without awaiting anything. Asking the server
+  // inside that handler would end the user gesture the permission prompt needs
+  // (see lib/push.ts), and the prompt would never appear.
+  useEffect(() => primePushConfig(), []);
+
   const hasKey = MAPS_API_KEY.length > 0;
   const coords = parseCoords(lat, lng);
 
@@ -78,10 +87,14 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
       // Ask about notifications on the back of this same tap. The customer is
       // already being asked to share something, the gesture that permission
       // prompts require is in hand, and order updates are the one thing this
-      // shop has to tell them later. Fire-and-forget: the browser queues the
-      // two prompts, and whatever they answer — including nothing — the
-      // location request below proceeds untouched.
-      void requestNotificationPermissionQuietly();
+      // shop has to tell them later. The browser queues the two prompts, and
+      // whatever they answer — including nothing — the location request below
+      // proceeds untouched.
+      //
+      // Called, never awaited: the prompt has to be raised inside this gesture,
+      // so anything asynchronous before it would lose the activation and the
+      // prompt would silently never appear.
+      requestNotificationPermissionOnGesture();
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocating(false);

@@ -138,9 +138,9 @@
     "openMinOrder": "Open {hours} · Min order {amount}",
     "popularPicks": "Popular picks",
     "shopByCategory": "Shop by category",
-    "categoriesEmpty": "We couldn’t load the categories just now. Please try again in a moment.",
+    "categoriesEmpty": "No categories to show right now — please check back in a moment.",
     "popularProducts": "Popular products",
-    "productsEmpty": "We couldn’t load today’s products. Please try again in a moment.",
+    "productsEmpty": "No products to show right now — please check back in a moment.",
     "reload": "Reload"
   },
   "cart": {

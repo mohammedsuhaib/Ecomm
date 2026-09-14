@@ -2,9 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import { getPushConfig, unsubscribeFromPush } from '@/app/lib/api';
+import { getPushConfig } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
-import { pushSupported, subscribeCurrentBrowser } from '@/app/lib/push';
+import {
+  pushSupported,
+  rememberPushOptOut,
+  subscribeCurrentBrowser,
+  unsubscribeCurrentBrowser,
+} from '@/app/lib/push';
 
 /**
  * Opt-in for browser notifications about this order ("your order is on the
@@ -77,14 +82,12 @@ export default function PushOptIn() {
     setBusy(true);
     setError(null);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        // Tell the server first: if unsubscribing locally succeeded but the
-        // server kept the row, it would keep pushing to a dead endpoint.
-        await unsubscribeFromPush(subscription.endpoint).catch(() => undefined);
-        await subscription.unsubscribe();
-      }
+      await unsubscribeCurrentBrowser();
+      // Remember that this was a choice, not an accident. The browser
+      // permission stays granted after an unsubscribe, so without this the
+      // next sign-in would cheerfully switch notifications back on for someone
+      // who just turned them off.
+      rememberPushOptOut();
       setSubscribed(false);
     } catch {
       setError(t('notifyFailed'));

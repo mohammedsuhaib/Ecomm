@@ -10,7 +10,10 @@ import {
   useState,
 } from 'react';
 import { getMe, logout as logoutApi, phoneVerify } from '@/app/lib/api';
-import { subscribeIfAlreadyPermitted } from '@/app/lib/push';
+import {
+  subscribeIfAlreadyPermitted,
+  unsubscribeCurrentBrowser,
+} from '@/app/lib/push';
 import {
   clearAuth,
   loadAuth,
@@ -164,6 +167,12 @@ export default function AuthProvider({
     } finally {
       clearAuth();
       setUser(null);
+      // Stop notifications for the account that just left. Subscriptions are
+      // stored per device, and since login now subscribes automatically, a
+      // handed-back or shared phone would otherwise keep buzzing with someone
+      // else's order updates. The DELETE is authorised by the endpoint URL
+      // itself (SecurityConfig), so it still works after the session is gone.
+      void unsubscribeCurrentBrowser().catch(() => undefined);
     }
   }, []);
 
