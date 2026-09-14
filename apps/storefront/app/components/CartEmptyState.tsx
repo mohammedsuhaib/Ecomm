@@ -30,7 +30,9 @@ export default function CartEmptyState() {
         <div style={{ fontSize: '3rem' }} aria-hidden>
           ✅
         </div>
-        <h1 className="section-title">{t('alreadyOrderedTitle')}</h1>
+        {/* h2, not h1: both hosts (cart, checkout) already head the page with
+            their own h1, and .section-title carries the size either way. */}
+        <h2 className="section-title">{t('alreadyOrderedTitle')}</h2>
         <p>{t('alreadyOrderedBody', { code: lastOrder.code })}</p>
         <p style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link className="btn" href={`/order/${lastOrder.token}`}>

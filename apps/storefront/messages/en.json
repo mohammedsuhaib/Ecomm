@@ -167,6 +167,7 @@
     "phoneError": "Enter a 10-digit phone number.",
     "nameError": "Please enter your name.",
     "addressError": "Please enter your full address, including the house or flat number.",
+    "locationError": "Please drop the pin on the map so the rider can find you.",
     "savedAddresses": "Saved addresses",
     "addressFallback": "Address",
     "deliveryAddress": "Delivery address",

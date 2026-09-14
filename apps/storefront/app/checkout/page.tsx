@@ -58,6 +58,9 @@ export default function CheckoutPage() {
   // below arrives from the network, so "the field is still empty" is not a
   // reliable test for "untouched"; this is.
   const addressTouched = useRef(false);
+  // The map field, so a missing pin can be scrolled to like the other gates.
+  // The picker renders no focusable control of its own.
+  const locationFieldRef = useRef<HTMLDivElement | null>(null);
 
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
 
@@ -246,21 +249,28 @@ export default function CheckoutPage() {
   // render that revealed why. The customer should not have to hunt up the page
   // for what blocked them — on a phone the offending field is often scrolled
   // out of view entirely.
+  //
+  // The map pin is the one gate with no focusable control, so it scrolls
+  // instead of focusing. It still has to be in this chain: leaving it out was
+  // the original bug surviving in the last field, where a missing pin produced
+  // a click that did nothing at all.
   useEffect(() => {
     if (!focusFirstInvalid) return;
     setFocusFirstInvalid(false);
-    const firstInvalid = !nameValid
-      ? 'name'
-      : !phoneValid
-        ? 'phone'
-        : !lineValid
-          ? 'line'
-          : null;
-    if (!firstInvalid) return;
-    const el = document.getElementById(firstInvalid);
-    el?.focus();
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [focusFirstInvalid, nameValid, phoneValid, lineValid]);
+    if (!nameValid || !phoneValid || !lineValid) {
+      const id = !nameValid ? 'name' : !phoneValid ? 'phone' : 'line';
+      const el = document.getElementById(id);
+      el?.focus();
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    if (!coordsValid) {
+      locationFieldRef.current?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    }
+  }, [focusFirstInvalid, nameValid, phoneValid, lineValid, coordsValid]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -418,6 +428,10 @@ export default function CheckoutPage() {
               onChange={(e) => setPhone(e.target.value)}
               autoComplete="tel"
               required
+              aria-invalid={Boolean(phone || attempted) && !phoneValid}
+              aria-describedby={
+                Boolean(phone || attempted) && !phoneValid ? 'phone-error' : undefined
+              }
             />
             {(phone || attempted) && !phoneValid && (
               <span className="add-error" id="phone-error">
@@ -482,7 +496,7 @@ export default function CheckoutPage() {
               </span>
             )}
           </div>
-          <div className="field">
+          <div className="field" ref={locationFieldRef}>
             {/* Not a <label>: it wraps no control (a11y dead label). */}
             <span className="field-label">{t('deliveryLocation')}</span>
             <LocationPicker
@@ -494,6 +508,15 @@ export default function CheckoutPage() {
                 setLng(String(ln));
               }}
             />
+            {/* Only after an attempt: unlike the text fields there is nothing
+                here the customer can "leave blank" on purpose — the pin is
+                normally prefilled from the location gate, so an error before
+                they have tried would read as a fault they did not cause. */}
+            {attempted && !coordsValid && (
+              <span className="add-error" role="alert">
+                {t('locationError')}
+              </span>
+            )}
           </div>
           <p className="muted" style={{ fontSize: '0.8rem' }}>
             {t('mapHint')}
