@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ApiError } from '@/app/lib/api';
 import type { Product } from '@/app/lib/types';
 import { productDisplayName } from '@/app/lib/productName';
 import { cheapestBuyableVariant } from '@/app/lib/variants';
@@ -16,23 +14,32 @@ import { useCart } from './CartProvider';
  * −/+ stepper (same server-cart patterns as AddToCartButton). Rendered as an
  * overlay on the card thumb, so it stops click/navigation bubbling to the card
  * link. Renders nothing when the product has no buyable variant.
+ *
+ * <p>The buttons are never disabled while a request is in flight. They used to
+ * be, which lost every tap after the first: the quantity is now applied locally
+ * on the tap and the server call is coalesced by CartProvider, so tapping +
+ * four times shows 4 straight away and sends one request. That also removes the
+ * local busy/error state this component used to keep — it renders from the cart
+ * alone.
  */
 export default function QuickAddButton({ product }: { product: Product }) {
   const t = useTranslations('quickAdd');
   const tc = useTranslations('common');
   const locale = useLocale();
   const displayName = productDisplayName(product, locale);
-  const { addItem, decrementVariant, qtyOf } = useCart();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+  const { nudgeVariant, qtyOf, errorOf } = useCart();
 
-  const variant = cheapestBuyableVariant(product) ?? undefined;
+  const variant = cheapestBuyableVariant(product);
 
   // No buyable variant (unavailable or out of stock) => no quick-add control
   // (card still links to the detail page).
   if (!variant) return null;
 
-  const qty = qtyOf(variant.id);
+  const variantId = variant.id;
+  const qty = qtyOf(variantId);
+  const error = errorOf(variantId);
+  const failureTitle =
+    error === 'stock' ? t('notEnoughStock') : error ? t('couldNotAdd') : undefined;
 
   // Keep taps on the control from triggering the surrounding card <Link>.
   function stop(e: React.MouseEvent) {
@@ -40,17 +47,9 @@ export default function QuickAddButton({ product }: { product: Product }) {
     e.stopPropagation();
   }
 
-  async function run(action: () => Promise<unknown>) {
-    setBusy(true);
-    setError(false);
-    try {
-      await action();
-    } catch (err) {
-      // Surface stock issues briefly; any error just flags the control.
-      setError(err instanceof ApiError);
-    } finally {
-      setBusy(false);
-    }
+  function nudge(e: React.MouseEvent, delta: number) {
+    stop(e);
+    nudgeVariant(variantId, delta);
   }
 
   if (qty <= 0) {
@@ -58,18 +57,16 @@ export default function QuickAddButton({ product }: { product: Product }) {
       <button
         type="button"
         className="quick-add"
-        disabled={busy}
-        onClick={(e) => {
-          stop(e);
-          void run(() => addItem(variant.id, 1));
-        }}
+        onClick={(e) => nudge(e, 1)}
         aria-label={t('ariaAdd', { product: displayName })}
-        title={error ? t('couldNotAdd') : t('addToCart')}
+        title={failureTitle ?? t('addToCart')}
       >
-        {busy ? '…' : '+'}
+        +
       </button>
     );
   }
+
+  const atStockLimit = qty >= variant.availableStock;
 
   return (
     <div
@@ -77,15 +74,7 @@ export default function QuickAddButton({ product }: { product: Product }) {
       onClick={stop}
       aria-label={t('ariaQuantity', { product: displayName })}
     >
-      <button
-        type="button"
-        disabled={busy}
-        onClick={(e) => {
-          stop(e);
-          void run(() => decrementVariant(variant.id));
-        }}
-        aria-label={tc('decrease')}
-      >
+      <button type="button" onClick={(e) => nudge(e, -1)} aria-label={tc('decrease')}>
         −
       </button>
       <span className="qty-value" aria-live="polite">
@@ -93,12 +82,9 @@ export default function QuickAddButton({ product }: { product: Product }) {
       </span>
       <button
         type="button"
-        disabled={busy || qty >= variant.availableStock}
-        title={qty >= variant.availableStock ? t('notEnoughStock') : undefined}
-        onClick={(e) => {
-          stop(e);
-          void run(() => addItem(variant.id, 1));
-        }}
+        disabled={atStockLimit}
+        title={atStockLimit ? t('notEnoughStock') : failureTitle}
+        onClick={(e) => nudge(e, 1)}
         aria-label={tc('increase')}
       >
         +

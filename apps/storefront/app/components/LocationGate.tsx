@@ -17,7 +17,7 @@ import {
   type StoredServiceability,
 } from '@/app/lib/serviceability';
 import type { ServiceabilityResult } from '@/app/lib/types';
-import LocationPicker from './LocationPicker';
+import LocationPicker from './LocationPickerLazy';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
 

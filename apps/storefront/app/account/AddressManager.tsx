@@ -10,7 +10,7 @@ import {
   updateAddress,
 } from '@/app/lib/api';
 import { loadServiceability } from '@/app/lib/serviceability';
-import LocationPicker from '@/app/components/LocationPicker';
+import LocationPicker from '@/app/components/LocationPickerLazy';
 import type { AddressInput, SavedAddress } from '@/app/lib/types';
 
 interface FormState {

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, AuthRequiredError, getStaff, resetUserPassword } from '@/app/lib/api';
 import type { StaffMember } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
+import { ListSkeleton } from './Skeleton';
 
 const MIN_PASSWORD = 8;
 
@@ -77,7 +78,7 @@ export default function StaffPanel() {
       {success && <p className="account-banner ok">{success}</p>}
 
       {loading && staff.length === 0 ? (
-        <p className="queue-empty">Loading staff…</p>
+        <ListSkeleton label="Loading staff…" rows={3} />
       ) : staff.length === 0 ? (
         <p className="queue-empty">No staff accounts found.</p>
       ) : (

@@ -14,6 +14,7 @@ import {
   type VariantWriteRequest,
 } from '@/app/lib/api';
 import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
+import { ListSkeleton } from './Skeleton';
 
 // A variant row in the editor. `id` is present for variants that already exist
 // on the server (edit mode); null for rows added in the form (need a POST). All
@@ -360,7 +361,7 @@ export default function ProductForm({
       {loadError ? (
         <p className="account-banner err">{loadError}</p>
       ) : loading ? (
-        <p className="queue-empty">Loading product…</p>
+        <ListSkeleton label="Loading product…" rows={5} />
       ) : (
         <form className="product-form" onSubmit={onSubmit}>
           <div className="pf-grid">

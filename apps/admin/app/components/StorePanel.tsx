@@ -11,6 +11,7 @@ import {
 } from '@/app/lib/api';
 import type { StoreSettings } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
+import { ListSkeleton } from './Skeleton';
 
 /** "08:00:00" -> "08:00" for <input type="time">. */
 function hhmm(t: string): string {
@@ -146,7 +147,7 @@ export default function StorePanel() {
     Number(radiusKm) >= 0.5 && Number(radiusKm) <= 50 &&
     Number(minOrder) >= 0;
 
-  if (loading && !store) return <p className="queue-empty">Loading store settings…</p>;
+  if (loading && !store) return <ListSkeleton label="Loading store settings…" rows={4} />;
   if (!store) return <p className="order-error">{error ?? 'No store configured.'}</p>;
 
   const status = store.manuallyClosed

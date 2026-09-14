@@ -12,6 +12,7 @@ import type { DeliveryAgent, Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import OrderCard from './OrderCard';
 import { useNewOrderAlert } from './useNewOrderAlert';
+import { ListSkeleton } from './Skeleton';
 
 /**
  * Live admin order queue. Loads orders for the selected status filter, then
@@ -218,7 +219,7 @@ export default function OrderQueue() {
       {error && <p className="order-error queue-error">{error}</p>}
 
       {loading && orders.length === 0 ? (
-        <p className="queue-empty">Loading orders…</p>
+        <ListSkeleton label="Loading orders…" rows={4} />
       ) : orders.length === 0 ? (
         <p className="queue-empty">No orders here right now.</p>
       ) : (

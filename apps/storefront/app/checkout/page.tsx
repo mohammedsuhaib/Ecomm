@@ -16,7 +16,8 @@ import { formatRupees, subtractRupees } from '@/app/lib/format';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
-import LocationPicker from '@/app/components/LocationPicker';
+import LocationPicker from '@/app/components/LocationPickerLazy';
+import { CheckoutSkeleton } from '@/app/components/Skeleton';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
@@ -278,9 +279,12 @@ export default function CheckoutPage() {
     }
   }
 
-  // Gate: login required to check out (no guest checkout).
+  // Gate: login required to check out (no guest checkout). The check runs on
+  // the client, so this is the first frame the customer sees — a skeleton that
+  // holds the form's shape rather than one line of text that the real page then
+  // shoves off the screen.
   if (!checked) {
-    return <p className="empty-state">{tc('loading')}</p>;
+    return <CheckoutSkeleton label={tc('loading')} />;
   }
   if (!isAuthenticated) {
     return (

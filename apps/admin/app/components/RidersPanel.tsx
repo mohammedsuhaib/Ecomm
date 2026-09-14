@@ -13,6 +13,7 @@ import {
 import { formatRupees } from '@/app/lib/format';
 import type { AgentDeliveryStat, DeliveryAgent } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
+import { ListSkeleton } from './Skeleton';
 
 const MIN_PASSWORD = 8;
 
@@ -244,7 +245,7 @@ export default function RidersPanel() {
       {error && <p className="order-error">{error}</p>}
 
       {loading && agents.length === 0 ? (
-        <p className="queue-empty">Loading riders…</p>
+        <ListSkeleton label="Loading riders…" rows={4} />
       ) : agents.length === 0 ? (
         <p className="queue-empty">No riders yet. Add one above.</p>
       ) : (

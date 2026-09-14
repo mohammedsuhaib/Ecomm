@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ApiError, getMyCart, mergeCart } from '@/app/lib/api';
 import { loadCartId, saveCartId } from '@/app/lib/cart';
 import { useAuth } from '@/app/components/AuthProvider';
-import { useCart } from '@/app/components/CartProvider';
+import { useCartActions } from '@/app/components/CartProvider';
 
 type Step = 'phone' | 'code';
 
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const next = params.get('next') || '/account';
 
   const { loginWithPhone, startPhoneLogin, firebaseEnabled } = useAuth();
-  const { refresh } = useCart();
+  const { refresh } = useCartActions();
 
   // Invisible reCAPTCHA mount point for the real Firebase phone flow. Firebase
   // binds the widget to this element id during "send code"; it is harmless

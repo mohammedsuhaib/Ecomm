@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
 import { useAuth } from '@/app/components/AuthProvider';
-import { useCart } from '@/app/components/CartProvider';
+import { useCartActions } from '@/app/components/CartProvider';
 import PushOptIn from '@/app/components/PushOptIn';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
@@ -57,7 +57,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   // The route param is the unguessable tracking token, not the numeric id.
   const trackingToken = params.id;
   const router = useRouter();
-  const { reset } = useCart();
+  const { reset } = useCartActions();
   const { isAuthenticated } = useAuth();
   const t = useTranslations('order');
   const ts = useTranslations('orderStatus');

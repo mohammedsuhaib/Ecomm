@@ -1381,18 +1381,41 @@ a:hover {
   }
 }
 
-/* Cart loading skeleton — reserves row space to avoid layout jumps. */
+/* Loading skeletons — reserve the space the real content will take, so nothing
+   moves under the customer's thumb when it arrives. `.skeleton` is the single
+   shimmering bar (sized inline by the Skeleton component); `.skeleton-row` is
+   the cart page's fixed-height line. */
+.skeleton,
 .skeleton-row {
-  height: 64px;
+  display: block;
   border-radius: var(--radius);
   background: linear-gradient(90deg, var(--surface) 25%, #e6efe9 50%, var(--surface) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+.skeleton-row {
+  height: 64px;
   margin-bottom: 0.6rem;
 }
 @keyframes skeleton-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
+}
+
+/* A skeleton screen: same rhythm as a real page of stacked sections. */
+.skeleton-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
 }
 
 /* Respect reduced-motion preferences globally. */

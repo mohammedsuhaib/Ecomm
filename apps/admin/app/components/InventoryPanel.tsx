@@ -10,6 +10,7 @@ import {
 } from '@/app/lib/api';
 import type { StockLevel } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
+import { ListSkeleton } from './Skeleton';
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n);
@@ -172,7 +173,7 @@ export default function InventoryPanel() {
       {error && <p className="order-error">{error}</p>}
 
       {loading && items.length === 0 ? (
-        <p className="queue-empty">Loading stock levels…</p>
+        <ListSkeleton label="Loading stock levels…" rows={6} />
       ) : items.length === 0 ? (
         <p className="queue-empty">
           {search ? `No stock matches "${search}".` : 'No stock levels found.'}
