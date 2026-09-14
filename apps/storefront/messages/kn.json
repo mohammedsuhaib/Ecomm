@@ -162,6 +162,8 @@
     "phoneNumber": "ಫೋನ್ ಸಂಖ್ಯೆ",
     "phonePlaceholder": "10-ಅಂಕಿಯ ಮೊಬೈಲ್",
     "phoneError": "10-ಅಂಕಿಯ ಫೋನ್ ಸಂಖ್ಯೆ ನಮೂದಿಸಿ.",
+    "nameError": "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ನಮೂದಿಸಿ.",
+    "addressError": "ಮನೆ ಅಥವಾ ಫ್ಲ್ಯಾಟ್ ಸಂಖ್ಯೆ ಸೇರಿದಂತೆ ನಿಮ್ಮ ಪೂರ್ಣ ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ.",
     "savedAddresses": "ಉಳಿಸಿದ ವಿಳಾಸಗಳು",
     "addressFallback": "ವಿಳಾಸ",
     "deliveryAddress": "ತಲುಪಿಸುವ ವಿಳಾಸ",

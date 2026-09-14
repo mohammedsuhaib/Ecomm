@@ -71,6 +71,14 @@ export default function CheckoutPage() {
   // pick one that checkout would refuse. COD until the server says more.
 
   const [methods, setMethods] = useState<PaymentMethod[]>(['COD']);
+  // Set the first time the customer tries to place the order, so the fields
+  // they never touched can finally explain themselves.
+  const [attempted, setAttempted] = useState(false);
+  // Set alongside `attempted` to ask the effect below to move the cursor once
+  // the error messages have actually rendered.
+  const [focusFirstInvalid, setFocusFirstInvalid] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
+  const [lineTouched, setLineTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -206,7 +214,14 @@ export default function CheckoutPage() {
     lngNum >= -180 &&
     lngNum <= 180;
 
-  const formValid =
+  // Split deliberately. The cart/store problems below each render their own
+  // banner explaining themselves, so they keep the button disabled. The FIELD
+  // problems do not: a disabled button is the only feedback a blank name or
+  // address used to get, which QA reported as "No Error message, Place Order
+  // Button Disabled". A control that refuses to work without saying why is not
+  // validation, and disabling the primary action also removes the one gesture
+  // that would have revealed the reason.
+  const cartReady =
     items.length > 0 &&
     !storeClosed &&
     // expectedTotal is only a real guard if the prices behind it are ones the
@@ -214,15 +229,53 @@ export default function CheckoutPage() {
     priceChanges.length === 0 &&
     !belowMin &&
     !hasUnavailable &&
-    !hasShortage &&
-    name.trim().length > 1 &&
-    phoneValid &&
-    line.trim().length > 3 &&
-    coordsValid;
+    !hasShortage;
+
+  const nameValid = name.trim().length > 1;
+  const lineValid = line.trim().length > 3;
+  const detailsValid = nameValid && phoneValid && lineValid && coordsValid;
+
+  // A field's error appears once the customer has had a fair chance to fill it:
+  // after they have typed in it, after they have left it, or as soon as they
+  // try to place the order. Typing alone is not enough — the reported cases
+  // were fields left BLANK, which never fire an onChange.
+  const showFieldErrors = (touched: boolean) => touched || attempted;
+
+  // Put the cursor in the first field that is stopping the order, after the
+  // render that revealed why. The customer should not have to hunt up the page
+  // for what blocked them — on a phone the offending field is often scrolled
+  // out of view entirely.
+  useEffect(() => {
+    if (!focusFirstInvalid) return;
+    setFocusFirstInvalid(false);
+    const firstInvalid = !nameValid
+      ? 'name'
+      : !phoneValid
+        ? 'phone'
+        : !lineValid
+          ? 'line'
+          : null;
+    if (!firstInvalid) return;
+    const el = document.getElementById(firstInvalid);
+    el?.focus();
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [focusFirstInvalid, nameValid, phoneValid, lineValid]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!cart || !formValid || submitting) return;
+    if (submitting) return;
+    // Reveal every outstanding field error, then put the cursor in the first
+    // one — the customer should not have to hunt for what stopped them.
+    setAttempted(true);
+    if (!detailsValid) {
+      // Focusing happens in the effect below, not here: setAttempted only
+      // re-renders after this handler returns, so a focus() call at this point
+      // lands before the error messages exist and is then lost to the click's
+      // own focus on the button. Verified — it silently did nothing.
+      setFocusFirstInvalid(true);
+      return;
+    }
+    if (!cart || !cartReady) return;
     setSubmitting(true);
     setError(null);
 
@@ -325,7 +378,15 @@ export default function CheckoutPage() {
 
       {error && <p className="notice error">{error}</p>}
 
-      <form className="checkout-form" onSubmit={onSubmit}>
+      {/* noValidate: the fields keep `required` so assistive tech still
+          announces them, but OUR validation is the authoritative one. Without
+          this the browser's native constraint check runs first, blocks the
+          submit, focuses the first empty field and shows its own bubble — so
+          onSubmit never runs, the localized messages below never render, and a
+          Kannada customer gets a English browser tooltip. Verified: with
+          native validation active, clicking Place Order on a blank form
+          produced zero of our messages. */}
+      <form className="checkout-form" onSubmit={onSubmit} noValidate>
         <fieldset className="checkout-section" disabled={submitting}>
           <legend>{t('deliveryDetails')}</legend>
           <div className="field">
@@ -333,10 +394,23 @@ export default function CheckoutPage() {
             <input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setNameTouched(true);
+                setName(e.target.value);
+              }}
+              onBlur={() => setNameTouched(true)}
               autoComplete="name"
               required
+              aria-invalid={showFieldErrors(nameTouched) && !nameValid}
+              aria-describedby={
+                showFieldErrors(nameTouched) && !nameValid ? 'name-error' : undefined
+              }
             />
+            {showFieldErrors(nameTouched) && !nameValid && (
+              <span className="add-error" id="name-error">
+                {t('nameError')}
+              </span>
+            )}
           </div>
           <div className="field">
             <label htmlFor="phone">{t('phoneNumber')}</label>
@@ -349,8 +423,10 @@ export default function CheckoutPage() {
               autoComplete="tel"
               required
             />
-            {phone && !phoneValid && (
-              <span className="add-error">{t('phoneError')}</span>
+            {(phone || attempted) && !phoneValid && (
+              <span className="add-error" id="phone-error">
+                {t('phoneError')}
+              </span>
             )}
           </div>
           {savedAddresses.length > 0 && (
@@ -394,10 +470,21 @@ export default function CheckoutPage() {
               value={line}
               onChange={(e) => {
                 addressTouched.current = true;
+                setLineTouched(true);
                 setLine(e.target.value);
               }}
+              onBlur={() => setLineTouched(true)}
               required
+              aria-invalid={showFieldErrors(lineTouched) && !lineValid}
+              aria-describedby={
+                showFieldErrors(lineTouched) && !lineValid ? 'line-error' : undefined
+              }
             />
+            {showFieldErrors(lineTouched) && !lineValid && (
+              <span className="add-error" id="line-error">
+                {t('addressError')}
+              </span>
+            )}
           </div>
           <div className="field">
             {/* Not a <label>: it wraps no control (a11y dead label). */}
@@ -481,10 +568,13 @@ export default function CheckoutPage() {
             </p>
           )}
           <PriceChangeNotice />
+          {/* Only the cart/store gates disable this, each of which renders its
+              own banner above. Field problems leave it clickable so the click
+              can surface them (see onSubmit). */}
           <button
             type="submit"
             className="btn btn-block"
-            disabled={!formValid || submitting}
+            disabled={!cartReady || submitting}
           >
             {submitting
               ? t('placingOrder')

@@ -162,6 +162,8 @@
     "phoneNumber": "Phone number",
     "phonePlaceholder": "10-digit mobile",
     "phoneError": "Enter a 10-digit phone number.",
+    "nameError": "Please enter your name.",
+    "addressError": "Please enter your full address, including the house or flat number.",
     "savedAddresses": "Saved addresses",
     "addressFallback": "Address",
     "deliveryAddress": "Delivery address",
