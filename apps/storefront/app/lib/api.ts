@@ -210,7 +210,12 @@ export function getCategories(opts?: FetchOpts): Promise<Category[]> {
 }
 
 /** Catalogue sort options accepted by /products and /products/search. */
-export type ProductSort = 'name' | 'price_asc' | 'price_desc' | 'discount';
+export type ProductSort =
+  | 'name'
+  | 'name_desc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'discount';
 
 /** Optional product-list filters layered on top of paging. */
 export interface ProductListOpts {

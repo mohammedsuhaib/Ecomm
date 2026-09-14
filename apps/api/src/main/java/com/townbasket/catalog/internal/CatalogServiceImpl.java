@@ -178,6 +178,11 @@ class CatalogServiceImpl implements CatalogService {
         Comparator<ProductEntity> comparator = switch (sort) {
             case NAME -> Comparator.comparing(p -> p.getName() == null ? "" : p.getName(),
                     String.CASE_INSENSITIVE_ORDER);
+            // Z–A. Only the NAME comparison is reversed; the id tie-break below
+            // stays ascending so paging is still deterministic.
+            case NAME_DESC -> Comparator.<ProductEntity, String>comparing(
+                    p -> p.getName() == null ? "" : p.getName(),
+                    String.CASE_INSENSITIVE_ORDER).reversed();
             // Ascending by the product's LOWEST available variant selling price.
             case PRICE_ASC -> Comparator.comparing(CatalogServiceImpl::lowestAvailablePrice);
             // Descending by that same lowest available variant selling price.

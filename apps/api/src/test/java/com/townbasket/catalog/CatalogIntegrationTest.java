@@ -125,6 +125,43 @@ class CatalogIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void sortByNameDescOrdersZToAAndMirrorsAToZ() {
+        PagedResponse<ProductDto> desc =
+                catalogService.listProducts(null, false, ProductSort.NAME_DESC, PageRequest.of(0, 100));
+
+        List<String> names = desc.content().stream().map(ProductDto::name).toList();
+        List<String> expected = names.stream()
+                .sorted(String.CASE_INSENSITIVE_ORDER.reversed())
+                .toList();
+        assertThat(names).isEqualTo(expected);
+
+        // Both directions must cover exactly the same products — a reversed sort
+        // that quietly drops or duplicates one would still look "descending".
+        // Compared as a collection rather than a reversed list on purpose: two
+        // products sharing a name tie-break on id ASCENDING in both directions,
+        // so the lists are not strict mirrors of each other.
+        PagedResponse<ProductDto> asc =
+                catalogService.listProducts(null, false, ProductSort.NAME, PageRequest.of(0, 100));
+        assertThat(desc.content().stream().map(ProductDto::id).toList())
+                .containsExactlyInAnyOrderElementsOf(
+                        asc.content().stream().map(ProductDto::id).toList());
+        assertThat(desc.totalElements()).isEqualTo(asc.totalElements());
+    }
+
+    @Test
+    void theSortQueryValueAcceptsBothNameSpellings() {
+        // name_desc is the new option; name_asc is a synonym for the original
+        // name, so the pair reads symmetrically without breaking old links.
+        assertThat(ProductSort.parse("name_desc")).contains(ProductSort.NAME_DESC);
+        assertThat(ProductSort.parse("NAME_DESC")).contains(ProductSort.NAME_DESC);
+        assertThat(ProductSort.parse("name")).contains(ProductSort.NAME);
+        assertThat(ProductSort.parse("name_asc")).contains(ProductSort.NAME);
+        // Anything unknown falls back to the endpoint's default order.
+        assertThat(ProductSort.parse("z_to_a")).isEmpty();
+        assertThat(ProductSort.parse(null)).isEmpty();
+    }
+
+    @Test
     void sortByPriceAscOrdersByLowestAvailableVariantPrice() {
         PagedResponse<ProductDto> page =
                 catalogService.listProducts(null, false, ProductSort.PRICE_ASC, PageRequest.of(0, 100));
