@@ -110,7 +110,16 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
      only, both evicted by the admin writes that change them. No Redis at
      this scale: one JVM, so a cache server would add a process to operate
      and a network hop in place of a map lookup.
-- Owns: `categories`, `products`, `product_variants`, `product_images`.
+- **Product images:** one photo per product, held as a URL on
+  `products.image_url` rather than a table — the storefront renders a single
+  thumbnail, so a gallery would be schema nobody displays. Staff upload a
+  JPEG/PNG in the admin catalogue; the API re-encodes it (scaled to 1000px,
+  EXIF stripped, format verified from the bytes — an SVG served from our own
+  origin would be stored XSS) and stores it in DO Spaces, saving the public
+  URL. The object is deleted when the product is deleted or re-imaged. Upload
+  is optional: unconfigured, staff paste a URL instead, which is also how the
+  seeded catalogue points at images bundled with the storefront.
+- Owns: `categories`, `products`, `product_variants`.
 
 ### 3.3 `inventory`
 - Stock per `(store_id, variant_id)`: `on_hand`, `reserved`.

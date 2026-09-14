@@ -36,6 +36,7 @@
         <!-- Web Push (RFC 8291 payload encryption + VAPID) for the push channel. -->
         <web-push.version>5.1.1</web-push.version>
         <bouncycastle.version>1.78.1</bouncycastle.version>
+        <awssdk.version>2.28.29</awssdk.version>
     </properties>
 
     <dependencies>
@@ -129,6 +130,33 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
             <version>${bouncycastle.version}</version>
+        </dependency>
+
+        <!-- AWS SDK S3 — product image storage on DigitalOcean Spaces, which is
+             S3-compatible (ARCHITECTURE §7b). Both bundled HTTP clients are excluded
+             and replaced with url-connection-client: Netty and Apache each drag in a
+             large transitive tree, while this one is a thin wrapper over the JDK's
+             own HttpURLConnection. Uploads are a handful of staff-initiated PUTs, so
+             connection pooling and async buy nothing here. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>${awssdk.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>apache-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+            <version>${awssdk.version}</version>
         </dependency>
 
         <!-- Spring Modulith — module boundaries + event publication registry (outbox) -->

@@ -53,6 +53,15 @@ services:
       WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
       WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
       WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-mailto:support@town-basket.com}
+      # Product image uploads -> Spaces. Empty by default: local development
+      # needs no cloud credentials, the admin form falls back to an image URL,
+      # and the seeded catalogue keeps serving photos from the storefront bundle.
+      CATALOG_IMAGES_BUCKET: ${CATALOG_IMAGES_BUCKET:-}
+      CATALOG_IMAGES_ENDPOINT: ${CATALOG_IMAGES_ENDPOINT:-}
+      CATALOG_IMAGES_REGION: ${CATALOG_IMAGES_REGION:-blr1}
+      CATALOG_IMAGES_PUBLIC_BASE_URL: ${CATALOG_IMAGES_PUBLIC_BASE_URL:-}
+      CATALOG_IMAGES_ACCESS_KEY: ${CATALOG_IMAGES_ACCESS_KEY:-}
+      CATALOG_IMAGES_SECRET_KEY: ${CATALOG_IMAGES_SECRET_KEY:-}
     ports:
       - "8080:8080"
     depends_on:

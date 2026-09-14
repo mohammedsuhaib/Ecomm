@@ -2,6 +2,17 @@ spring:
   application:
     name: town-basket-api
 
+  servlet:
+    multipart:
+      # Product image uploads. Boot's 1 MB default rejects almost any photo taken
+      # on a phone, and the rejection arrives as a raw container error rather
+      # than something the admin form can explain. The API re-encodes what it
+      # accepts (ProductImages), so these caps only bound what reaches the JVM;
+      # ProductImages.MAX_UPLOAD_BYTES is the limit staff actually see, and is
+      # deliberately lower than this so the friendly message wins the race.
+      max-file-size: 8MB
+      max-request-size: 10MB
+
   autoconfigure:
     # Authentication is handled solely by our stateless JwtAuthenticationFilter
     # (SecurityConfig disables httpBasic/formLogin), so Spring Boot's default
@@ -179,6 +190,24 @@ townbasket:
       batch-size: ${CATALOG_TRANSLITERATION_BATCH_SIZE:25}
       backfill-initial-delay-ms: ${CATALOG_TRANSLITERATION_INITIAL_DELAY_MS:30000}
       backfill-interval-ms: ${CATALOG_TRANSLITERATION_INTERVAL_MS:300000}
+    images:
+      # Product image uploads -> DigitalOcean Spaces (S3-compatible, ARCHITECTURE
+      # §7b). Blank leaves upload OFF: the admin form falls back to pasting a URL
+      # and the seeded catalogue keeps serving images from the storefront bundle,
+      # which is the local-dev default — no cloud credentials to run the stack.
+      #
+      # Use a bucket SEPARATE from the nightly backup bucket: these objects are
+      # world-readable by design, and database dumps must never share that policy.
+      # public-base-url is the bucket's public origin (or its CDN alias) and is
+      # what decides whether an image is ours to delete, so changing it later
+      # orphans everything written under the old one.
+      bucket: ${CATALOG_IMAGES_BUCKET:}
+      endpoint: ${CATALOG_IMAGES_ENDPOINT:}
+      region: ${CATALOG_IMAGES_REGION:blr1}
+      public-base-url: ${CATALOG_IMAGES_PUBLIC_BASE_URL:}
+      access-key: ${CATALOG_IMAGES_ACCESS_KEY:}
+      # SECRET — environment only, never committed.
+      secret-key: ${CATALOG_IMAGES_SECRET_KEY:}
   invoice:
     # Prefix of the GST invoice series, e.g. "TB" in TB/25-26/00001. The series
     # itself is a per-financial-year consecutive counter (orders.invoice_series);

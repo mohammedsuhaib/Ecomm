@@ -1,9 +1,11 @@
 package com.townbasket.catalog;
 
 import com.townbasket.catalog.internal.ProductCsvImporter;
+import com.townbasket.catalog.internal.ProductImageStorage;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.io.IOException;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Admin catalogue REST API under {@code /api/v1/admin/catalog}: write management
@@ -40,10 +43,31 @@ class AdminCatalogController {
 
     private final CatalogService catalogService;
     private final ProductCsvImporter csvImporter;
+    private final ProductImageStorage imageStorage;
 
-    AdminCatalogController(CatalogService catalogService, ProductCsvImporter csvImporter) {
+    AdminCatalogController(CatalogService catalogService, ProductCsvImporter csvImporter,
+                           ProductImageStorage imageStorage) {
         this.catalogService = catalogService;
         this.csvImporter = csvImporter;
+        this.imageStorage = imageStorage;
+    }
+
+    /**
+     * Store a product photo and hand back its URL for the caller to save on the
+     * product. Not bound to a product id — see {@link ImageUploadResult} — so
+     * the same call serves both creating a product and re-imaging one.
+     *
+     * <p>The upload is re-encoded before it is stored: scaled down, stripped of
+     * EXIF, and admitted only if the bytes really are a JPEG or PNG. Anything
+     * else is refused with a message the staff member can act on.
+     */
+    @PostMapping(value = "/images", consumes = "multipart/form-data")
+    @Operation(summary = "Upload a product image; returns the stored URL to save as imageUrl.")
+    ImageUploadResult uploadImage(@RequestParam("file") MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("A file is required");
+        }
+        return new ImageUploadResult(imageStorage.upload(file.getBytes()));
     }
 
     @PostMapping(value = "/products/import", consumes = {"text/csv", "text/plain"})

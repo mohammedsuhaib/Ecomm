@@ -62,6 +62,15 @@ services:
       WEB_PUSH_PUBLIC_KEY: ${WEB_PUSH_PUBLIC_KEY:-}
       WEB_PUSH_PRIVATE_KEY: ${WEB_PUSH_PRIVATE_KEY:-}
       WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-mailto:support@town-basket.com}
+      # Product image uploads -> DO Spaces. Blank leaves upload off and the admin
+      # form falls back to pasting a URL. Must be a different bucket from the
+      # backups one: these objects are public, database dumps are not.
+      CATALOG_IMAGES_BUCKET: ${CATALOG_IMAGES_BUCKET:-}
+      CATALOG_IMAGES_ENDPOINT: ${CATALOG_IMAGES_ENDPOINT:-}
+      CATALOG_IMAGES_REGION: ${CATALOG_IMAGES_REGION:-blr1}
+      CATALOG_IMAGES_PUBLIC_BASE_URL: ${CATALOG_IMAGES_PUBLIC_BASE_URL:-}
+      CATALOG_IMAGES_ACCESS_KEY: ${CATALOG_IMAGES_ACCESS_KEY:-}
+      CATALOG_IMAGES_SECRET_KEY: ${CATALOG_IMAGES_SECRET_KEY:-}
       # Online UPI stays OFF until a real gateway replaces the fake provider,
       # which auto-succeeds and would mark orders PAID with no money received.
       UPI_ENABLED: ${UPI_ENABLED:-false}
