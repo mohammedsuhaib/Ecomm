@@ -68,6 +68,14 @@ services:
       # SMS OTP path in QA — see .env.example for the matching storefront build
       # args and Firebase console steps. A BLANK value stops the API booting.
       - TOWNBASKET_IDENTITY_FIREBASE_PROJECT_ID
+      # Web Push (order notifications). Pass-throughs like the line above, so
+      # absent stays absent and the channel simply reports itself disabled —
+      # unlike the project-id, a blank VAPID key is a legitimate "off" here.
+      # Without these three the API cannot see the keys however they are set in
+      # .env, and logs "Web Push channel disabled" no matter what QA configures.
+      - WEB_PUSH_PUBLIC_KEY
+      - WEB_PUSH_PRIVATE_KEY
+      - WEB_PUSH_SUBJECT
     expose:
       - "8080"
     depends_on:
