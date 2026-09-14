@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
+import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
 import { rememberLastOrder } from '@/app/lib/lastOrder';
@@ -64,6 +65,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const ts = useTranslations('orderStatus');
   const tc = useTranslations('common');
   const tCheckout = useTranslations('checkout');
+  const locale = useLocale();
 
   // Orders are owner-scoped server-side: the token alone grants nothing, so a
   // signed-out visitor is sent to log in first (and brought back here). Auth
@@ -313,6 +315,21 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const failureReason = deliveryFailed
     ? [...order.timeline].reverse().find((e) => e.toStatus === 'DELIVERY_FAILED')?.note ?? null
     : null;
+  // Why the order was cancelled, from the same place: the note staff typed on
+  // the CANCELLED transition. Without it the screen said only that the order
+  // "was cancelled", leaving the one question the customer actually has —
+  // whether the shop ran out, or closed, or could not reach them — unanswered,
+  // with their money involved.
+  //
+  // CUSTOMER_REQUEST is the API's reserved token for a self-service cancel
+  // rather than a reason staff wrote (see TransitionRequest). That one is
+  // translated; a staff reason is rendered verbatim, because it is their own
+  // words about this order and nothing here can translate it.
+  const cancelNote = cancelled
+    ? [...order.timeline].reverse().find((e) => e.toStatus === 'CANCELLED')?.note ?? null
+    : null;
+  const cancelledByCustomer = cancelNote === 'CUSTOMER_REQUEST';
+  const cancelReason = cancelledByCustomer ? null : cancelNote;
   const headlineEmoji = STATUS_EMOJI[order.status] ?? STATUS_EMOJI.PLACED;
   const headlineTitle = t(HEADLINE_KEY[order.status] ?? 'headlinePlaced');
   // A failed attempt sits beside the flow, not on it: the order DID reach
@@ -398,7 +415,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           </p>
         )}
         {cancelled ? (
-          <p className="notice error">{t('cancelledNotice')}</p>
+          <p className="notice error">
+            {t('cancelledNotice')}
+            {cancelledByCustomer ? <> {t('cancelledByYou')}</> : null}
+            {cancelReason ? <> {t('cancelledReason', { reason: cancelReason })}</> : null}
+          </p>
         ) : (
           <ol className="status-timeline">
             {STATUS_FLOW.map((status, i) => {
@@ -433,7 +454,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           {order.items.map((item, idx) => (
             <li key={idx} className="order-item-row">
               <span>
-                {item.productName}{' '}
+                {lineDisplayName(item, locale)}{' '}
                 <span className="muted">
                   {t('itemLine', { label: item.label, qty: item.qty })}
                 </span>

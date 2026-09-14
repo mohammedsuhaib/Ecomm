@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Cart integration test against a real Postgres (Testcontainers). Exercises
@@ -26,6 +27,9 @@ class CartIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     CatalogService catalogService;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private ProductVariantDto anyVariant() {
         ProductDto product = catalogService.listProducts(null, false, null, PageRequest.of(0, 1)).content().get(0);
@@ -83,5 +87,43 @@ class CartIntegrationTest extends AbstractIntegrationTest {
         assertThatThrownBy(() -> cartService.addItem(cartId, 9_999_999L, 1))
                 .isInstanceOf(BusinessRuleException.class);
         assertThat(cartService.getCart(cartId).orElseThrow().items()).isEmpty();
+    }
+
+    @Test
+    void cartLinesCarryTheKannadaNameSoTheCartReadsLikeTheShop() {
+        // The storefront names product tiles in Kannada from catalog.name_kn, but
+        // a cart line used to carry only the English name — so the customer added
+        // "\u0c85\u0cae\u0cc1\u0cb2\u0ccd \u0cac\u0cc6\u0ca3\u0ccd\u0ca3\u0cc6" and the cart answered "Amul Butter", which reads as a
+        // different item. Both names now travel on the line; the storefront picks.
+        ProductDto milk = catalogService.findProduct("amul-gold-milk").orElseThrow();
+        ProductVariantDto variant = milk.variants().get(0);
+
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE slug = ?",
+                "\u0c85\u0cae\u0cc1\u0cb2\u0ccd \u0c97\u0ccb\u0cb2\u0ccd\u0ca1\u0ccd \u0cb9\u0cbe\u0cb2\u0cc1", "amul-gold-milk");
+        try {
+            UUID cartId = cartService.createCart().cartId();
+            CartItemDto line = cartService.addItem(cartId, variant.id(), 1).items().get(0);
+
+            assertThat(line.productName()).isEqualTo(milk.name());
+            assertThat(line.productNameKn()).isEqualTo("\u0c85\u0cae\u0cc1\u0cb2\u0ccd \u0c97\u0ccb\u0cb2\u0ccd\u0ca1\u0ccd \u0cb9\u0cbe\u0cb2\u0cc1");
+        } finally {
+            jdbc.update("UPDATE catalog.products SET name_kn = NULL WHERE slug = ?", "amul-gold-milk");
+        }
+    }
+
+    @Test
+    void anUntransliteratedProductLeavesTheKannadaNameNullForTheFallback() {
+        // name_kn is nullable and the backfill job is off in tests, so the line
+        // reports null and the storefront falls back to the English name rather
+        // than rendering a blank where the product should be.
+        jdbc.update("UPDATE catalog.products SET name_kn = NULL WHERE slug = ?", "amul-dahi");
+        ProductVariantDto variant =
+                catalogService.findProduct("amul-dahi").orElseThrow().variants().get(0);
+
+        UUID cartId = cartService.createCart().cartId();
+        CartItemDto line = cartService.addItem(cartId, variant.id(), 1).items().get(0);
+
+        assertThat(line.productName()).isNotBlank();
+        assertThat(line.productNameKn()).isNull();
     }
 }

@@ -74,6 +74,7 @@ export interface CartItem {
   variantId: string;
   productId: string;
   productName: string;
+  productNameKn?: string | null; // Kannada name; null until backfilled — see lib/productName.ts
   label: string; // variant label, e.g. "500 g"
   unitPrice: number; // decimal rupees
   qty: number;
@@ -116,6 +117,9 @@ export interface OrderAddress {
 
 export interface OrderItem {
   productName: string;
+  // Kannada name as it stood at the sale. Null for orders placed before the
+  // snapshot column existed, and for products not yet transliterated.
+  productNameKn?: string | null;
   label: string;
   unitPrice: number;
   qty: number;

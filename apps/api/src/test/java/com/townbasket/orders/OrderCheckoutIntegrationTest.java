@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * End-to-end checkout + state-machine integration test against a real Postgres
@@ -53,6 +54,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     InventoryService inventoryService;
     @Autowired
     AuthService authService;
+    @Autowired
+    JdbcTemplate jdbc;
 
     /**
      * A variant that is priced high enough to clear the minimum order value AND
@@ -383,5 +386,83 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         assertThat(ids).contains(o1.id(), o2.id());
         // Newest (o2) appears before older (o1).
         assertThat(ids.indexOf(o2.id())).isLessThan(ids.indexOf(o1.id()));
+    }
+
+    @Test
+    void anOrderLineSnapshotsTheKannadaNameItWasSoldUnder() {
+        // The order screen has to name the item in the language the customer
+        // shopped in, and an order line is a SNAPSHOT — a later rename in the
+        // catalog must not rewrite a past order — so the Kannada name is frozen
+        // beside the English one at the moment of sale, not looked up on read.
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, QTY);
+        Long productId = cart.items().get(0).productId();
+        String english = cart.items().get(0).productName();
+
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE id = ?",
+                "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1", productId);
+        try {
+            // Re-read: the cart resolves names against the catalog at read time.
+            assertThat(cartService.getCart(cart.cartId()).orElseThrow().items().get(0).productNameKn())
+                    .isEqualTo("\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1");
+
+            OrderDto order = orderService.placeOrder(
+                    request(cart.cartId(), PaymentMethod.COD), "kn-name-key-1", null);
+
+            assertThat(order.items()).isNotEmpty();
+            OrderItemDto line = order.items().get(0);
+            assertThat(line.productNameKn())
+                    .isEqualTo("\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1");
+            // The English name is still there beside it — the invoice uses that one.
+            assertThat(line.productName()).isEqualTo(english);
+        } finally {
+            jdbc.update("UPDATE catalog.products SET name_kn = NULL WHERE id = ?", productId);
+        }
+    }
+
+    @Test
+    void aCancellationCarriesItsReasonToTheCustomersTimeline() {
+        // The customer's order screen used to say only that the order "was
+        // cancelled", never why — so the one question they have, with their money
+        // involved, went unanswered even though staff had typed an answer. The
+        // reason staff give is recorded on the CANCELLED timeline entry, which is
+        // what that screen reads.
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(
+                request(cart.cartId(), PaymentMethod.COD), "cancel-reason-key-1", null);
+
+        OrderDto cancelled = orderService.transition(order.id(),
+                new TransitionRequest("CANCELLED", null, "Out of stock after packing"));
+
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(cancelled.timeline())
+                .filteredOn(e -> "CANCELLED".equals(e.toStatus()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.note()).isEqualTo("Out of stock after packing"));
+    }
+
+    @Test
+    void aSelfCancelRecordsTheReservedTokenRatherThanAnEnglishSentence() {
+        // A self-service cancel goes through the same transition, so its "reason"
+        // lands on the timeline the customer reads. The API therefore records a
+        // token saying WHO cancelled, not a sentence: only the storefront knows
+        // what language to say it in. (It used to store "Cancelled by customer",
+        // which a Kannada customer would have been shown verbatim.)
+        ProductVariantDto variant = pickPricyVariant();
+        Long owner = customer("9990005555");
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(
+                request(cart.cartId(), PaymentMethod.COD), "self-cancel-key-1", owner);
+
+        OrderDto cancelled =
+                orderService.cancelByToken(UUID.fromString(order.trackingToken()), owner);
+
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(cancelled.timeline())
+                .filteredOn(e -> "CANCELLED".equals(e.toStatus()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.note())
+                        .isEqualTo(TransitionRequest.CUSTOMER_REQUEST));
     }
 }

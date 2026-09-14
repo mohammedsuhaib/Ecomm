@@ -11,3 +11,20 @@ export function productDisplayName(
   if (locale === 'kn' && product.nameKn) return product.nameKn;
   return product.name;
 }
+
+/**
+ * The same choice for a cart line, an order line, or a price-change entry.
+ *
+ * These are not products: they carry the two names under `productName` /
+ * `productNameKn` because a line is a *reference* to a product (the cart) or a
+ * *snapshot* of one (an order). A cart that says "Amul Butter" for the tile the
+ * customer just tapped in Kannada reads as a different item, so every surface
+ * that names a line goes through here.
+ */
+export function lineDisplayName(
+  line: { productName: string; productNameKn?: string | null },
+  locale: Locale,
+): string {
+  if (locale === 'kn' && line.productNameKn) return line.productNameKn;
+  return line.productName;
+}

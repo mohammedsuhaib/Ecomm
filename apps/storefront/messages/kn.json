@@ -307,6 +307,8 @@
     "liveTitle": "ಲೈವ್",
     "reconnectingTitle": "ಮರುಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ",
     "cancelledNotice": "ಈ ಆರ್ಡರ್ ರದ್ದುಮಾಡಲಾಗಿದೆ. ಕಾಯ್ದಿರಿಸಿದ ಯಾವುದೇ ವಸ್ತುಗಳನ್ನು ಬಿಡುಗಡೆ ಮಾಡಲಾಗಿದೆ.",
+    "cancelledReason": "ಕಾರಣ: {reason}",
+    "cancelledByYou": "ನೀವು ಅದನ್ನು ರದ್ದುಮಾಡಿದ್ದೀರಿ.",
     "orderSummary": "ಆರ್ಡರ್ ಸಾರಾಂಶ",
     "itemLine": "({label}) × {qty}",
     "subtotal": "ಉಪಮೊತ್ತ",
