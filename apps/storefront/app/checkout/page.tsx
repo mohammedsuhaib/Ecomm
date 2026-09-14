@@ -18,6 +18,7 @@ import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
 import LocationPicker from '@/app/components/LocationPickerLazy';
 import { CheckoutSkeleton } from '@/app/components/Skeleton';
+import CartEmptyState from '@/app/components/CartEmptyState';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
@@ -356,12 +357,7 @@ export default function CheckoutPage() {
         <nav className="breadcrumb">
           <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
         </nav>
-        <div className="empty-state">
-          <p>{t('emptyCart')}</p>
-          <Link href="/" className="btn">
-            {tc('startShopping')}
-          </Link>
-        </div>
+        <CartEmptyState />
       </>
     );
   }

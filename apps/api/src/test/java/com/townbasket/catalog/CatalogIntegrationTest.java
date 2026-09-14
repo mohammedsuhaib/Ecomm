@@ -205,4 +205,35 @@ class CatalogIntegrationTest extends AbstractIntegrationTest {
                 .min(java.util.Comparator.naturalOrder())
                 .orElse(java.math.BigDecimal.valueOf(Long.MAX_VALUE));
     }
+
+    @Test
+    void aProductMarkedUnavailableMakesEveryVariantUnavailable() {
+        // The bug this pins: products and variants carry independent `available`
+        // switches and the product's does NOT cascade, so every reader has to
+        // apply it. None did — a product the store had turned off still reported
+        // available variants, which is what let an unavailable item be ordered.
+        ProductDto before = catalogService.findProduct("amul-butter").orElseThrow();
+        assertThat(before.variants()).isNotEmpty();
+        assertThat(before.variants()).anySatisfy(v -> assertThat(v.available()).isTrue());
+
+        jdbc.update("UPDATE catalog.products SET available = FALSE WHERE slug = ?", "amul-butter");
+        try {
+            ProductDto off = catalogService.findProduct("amul-butter").orElseThrow();
+            assertThat(off.available()).isFalse();
+            // Every variant, regardless of its own flag, and with no sellable stock.
+            assertThat(off.variants()).allSatisfy(v -> {
+                assertThat(v.available()).isFalse();
+                assertThat(v.availableStock()).isZero();
+            });
+
+            // And the cross-module view that cart/orders read agrees — this is the
+            // one that decides whether checkout accepts the line.
+            List<Long> variantIds = off.variants().stream().map(ProductVariantDto::id).toList();
+            assertThat(catalogService.findVariants(variantIds).values())
+                    .isNotEmpty()
+                    .allSatisfy(v -> assertThat(v.available()).isFalse());
+        } finally {
+            jdbc.update("UPDATE catalog.products SET available = TRUE WHERE slug = ?", "amul-butter");
+        }
+    }
 }
