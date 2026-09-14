@@ -262,6 +262,8 @@ export interface StoreSettings {
   lng: number;
   open: boolean; // serving right now, on the SERVER clock
   opensNextDay: boolean;
+  /** Public contact number shown to customers; null until it is set here. */
+  supportPhone: string | null;
   manuallyClosed: boolean; // a "closed for today" is in force
   closedReason: string | null;
   closedUntil: string | null; // ISO instant when the closure lapses
@@ -277,6 +279,8 @@ export interface StoreUpdateRequest {
   openingTime: string; // "HH:mm"
   closingTime: string;
   minOrderValue: number;
+  /** Blank clears it, and the storefront then stops offering a way to call. */
+  supportPhone: string;
 }
 
 /** GET /admin/staff — password-login accounts (ADMIN + STORE_STAFF). ADMIN only. */

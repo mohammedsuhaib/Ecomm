@@ -241,23 +241,18 @@ class OrderServiceImpl implements OrderService {
         }
         saved.setPaymentStatus(payment.status().name());
 
-        // Both COD and a successful UPI charge confirm the order at placement.
-        if (payment.confirmsOrder()) {
-            confirm(saved);
-        }
-
-        OrderEntity reloaded = orders.findById(saved.getId()).orElseThrow();
-
-        events.publishEvent(new OrderPlaced(reloaded.getId(), reloaded.getPublicCode(), storeId));
-        if (reloaded.getStatus() == OrderStatus.CONFIRMED) {
-            events.publishEvent(new OrderConfirmed(reloaded.getId(), reloaded.getPublicCode(), storeId));
-        }
+        // The order stays PLACED here whatever the payment outcome: CONFIRMED is
+        // a staff decision, taken from the admin queue once someone has looked
+        // at the order (stock on the shelf, address, a call to the customer).
+        // Payment state travels separately in paymentStatus, so a prepaid UPI
+        // order and a COD one reach the queue in the same state.
+        events.publishEvent(new OrderPlaced(saved.getId(), saved.getPublicCode(), storeId));
 
         cartService.markCheckedOut(cart.cartId());
 
         // Customer-facing response: carries the tracking token; the OTP stays
         // hidden until OUT_FOR_DELIVERY (so it is null here at placement).
-        return toDto(reloaded, true);
+        return toDto(saved, true);
     }
 
     @Override
@@ -482,7 +477,9 @@ class OrderServiceImpl implements OrderService {
                 order.getId(), order.getPublicCode(), order.getStoreId(), from.name(), to.name(),
                 order.getUserId(), order.getPublicToken().toString(),
                 order.getAssignedAgentId(), order.getAddressLine()));
-        if (to == OrderStatus.DELIVERED) {
+        if (to == OrderStatus.CONFIRMED) {
+            events.publishEvent(new OrderConfirmed(order.getId(), order.getPublicCode(), order.getStoreId()));
+        } else if (to == OrderStatus.DELIVERED) {
             events.publishEvent(new OrderDelivered(order.getId(), order.getPublicCode(), order.getStoreId()));
         } else if (to == OrderStatus.CANCELLED) {
             events.publishEvent(new OrderCancelled(
@@ -514,9 +511,22 @@ class OrderServiceImpl implements OrderService {
         // A non-null assignment must be an existing, active DELIVERY_AGENT —
         // otherwise the order would silently drop out of every agent's queue and
         // could never be confirmed via the agent path. null clears the assignment.
+        //
+        // The message is written for the staff member who will read it verbatim
+        // in the queue: the admin dropdown lists active riders as they were when
+        // the page loaded, so the way to get here is picking one deactivated
+        // since. "Agent 5 is not an active delivery agent" named an internal id
+        // and read as a validation trace, and the UI's fallback ("please try
+        // again") was worse still — retrying never works. It stops short of
+        // asserting WHY, because this guard is equally false for an id that is
+        // not a rider at all and for one that does not exist; telling either of
+        // those callers to reactivate an account would send them looking for one
+        // that was never there.
         if (agentId != null && !authService.isActiveDeliveryAgent(agentId)) {
             throw new BusinessRuleException(
-                    "Agent " + agentId + " is not an active delivery agent.");
+                    "That rider can no longer take orders — the account has been "
+                            + "deactivated, or is not a rider account. Pick another "
+                            + "rider, or check it under Riders.");
         }
         // Off duty is the rider's own switch: they keep what they hold, but a
         // NEW job must not land on someone who has gone home.
@@ -570,13 +580,6 @@ class OrderServiceImpl implements OrderService {
         if (order.getAssignedAgentId() == null || !order.getAssignedAgentId().equals(agentId)) {
             throw new AccessDeniedException("This order is not assigned to you.");
         }
-    }
-
-    /** Mark an order CONFIRMED and record the timeline entry (called within checkout). */
-    private void confirm(OrderEntity order) {
-        order.setStatus(OrderStatus.CONFIRMED);
-        order.addEvent(new OrderEventEntity(
-                OrderStatus.PLACED.name(), OrderStatus.CONFIRMED.name(), "Payment accepted"));
     }
 
     private void validateRequest(PlaceOrderRequest request) {

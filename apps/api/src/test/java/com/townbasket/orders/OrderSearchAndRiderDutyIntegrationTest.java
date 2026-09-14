@@ -41,7 +41,7 @@ class OrderSearchAndRiderDutyIntegrationTest extends AbstractIntegrationTest {
                 .as("by part of the phone").contains(order.id());
         assertThat(ids(orderService.listOrders(null, "q searchABLE", PageRequest.of(0, 20))))
                 .as("by part of the name, case-insensitively").contains(order.id());
-        assertThat(ids(orderService.listOrders("CONFIRMED", "Bhavana Q", PageRequest.of(0, 20))))
+        assertThat(ids(orderService.listOrders("PLACED", "Bhavana Q", PageRequest.of(0, 20))))
                 .as("search within a status").contains(order.id());
         assertThat(ids(orderService.listOrders("DELIVERED", "Bhavana Q", PageRequest.of(0, 20))))
                 .as("same search, wrong status").doesNotContain(order.id());
@@ -79,6 +79,27 @@ class OrderSearchAndRiderDutyIntegrationTest extends AbstractIntegrationTest {
 
         authService.setDutyStatus(rider, true);
         assertThat(orderService.assignAgent(fresh.id(), rider).assignedAgentId()).isEqualTo(rider);
+    }
+
+    @Test
+    void assigningADeactivatedRiderSaysSoInsteadOfNamingAnInternalId() {
+        Long rider = authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
+                "Gone Rider", "gone-" + UUID.randomUUID().toString().substring(0, 8) + "@townbasket.local",
+                "password123")).id();
+        OrderDto order = place("Stale Dropdown", "9000000004", "deactivated-" + UUID.randomUUID());
+
+        authService.setDeliveryAgentActive(rider, false);
+
+        // The admin dropdown holds the roster as it was when the queue loaded,
+        // so staff can still pick a rider deactivated since. What they are told
+        // has to name the situation and the way out — the refusal is shown to
+        // them verbatim, and retrying will never succeed.
+        assertThatThrownBy(() -> orderService.assignAgent(order.id(), rider))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("deactivated")
+                .hasMessageContaining("Pick another")
+                .as("the id is an internal detail, not something staff can act on")
+                .hasMessageNotContaining(String.valueOf(rider));
     }
 
     @Test

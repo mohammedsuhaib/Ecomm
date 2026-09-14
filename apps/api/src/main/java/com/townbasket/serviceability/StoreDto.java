@@ -18,6 +18,13 @@ public record StoreDto(
         double lng,
         boolean open,
         boolean opensNextDay,
+        /**
+         * The store's public contact number, or null when staff haven't set one.
+         * The storefront only offers a "call the store" route when this is
+         * present — copy that tells a customer to get in touch has to have
+         * somewhere to send them.
+         */
+        String supportPhone,
         /** True while a manual "closed for today" is in force — the reason for {@code open == false} then. */
         boolean manuallyClosed,
         /** Staff's reason for the manual closure (shown to customers), null otherwise. */

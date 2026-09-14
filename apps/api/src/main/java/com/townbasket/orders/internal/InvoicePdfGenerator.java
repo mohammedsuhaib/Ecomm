@@ -220,9 +220,7 @@ class InvoicePdfGenerator implements InvoiceService {
         sum.addCell(sumLabel("Total (incl. GST)", true));
         sum.addCell(sumValue(money(order.total(), money), true));
 
-        String pay = ("COD".equalsIgnoreCase(order.paymentMethod()) ? "Pay on Delivery" : order.paymentMethod())
-                + " — " + order.paymentStatus();
-        PdfPCell payCell = sumLabel("Payment: " + pay, false);
+        PdfPCell payCell = sumLabel("Payment: " + paymentLine(order), false);
         payCell.setColspan(2);
         payCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         sum.addCell(payCell);
@@ -243,6 +241,28 @@ class InvoicePdfGenerator implements InvoiceService {
                 font(8, Font.NORMAL, MUTED)));
         p.setSpacingBefore(6f);
         return p;
+    }
+
+    /**
+     * The payment line in words, e.g. "Pay on Delivery — Paid".
+     *
+     * <p>Both halves used to be printed as the payments module's enum names, so
+     * a tax invoice the customer keeps could read "COD_PENDING". Only the method
+     * was ever mapped; the status was appended raw. An unrecognised status is
+     * left off entirely rather than printing a new enum onto a GST document —
+     * the method alone still says how the order was paid for.
+     */
+    private static String paymentLine(OrderDto order) {
+        String method = "COD".equalsIgnoreCase(order.paymentMethod())
+                ? "Pay on Delivery"
+                : order.paymentMethod();
+        String status = switch (order.paymentStatus() == null ? "" : order.paymentStatus()) {
+            case "PAID" -> "Paid";
+            case "COD_PENDING" -> "Due at delivery";
+            case "FAILED" -> "Payment failed";
+            default -> null;
+        };
+        return status == null ? method : method + " — " + status;
     }
 
     // ---- low-level helpers -------------------------------------------------

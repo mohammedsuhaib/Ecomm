@@ -23,8 +23,9 @@ public interface OrderService {
      * the same key returns the originally-created order rather than placing a new
      * one. Validates serviceability + minimum order value + stock, reserves
      * stock, snapshots prices (and COGS), charges payment, persists the order,
-     * marks the cart checked out, and publishes {@code OrderPlaced} +
-     * {@code OrderConfirmed}.
+     * marks the cart checked out, and publishes {@code OrderPlaced}. The order
+     * is left PLACED: staff confirm it from the admin queue via
+     * {@link #transition}, which is what publishes {@code OrderConfirmed}.
      *
      * <p>{@code userId} ties the order to a logged-in customer when a valid
      * Bearer token was present; it is {@code null} for a guest order (the
@@ -131,8 +132,9 @@ public interface OrderService {
     /**
      * Admin: apply a state-machine transition. Enforces the allowed transitions;
      * {@code DELIVERED} requires a matching delivery OTP. Publishes
-     * {@code OrderStatusChanged}, plus {@code OrderDelivered} / {@code OrderCancelled}
-     * for the terminal transitions (which drive stock commit / release).
+     * {@code OrderStatusChanged}, plus {@code OrderConfirmed} when staff accept
+     * a PLACED order and {@code OrderDelivered} / {@code OrderCancelled} for the
+     * terminal transitions (which drive stock commit / release).
      */
     OrderDto transition(Long orderId, TransitionRequest request);
 

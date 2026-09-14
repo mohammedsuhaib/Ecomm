@@ -53,12 +53,14 @@ class NotificationEventListener {
 
     @ApplicationModuleListener
     void on(OrderConfirmed event) {
-        // Checkout-time confirmation: the customer is still on the page, so this
-        // only refreshes the live streams (see the class note on double-buzzing).
+        // Staff confirmed it from the queue. The customer is told through the
+        // OrderStatusChanged published by the same transition; this copy keeps
+        // the other dashboards' live streams in step (see the class note on
+        // double-buzzing).
         dispatch(NotificationMessage.forAdmin(
                 event.orderId(), "ORDER_CONFIRMED", "CONFIRMED",
                 "Order #" + label(event.publicCode(), event.orderId()) + " confirmed",
-                "Payment accepted."));
+                "Accepted by staff and ready to pack."));
     }
 
     @ApplicationModuleListener
