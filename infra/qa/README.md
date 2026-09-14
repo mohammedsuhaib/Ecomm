@@ -211,6 +211,13 @@ downgrade a real deployment to a verifier accepting any phone number.
 QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
 own endpoints and needs no same-origin callback handler.
 
+> **The gate DOES break the installable PWA**, though — it covers the whole
+> origin, including `/sw.js`, the manifest and the precached chunks, and an
+> installed PWA window gets no credential prompt to answer. Expect
+> `HTTP ERROR 401` in the installed app, especially right after a deploy. See
+> [ACCESS-MIGRATION.md](ACCESS-MIGRATION.md) for the workaround and for the
+> planned move to network-layer access control.
+
 ### Viewing logs
 
 `docker compose -f docker-compose.qa.yml logs -f <service>` tails a service live
