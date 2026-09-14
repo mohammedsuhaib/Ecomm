@@ -63,11 +63,13 @@ class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return value;
             }
         }
-        // GET only: allow ?token= for EventSource (admin SSE) which can't set headers.
+        // GET only: allow ?token= for EventSource (the admin SSE stream and the
+        // per-order tracking stream), which can't set headers.
         // OPS NOTE: a token in the query string can leak into reverse-proxy / access
         // logs and browser history. Only the short-lived ACCESS token is ever sent
         // this way (never the refresh token), and this app does not log it; configure
-        // the production proxy (Caddy) to omit query strings for /admin/orders/stream.
+        // the production proxy (Caddy) to omit query strings for /admin/orders/stream
+        // and /orders/*/stream.
         if (HttpMethod.GET.matches(request.getMethod())) {
             String param = request.getParameter("token");
             if (param != null && !param.isBlank()) {

@@ -30,9 +30,13 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *   <li>{@code /api/v1/admin/**} → STORE_STAFF or ADMIN;</li>
  *   <li>{@code /me}, {@code /me/addresses/**}, {@code /orders/mine},
  *       {@code POST /orders} (placing an order — login required, no guest checkout),
- *       {@code POST /orders/&#42;/reorder}, {@code POST /carts/&#42;/merge} → authenticated;</li>
- *   <li>everything else (catalog, serviceability, cart, order tracking
- *       {@code GET /orders/&#42;} + stream, auth, swagger, actuator health/info) → permitAll.</li>
+ *       {@code POST /orders/&#42;/reorder}, {@code POST /carts/&#42;/merge},
+ *       order tracking {@code /orders/track/**} and the per-order SSE stream
+ *       {@code GET /orders/&#42;/stream} (both also OWNER-scoped in the orders
+ *       module — the token/id alone never grants access to someone else's
+ *       order) → authenticated;</li>
+ *   <li>everything else (catalog, serviceability, cart, auth, swagger,
+ *       actuator health/info) → permitAll.</li>
  * </ul>
  */
 @Configuration
@@ -75,9 +79,15 @@ class SecurityConfig {
                         .requestMatchers("/api/v1/me", "/api/v1/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/mine").authenticated()
                         // Placing an order requires a logged-in (OTP-verified) account —
-                        // no guest checkout. GET /orders/{id} + /stream stay public (tracking).
+                        // no guest checkout.
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders/*/reorder").authenticated()
+                        // Order tracking (fetch/cancel/invoice by token) and the per-order
+                        // SSE stream require a login; the orders module additionally
+                        // enforces OWNERSHIP (non-owners get 404). The stream authenticates
+                        // via ?token= (EventSource can't set headers) — see JwtAuthenticationFilter.
+                        .requestMatchers("/api/v1/orders/track/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/orders/*/stream").authenticated()
                         // /carts/mine before the catch-all: without a rule it is
                         // permitAll and the principal is null for guests, which
                         // would read as "no cart" instead of 401.

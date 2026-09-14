@@ -11,9 +11,11 @@ import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
+import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.shared.BusinessRuleException;
+import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -71,6 +73,11 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
                 cartId, "Asha Rao", "9999900000",
                 new AddressDto("12 MG Road", STORE_LAT, STORE_LNG),
                 method, null, null);
+    }
+
+    /** Sign in (upsert) a CUSTOMER via the dev/fake phone verifier and return the user id. */
+    private Long customer(String phone10) {
+        return authService.phoneVerify(new PhoneVerifyRequest("dev:" + phone10)).user().id();
     }
 
     @Test
@@ -181,7 +188,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
         CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", null);
+        Long customerId = customer("9990001111");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "flow-key-1", customerId);
 
         Long id = order.id();
         // Assign a rider so the delivery lands in the per-agent stats.
@@ -191,8 +199,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
-        // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY).
-        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+        // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY) — and
+        // only to the OWNER: token reads are scoped to the placing account.
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
                 .orElseThrow().deliveryOtp();
         assertThat(otp).hasSize(6);
 
@@ -223,11 +232,12 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     void concurrentDeliveredTransitionsCommitExactlyOnce() throws Exception {
         ProductVariantDto variant = pickPricyVariant();
         CartDto cart = cartWithValue(variant, 5);
-        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", null);
+        Long customerId = customer("9990002222");
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", customerId);
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
-        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()))
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
                 .orElseThrow().deliveryOtp();
 
         // A rider double-tapping "confirm delivery" on a flaky connection: two
@@ -260,7 +270,9 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
             pool.shutdown();
         }
 
-        OrderDto after = orderService.getOrderByToken(UUID.fromString(order.trackingToken())).orElseThrow();
+        OrderDto after = orderService
+                .getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
+                .orElseThrow();
         assertThat(after.status()).isEqualTo("DELIVERED");
         assertThat(after.paymentStatus()).isEqualTo("PAID");
         // Exactly one DELIVERED row in the timeline (= orders.order_events).
@@ -295,6 +307,42 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         // OrderCancelled is consumed by inventory (async, after commit) to RELEASE
         // the reservation -> availability restored.
         eventually(() -> assertThat(inventoryService.availability(variant.id())).isEqualTo(before));
+    }
+
+    @Test
+    void trackingIsOwnerScoped_notAnonymousAndNotAnotherUser() {
+        ProductVariantDto variant = pickPricyVariant();
+        Long owner = customer("9990003333");
+        Long stranger = customer("9990004444");
+        CartDto cart = cartWithValue(variant, 5);
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "own-key-1", owner);
+        UUID token = UUID.fromString(order.trackingToken());
+
+        // The unguessable token alone is NOT a capability: no user, wrong user,
+        // and an ownerless (legacy guest) order all read as "no such order".
+        assertThat(orderService.getOrderByToken(token, owner)).isPresent();
+        assertThat(orderService.getOrderByToken(token, null)).isEmpty();
+        assertThat(orderService.getOrderByToken(token, stranger)).isEmpty();
+
+        // Same for self-service cancel — a stranger can't cancel someone
+        // else's order, and the refusal never confirms the order exists.
+        assertThatThrownBy(() -> orderService.cancelByToken(token, stranger))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> orderService.cancelByToken(token, null))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        // The SSE-stream ownership gate agrees.
+        assertThat(orderService.isOwnedBy(order.id(), owner)).isTrue();
+        assertThat(orderService.isOwnedBy(order.id(), stranger)).isFalse();
+        assertThat(orderService.isOwnedBy(order.id(), null)).isFalse();
+
+        // The owner can still self-cancel within the window.
+        assertThat(orderService.cancelByToken(token, owner).status()).isEqualTo("CANCELLED");
+
+        // An order placed with NO owner (legacy guest path) is trackable by nobody.
+        OrderDto guestOrder = orderService.placeOrder(
+                request(cartWithValue(variant, 5).cartId(), PaymentMethod.COD), "own-key-2", null);
+        assertThat(orderService.getOrderByToken(UUID.fromString(guestOrder.trackingToken()), owner)).isEmpty();
     }
 
     @Test

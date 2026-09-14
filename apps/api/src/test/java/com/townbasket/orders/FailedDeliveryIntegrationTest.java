@@ -11,6 +11,7 @@ import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
+import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.shared.BusinessRuleException;
@@ -68,14 +69,20 @@ class FailedDeliveryIntegrationTest extends AbstractIntegrationTest {
     void failedDeliveryCanBeRedispatchedAndThenDelivered() {
         ProductVariantDto variant = buyableVariant();
         Long agentId = newAgent("fail-rider-2");
-        Long id = dispatch(variant, agentId, "fail-key-2");
+        // Token reads are owner-scoped, so this order needs a real customer.
+        Long customerId = authService.phoneVerify(new PhoneVerifyRequest("dev:9990005555")).user().id();
+        Long id = orderService.placeOrder(request(cart(variant).cartId()), "fail-key-2", customerId).id();
+        orderService.assignAgent(id, agentId);
+        orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         orderService.failDelivery(id, agentId, "Customer asked to deliver later");
 
         OrderDto again = orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, "Second attempt"));
         assertThat(again.status()).isEqualTo("OUT_FOR_DELIVERY");
         // The same rider still holds it and the OTP is unchanged, so the customer's code still works.
         assertThat(again.assignedAgentId()).isEqualTo(agentId);
-        String otp = orderService.getOrderByToken(UUID.fromString(again.trackingToken())).orElseThrow().deliveryOtp();
+        String otp = orderService.getOrderByToken(UUID.fromString(again.trackingToken()), customerId)
+                .orElseThrow().deliveryOtp();
         assertThat(orderService.confirmDelivery(id, agentId, otp).status()).isEqualTo("DELIVERED");
     }
 

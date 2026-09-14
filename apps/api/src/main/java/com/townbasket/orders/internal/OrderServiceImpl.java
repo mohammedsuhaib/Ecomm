@@ -252,13 +252,26 @@ class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<OrderDto> getOrderByToken(UUID trackingToken) {
-        return orders.findByPublicToken(trackingToken).map(o -> toDto(o, true));
+    public Optional<OrderDto> getOrderByToken(UUID trackingToken, Long userId) {
+        // Owner-scoped: a non-owner (or a legacy ownerless order) reads as "no
+        // such order" — never as a 403 that would confirm the token is real.
+        return orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
+                .map(o -> toDto(o, true));
     }
 
     @Override
-    public OrderDto cancelByToken(UUID trackingToken) {
+    @Transactional(readOnly = true)
+    public boolean isOwnedBy(Long orderId, Long userId) {
+        return userId != null && orders.findById(orderId)
+                .map(o -> userId.equals(o.getUserId()))
+                .orElse(false);
+    }
+
+    @Override
+    public OrderDto cancelByToken(UUID trackingToken, Long userId) {
         OrderEntity order = orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
         OrderStatus status = order.getStatus();

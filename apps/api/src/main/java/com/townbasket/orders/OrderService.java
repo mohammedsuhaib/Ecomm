@@ -34,25 +34,40 @@ public interface OrderService {
 
     /**
      * Customer-facing fetch by unguessable tracking token (confirmation +
-     * tracking). The numeric id is never accepted here, so order details cannot
-     * be harvested by enumerating sequential ids. The delivery OTP is included
-     * only while the order is OUT_FOR_DELIVERY.
+     * tracking), AUTHENTICATED and owner-scoped: the order is returned only when
+     * {@code userId} matches the account that placed it (an order with no owner —
+     * a legacy guest order — is returned to nobody here; staff read those via the
+     * admin listing). A non-owner gets the same empty result as an unknown token,
+     * so the response never confirms the order exists. The numeric id is never
+     * accepted here, so order details cannot be harvested by enumerating
+     * sequential ids. The delivery OTP is included only while the order is
+     * OUT_FOR_DELIVERY.
      */
-    Optional<OrderDto> getOrderByToken(UUID trackingToken);
+    Optional<OrderDto> getOrderByToken(UUID trackingToken, Long userId);
 
     /**
-     * Customer self-service cancellation by tracking token (PUBLIC-by-token,
-     * same capability model as {@link #getOrderByToken}). Allowed only within
-     * the published cancellation window (1 minute of placing — refund policy)
-     * and while the order is still PLACED/CONFIRMED. Cancelling releases the
-     * stock reservation via the normal CANCELLED transition events. Idempotent:
-     * an already-cancelled order is returned as-is.
+     * Customer self-service cancellation by tracking token (AUTHENTICATED and
+     * owner-scoped, same access model as {@link #getOrderByToken}). Allowed only
+     * within the published cancellation window (1 minute of placing — refund
+     * policy) and while the order is still PLACED/CONFIRMED. Cancelling releases
+     * the stock reservation via the normal CANCELLED transition events.
+     * Idempotent: an already-cancelled order is returned as-is.
      *
-     * @throws com.townbasket.shared.ResourceNotFoundException if the token is unknown
+     * @throws com.townbasket.shared.ResourceNotFoundException if the token is
+     *     unknown OR the order is not owned by {@code userId} (indistinguishable
+     *     on purpose)
      * @throws com.townbasket.shared.BusinessRuleException if the window has
      *     passed or fulfilment has already started (mapped to 422)
      */
-    OrderDto cancelByToken(UUID trackingToken);
+    OrderDto cancelByToken(UUID trackingToken, Long userId);
+
+    /**
+     * Whether the order belongs to {@code userId} — the ownership gate for the
+     * per-order SSE tracking stream (which is keyed by the enumerable numeric
+     * id, so it must not leak activity to non-owners). False for a null user,
+     * an unknown order, or an order with no owner.
+     */
+    boolean isOwnedBy(Long orderId, Long userId);
 
     /** A customer's own orders, newest first (AUTHENTICATED). */
     PagedResponse<OrderDto> listUserOrders(Long userId, Pageable pageable);
