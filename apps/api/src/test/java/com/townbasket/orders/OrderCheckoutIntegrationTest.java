@@ -32,8 +32,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 /**
  * End-to-end checkout + state-machine integration test against a real Postgres
  * (Testcontainers). Covers: COD and UPI(fake) checkout reserving stock and
- * confirming, the admin transition flow incl. DELIVERED requiring the OTP,
- * cancellation releasing stock, and idempotent checkout.
+ * leaving the order PLACED for staff, the admin transition flow from the staff
+ * confirmation through DELIVERED requiring the OTP, cancellation releasing
+ * stock, and idempotent checkout.
  */
 class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
 
@@ -66,8 +67,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
      * whole suite ({@link com.townbasket.AbstractIntegrationTest} keeps the
      * container static and never stops it), and nothing resets inventory between
      * classes. Seven classes place orders against the first variant priced over
-     * ₹120, and an order left CONFIRMED holds its reservation for the life of the
-     * suite, so `available` on that one variant only ever falls. Without this
+     * ₹120, and an order left un-cancelled holds its reservation for the life of
+     * the suite, so `available` on that one variant only ever falls. Without this
      * check the class quietly depends on how much the classes before it happened
      * to consume. main was green; this branch added two more orders and six
      * tests in this class then errored at "requested 5, available 4" — four
@@ -107,14 +108,15 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void codCheckoutReservesStockConfirmsAndHidesOtpAndCostPrice() {
+    void codCheckoutReservesStockLeavesOrderPlacedAndHidesOtpAndCostPrice() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());
 
         CartDto cart = cartWithValue(variant, QTY);
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "cod-key-1", null);
 
-        assertThat(order.status()).isEqualTo("CONFIRMED");
+        // Checkout never confirms: that is a staff decision from the admin queue.
+        assertThat(order.status()).isEqualTo("PLACED");
         assertThat(order.paymentMethod()).isEqualTo("COD");
         assertThat(order.paymentStatus()).isEqualTo("COD_PENDING");
         // The customer gets an unguessable tracking token, NOT a guessable id...
@@ -124,7 +126,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         assertThat(order.items()).allSatisfy(i -> assertThat(i.unitPrice()).isNotNull());
         // OrderItemDto has no cost-price accessor at all (compile-time guarantee).
         assertThat(order.timeline()).extracting(OrderTimelineEntryDto::toStatus)
-                .containsExactly("PLACED", "CONFIRMED");
+                .containsExactly("PLACED");
 
         // GST snapshot: prices are tax-INCLUSIVE, so each line's breakdown
         // re-adds to its line total and the order total is untouched by tax.
@@ -143,15 +145,39 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void upiFakeCheckoutConfirmsAndMarksPaid() {
+    void upiFakeCheckoutMarksPaidButStillWaitsForStaffToConfirm() {
         ProductVariantDto variant = pickPricyVariant();
         CartDto cart = cartWithValue(variant, QTY);
 
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.UPI), "upi-key-1", null);
 
-        assertThat(order.status()).isEqualTo("CONFIRMED");
+        // Money received is recorded on the payment, not read as "confirmed":
+        // a prepaid order still goes through the same staff check as COD.
+        assertThat(order.status()).isEqualTo("PLACED");
         assertThat(order.paymentMethod()).isEqualTo("UPI");
         assertThat(order.paymentStatus()).isEqualTo("PAID");
+    }
+
+    @Test
+    void staffConfirmAPlacedOrderBeforeItCanBePacked() {
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "confirm-key-1", null);
+        Long id = order.id();
+
+        // Packing a PLACED order skips the staff check, so it is not a legal move.
+        assertThatThrownBy(() -> orderService.transition(id, new TransitionRequest("PACKING", null, null)))
+                .isInstanceOf(BusinessRuleException.class);
+
+        OrderDto confirmed = orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
+        assertThat(confirmed.status()).isEqualTo("CONFIRMED");
+        assertThat(confirmed.timeline()).extracting(OrderTimelineEntryDto::toStatus)
+                .containsExactly("PLACED", "CONFIRMED");
+        // Confirming is about the order, not the money: COD is still uncollected.
+        assertThat(confirmed.paymentStatus()).isEqualTo("COD_PENDING");
+
+        assertThat(orderService.transition(id, new TransitionRequest("PACKING", null, null)).status())
+                .isEqualTo("PACKING");
     }
 
     @Test
@@ -222,6 +248,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         Long agentId = authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
                 "Stats Rider", "stats-rider@townbasket.local", "password123")).id();
         orderService.assignAgent(id, agentId);
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
@@ -263,6 +290,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         Long customerId = customer("9990002222");
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "race-key-1", customerId);
         Long id = order.id();
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), customerId)
@@ -315,7 +343,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         CartDto cart = cartWithValue(variant, QTY);
         OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "illegal-key-1", null);
 
-        // CONFIRMED cannot jump straight to DELIVERED.
+        // PLACED cannot jump straight to DELIVERED.
         assertThatThrownBy(() -> orderService.transition(order.id(),
                 new TransitionRequest("DELIVERED", order.deliveryOtp(), null)))
                 .isInstanceOf(BusinessRuleException.class);

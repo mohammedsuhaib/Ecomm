@@ -88,15 +88,23 @@ export default function OrderQueue() {
     void load(status, debouncedQ);
   }, [status, debouncedQ, load]);
 
-  // Load the delivery-agent roster once (for the assignment dropdown). Best-effort:
-  // a failure just leaves assignment disabled, it doesn't break the queue.
-  useEffect(() => {
+  // The delivery-agent roster for the assignment dropdown. Best-effort: a
+  // failure just leaves assignment disabled, it doesn't break the queue.
+  const loadAgents = useCallback(() => {
     getDeliveryAgents()
       .then(setAgents)
       .catch(() => {
         /* non-fatal — dropdown stays empty */
       });
   }, []);
+
+  // Once on mount, and again whenever the server rejects an assignment: the
+  // list is active riders as of page load, so a rider deactivated since is
+  // still offered. Re-reading it on rejection takes them out of the dropdown
+  // instead of leaving staff to pick the same dead name again.
+  useEffect(() => {
+    loadAgents();
+  }, [loadAgents]);
 
   // Subscribe once; refetch the current filter on each event. The SSE URL now
   // carries the access token as a `?token=` query param (contract §6) since
@@ -230,6 +238,7 @@ export default function OrderQueue() {
               order={order}
               agents={agents}
               onUpdated={onUpdated}
+              onAgentsStale={loadAgents}
             />
           ))}
         </div>

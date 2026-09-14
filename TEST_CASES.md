@@ -189,8 +189,8 @@ testing possible without real money or SMS.
 
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
-| TC-CHK-001 | Positive | Pay-on-delivery order | Cart ≥ ₹299, in-radius address, store open → choose Pay on Delivery | Order created; status CONFIRMED; payment COD_PENDING; confirmation page shows the tracking link | P1 |
-| TC-CHK-002 | Positive | UPI order (fake gateway) | Same cart, choose UPI | Order CONFIRMED; payment PAID (fake provider auto-succeeds) | P1 |
+| TC-CHK-001 | Positive | Pay-on-delivery order | Cart ≥ ₹299, in-radius address, store open → choose Pay on Delivery | Order created; status PLACED (awaiting staff confirmation); payment COD_PENDING; confirmation page shows the tracking link | P1 |
+| TC-CHK-002 | Positive | UPI order (fake gateway) | Same cart, choose UPI | Order PLACED; payment PAID (fake provider auto-succeeds) — payment alone does not confirm the order | P1 |
 | TC-CHK-003 | Negative | Below minimum | Cart of ₹150 → checkout | Rejected naming the ₹299 minimum; no order created | P1 |
 | TC-CHK-004 | Negative | Login required | As a guest, try to place an order | Redirected to login — there is no guest checkout | P1 |
 | TC-CHK-005 | Negative | Empty cart | Force checkout with an empty cart | "Cannot place an order from an empty cart" | P2 |
@@ -234,8 +234,8 @@ testing possible without real money or SMS.
 |---|---|---|---|---|---|
 | TC-ADM-001 | Positive | New order appears live | Keep Admin → Orders open; place an order from the storefront | Order appears within seconds without a refresh | P1 |
 | TC-ADM-002 | Positive | Status filter tabs | Click through the status tabs | Only orders in that status listed; counts make sense | P1 |
-| TC-ADM-003 | Positive | Full happy path | CONFIRMED → PACKING → OUT_FOR_DELIVERY → DELIVERED (with OTP) | Each transition accepted; timeline records each step | P1 |
-| TC-ADM-004 | Negative | Illegal transition | Try PLACED → DELIVERED, or CONFIRMED → OUT_FOR_DELIVERY | Rejected as an illegal transition | P1 |
+| TC-ADM-003 | Positive | Full happy path | New order arrives PLACED → staff press Confirm order → PACKING → OUT_FOR_DELIVERY → DELIVERED (with OTP) | Each transition accepted; timeline records each step; the customer's page shows "Order confirmed!" only after the staff step | P1 |
+| TC-ADM-004 | Negative | Illegal transition | Try PLACED → PACKING, PLACED → DELIVERED, or CONFIRMED → OUT_FOR_DELIVERY | Rejected as an illegal transition — a PLACED order must be confirmed first | P1 |
 | TC-ADM-005 | Negative | Deliver without the OTP | Try to mark DELIVERED with a blank or wrong OTP | Refused — "Delivery OTP does not match" | P1 |
 | TC-ADM-006 | Negative | Terminal states are final | Try to transition a DELIVERED or CANCELLED order | No transitions offered/accepted | P1 |
 | TC-ADM-007 | Positive | Staff cancellation | Cancel a CONFIRMED order from Admin | CANCELLED; reserved stock released; customer's page reflects it live | P1 |

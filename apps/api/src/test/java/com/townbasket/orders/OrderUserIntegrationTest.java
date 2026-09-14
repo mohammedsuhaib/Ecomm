@@ -47,8 +47,8 @@ class OrderUserIntegrationTest extends AbstractIntegrationTest {
      * whole suite ({@link com.townbasket.AbstractIntegrationTest} keeps the
      * container static and never stops it), and nothing resets inventory between
      * classes. Seven classes place orders against the first variant priced over
-     * ₹120, and an order left CONFIRMED holds its reservation for the life of the
-     * suite, so `available` on that one variant only ever falls. Without this
+     * ₹120, and an order left un-cancelled holds its reservation for the life of
+     * the suite, so `available` on that one variant only ever falls. Without this
      * check the class quietly depends on how much the classes before it happened
      * to consume. main was green; this branch added two more orders and six
      * tests in this class then errored at "requested 5, available 4" — four

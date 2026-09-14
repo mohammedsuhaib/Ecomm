@@ -5,6 +5,7 @@ import {
   ApiError,
   AuthRequiredError,
   assignOrder,
+  serverMessage,
   transitionOrder,
 } from '@/app/lib/api';
 import { formatRupees, formatTime } from '@/app/lib/format';
@@ -17,19 +18,24 @@ function agentLabel(a: DeliveryAgent): string {
 
 /**
  * One order in the admin queue: customer/contact/address/items/total, plus
- * one-tap status advance. The DELIVERED transition requires the customer's
- * delivery OTP (proof of delivery / COD safeguard, ARCHITECTURE §3.5), so the
- * advance button reveals an OTP prompt before sending. Cancel asks for a reason.
- * A rider dropdown dispatches the order to a delivery agent.
+ * one-tap status advance. A new order arrives PLACED and the first advance is
+ * the staff confirmation (ARCHITECTURE §3.5) — nothing confirms it before a
+ * person has looked at it. The DELIVERED transition requires the customer's
+ * delivery OTP (proof of delivery / COD safeguard), so the advance button
+ * reveals an OTP prompt before sending. Cancel asks for a reason. A rider
+ * dropdown dispatches the order to a delivery agent.
  */
 export default function OrderCard({
   order,
   agents,
   onUpdated,
+  onAgentsStale,
 }: {
   order: Order;
   agents: DeliveryAgent[];
   onUpdated: (o: Order) => void;
+  /** Ask the queue to re-read the roster — the one we were given is out of date. */
+  onAgentsStale?: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +64,13 @@ export default function OrderCard({
       if (err instanceof AuthRequiredError) {
         setError('Session expired — please log in again.');
       } else {
-        setError('Could not update the assignment. Please try again.');
+        // The server says WHY the rider can't take it — deactivated, or gone
+        // off duty since the list loaded — and "try again" would be wrong
+        // advice for either. Show its reason when it gave one, and re-read the
+        // roster so the name that was just refused stops being offered.
+        const reason = serverMessage(err);
+        if (reason) onAgentsStale?.();
+        setError(reason ?? 'Could not update the assignment. Please try again.');
       }
     } finally {
       setBusy(false);
@@ -87,7 +99,8 @@ export default function OrderCard({
         setError(
           next === 'DELIVERED'
             ? 'Incorrect delivery code. Please re-check with the customer.'
-            : 'That transition was rejected. Refresh and try again.',
+            : serverMessage(err) ??
+                'That transition was rejected. Refresh and try again.',
         );
       } else {
         setError('Could not update the order. Please try again.');
@@ -264,7 +277,9 @@ export default function OrderCard({
                 ? 'Updating…'
                 : order.status === 'DELIVERY_FAILED'
                   ? 'Re-dispatch'
-                  : `Mark ${STATUS_LABELS[next]}`}
+                  : order.status === 'PLACED'
+                    ? 'Confirm order'
+                    : `Mark ${STATUS_LABELS[next]}`}
             </button>
           ) : (
             <span className="muted">

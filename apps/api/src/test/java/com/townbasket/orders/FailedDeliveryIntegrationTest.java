@@ -73,6 +73,7 @@ class FailedDeliveryIntegrationTest extends AbstractIntegrationTest {
         Long customerId = authService.phoneVerify(new PhoneVerifyRequest("dev:9990005555")).user().id();
         Long id = orderService.placeOrder(request(cart(variant).cartId()), "fail-key-2", customerId).id();
         orderService.assignAgent(id, agentId);
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         orderService.failDelivery(id, agentId, "Customer asked to deliver later");
@@ -112,7 +113,7 @@ class FailedDeliveryIntegrationTest extends AbstractIntegrationTest {
         CartDto cart = cart(variant);
         Long id = orderService.placeOrder(request(cart.cartId()), "fail-key-5", null).id();
         orderService.assignAgent(id, agentId);
-        // Still CONFIRMED — nothing has left the store, so there is no attempt to fail.
+        // Still PLACED — nothing has left the store, so there is no attempt to fail.
         assertThatThrownBy(() -> orderService.failDelivery(id, agentId, "Customer not reachable"))
                 .isInstanceOf(BusinessRuleException.class);
     }
@@ -122,6 +123,7 @@ class FailedDeliveryIntegrationTest extends AbstractIntegrationTest {
     private Long dispatch(ProductVariantDto variant, Long agentId, String key) {
         Long id = orderService.placeOrder(request(cart(variant).cartId()), key, null).id();
         orderService.assignAgent(id, agentId);
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         return id;

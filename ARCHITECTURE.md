@@ -139,6 +139,11 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 
 - Checkout is **idempotent**: the client sends an idempotency key;
   retries (flaky mobile networks) cannot double-order.
+- Every order lands in the queue as **PLACED**, whatever the payment
+  method; **staff confirm it** (`PLACED → CONFIRMED`) from the admin queue
+  once they have looked at it. Payment state is tracked separately on the
+  order (`paymentStatus`), so an unpaid or a prepaid order is equally
+  visible to staff before they accept it.
 - Each transition emits an event (`OrderPlaced`, `OrderConfirmed`, …)
   consumed by `inventory`, `payments`, `notifications`.
 - **Delivery OTP (all orders, UPI and COD):** a one-time delivery code is
@@ -162,13 +167,14 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   methods independently swappable/addable.
 - **Online (UPI):** Paytm PG flow — create a payment order → customer
   completes UPI in their payment app → **webhook/callback**
-  (checksum-verified, idempotent) confirms → emits `PaymentSucceeded` /
-  `PaymentFailed`. The order reaches CONFIRMED only after payment succeeds;
-  the server verifies transaction status with Paytm before confirming
-  (never off a client-side callback alone). Unpaid online orders auto-cancel
+  (checksum-verified, idempotent) marks the payment PAID → emits
+  `PaymentSucceeded` / `PaymentFailed`. The server verifies transaction
+  status with Paytm before recording it (never off a client-side callback
+  alone). Payment success does not confirm the order by itself — staff
+  still confirm it from the queue (§3.5). Unpaid online orders auto-cancel
   after a timeout, releasing reserved stock.
-- **COD:** the order is confirmed at placement (no prepayment); payment is
-  recorded as collected when staff mark the order delivered. No
+- **COD:** no prepayment; the order is placed with payment `COD_PENDING`
+  and recorded as collected when staff mark the order delivered. No
   auto-cancel-on-non-payment; cancellation before dispatch simply releases
   stock with no refund needed.
 - Owns: `payments`, `payment_webhook_log`.

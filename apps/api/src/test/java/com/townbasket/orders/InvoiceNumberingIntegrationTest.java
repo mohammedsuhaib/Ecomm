@@ -146,7 +146,10 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
 
         // Every state before handover: the goods are still the store's, on a
         // shelf, in a crate, or in a bag on a bike.
-        assertThat(order.status()).isEqualTo("CONFIRMED");
+        assertThat(order.status()).isEqualTo("PLACED");
+        assertRefusedBeforeDelivery(token, customer);
+
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         assertRefusedBeforeDelivery(token, customer);
 
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
@@ -226,6 +229,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
     /** Walk an order to DELIVERED — an invoice needs a supply to have happened. */
     private void deliver(OrderDto order, Long ownerId) {
         Long id = order.id();
+        orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         // The OTP reaches the customer only at OUT_FOR_DELIVERY, and only the owner.
