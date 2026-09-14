@@ -10,8 +10,14 @@ public interface InvoiceService {
     /**
      * Render the given order as a PDF invoice.
      *
-     * @param order the order to bill (as returned by the customer-facing API)
+     * @param order the order to bill, which must already carry an issued
+     *     invoice number — call {@link OrderService#issueInvoice} first. A
+     *     rendered invoice without a number from the per-financial-year series
+     *     would not satisfy CGST Rule 46(b), so this is rejected rather than
+     *     improvised.
      * @return the PDF document bytes
+     * @throws com.townbasket.shared.BusinessRuleException if no invoice has been
+     *     issued for the order
      */
     byte[] renderInvoicePdf(OrderDto order);
 }

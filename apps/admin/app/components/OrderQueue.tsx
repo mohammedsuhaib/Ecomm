@@ -171,8 +171,8 @@ export default function OrderQueue() {
         <input
           type="search"
           className="queue-search-input"
-          placeholder="Search order no., phone or name…"
-          aria-label="Search orders by order number, phone or customer name"
+          placeholder="Search order code, phone or name…"
+          aria-label="Search orders by order code, phone or customer name"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />

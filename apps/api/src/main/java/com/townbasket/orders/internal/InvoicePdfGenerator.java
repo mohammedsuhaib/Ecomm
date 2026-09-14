@@ -72,6 +72,14 @@ class InvoicePdfGenerator implements InvoiceService {
         if (order == null) {
             throw new BusinessRuleException("Cannot render an invoice for a missing order.");
         }
+        // The invoice number comes from the per-financial-year GST series and is
+        // assigned by OrderService.issueInvoice before rendering. Rendering an
+        // unnumbered document would produce an invoice that fails Rule 46(b),
+        // so refuse rather than improvise a number here.
+        if (order.invoiceNumber() == null || order.invoicedAt() == null) {
+            throw new BusinessRuleException(
+                    "Cannot render an invoice before one has been issued for this order.");
+        }
         // Indian digit grouping (e.g. 1,00,000.00); NumberFormat isn't thread-safe,
         // so build one per render (invoices are small, so the cost is negligible).
         NumberFormat money = NumberFormat.getNumberInstance(IN);
@@ -115,9 +123,14 @@ class InvoicePdfGenerator implements InvoiceService {
 
         PdfPCell right = borderless();
         right.setHorizontalAlignment(Element.ALIGN_RIGHT);
-        right.addElement(right(text("INVOICE", font(22, Font.BOLD, INK))));
-        right.addElement(right(text("Invoice #INV-" + order.id(), font(10, Font.NORMAL, MUTED))));
-        right.addElement(right(text("Date: " + DATE.format(order.placedAt()), font(10, Font.NORMAL, MUTED))));
+        right.addElement(right(text("TAX INVOICE", font(20, Font.BOLD, INK))));
+        // The GST series number and its issue date identify the document; the
+        // order code ties it back to what the customer ordered. The internal
+        // numeric id appears on neither.
+        right.addElement(right(text("Invoice No: " + order.invoiceNumber(), font(10, Font.NORMAL, MUTED))));
+        right.addElement(right(text("Date: " + DATE.format(order.invoicedAt()), font(10, Font.NORMAL, MUTED))));
+        right.addElement(right(text("Order: " + order.publicCode(), font(10, Font.NORMAL, MUTED))));
+        right.addElement(right(text("Placed: " + DATE.format(order.placedAt()), font(10, Font.NORMAL, MUTED))));
         right.addElement(right(text("Status: " + order.status(), font(10, Font.NORMAL, MUTED))));
         table.addCell(right);
         return table;

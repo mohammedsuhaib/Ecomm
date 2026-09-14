@@ -39,6 +39,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +48,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -78,6 +80,7 @@ class OrderServiceImpl implements OrderService {
     private static final Duration CUSTOMER_CANCEL_WINDOW = Duration.ofMinutes(1);
 
     private final OrderRepository orders;
+    private final InvoiceSeriesRepository invoiceSeries;
     private final CartService cartService;
     private final CatalogService catalogService;
     private final ServiceabilityService serviceabilityService;
@@ -87,8 +90,11 @@ class OrderServiceImpl implements OrderService {
     private final TaxService taxService;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    /** Prefix of the GST invoice series, e.g. "TB" in {@code TB/25-26/00001}. */
+    private final String invoicePrefix;
 
     OrderServiceImpl(OrderRepository orders,
+                     InvoiceSeriesRepository invoiceSeries,
                      CartService cartService,
                      CatalogService catalogService,
                      ServiceabilityService serviceabilityService,
@@ -97,8 +103,10 @@ class OrderServiceImpl implements OrderService {
                      AuthService authService,
                      TaxService taxService,
                      ApplicationEventPublisher events,
-                     Clock clock) {
+                     Clock clock,
+                     @Value("${townbasket.invoice.series-prefix:TB}") String invoicePrefix) {
         this.orders = orders;
+        this.invoiceSeries = invoiceSeries;
         this.cartService = cartService;
         this.catalogService = catalogService;
         this.serviceabilityService = serviceabilityService;
@@ -108,6 +116,7 @@ class OrderServiceImpl implements OrderService {
         this.taxService = taxService;
         this.events = events;
         this.clock = clock;
+        this.invoicePrefix = invoicePrefix == null ? "TB" : invoicePrefix.trim();
     }
 
     @Override
@@ -238,9 +247,9 @@ class OrderServiceImpl implements OrderService {
 
         OrderEntity reloaded = orders.findById(saved.getId()).orElseThrow();
 
-        events.publishEvent(new OrderPlaced(reloaded.getId(), storeId));
+        events.publishEvent(new OrderPlaced(reloaded.getId(), reloaded.getPublicCode(), storeId));
         if (reloaded.getStatus() == OrderStatus.CONFIRMED) {
-            events.publishEvent(new OrderConfirmed(reloaded.getId(), storeId));
+            events.publishEvent(new OrderConfirmed(reloaded.getId(), reloaded.getPublicCode(), storeId));
         }
 
         cartService.markCheckedOut(cart.cartId());
@@ -258,6 +267,38 @@ class OrderServiceImpl implements OrderService {
         return orders.findByPublicToken(trackingToken)
                 .filter(o -> userId != null && userId.equals(o.getUserId()))
                 .map(o -> toDto(o, true));
+    }
+
+    @Override
+    public OrderDto issueInvoice(UUID trackingToken, Long userId) {
+        OrderEntity order = orders.findByPublicToken(trackingToken)
+                .filter(o -> userId != null && userId.equals(o.getUserId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        // A cancelled order is not a supply, so there is nothing to bill. Minting
+        // a number for one would also drop a void document into a series that is
+        // supposed to record goods actually supplied.
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException(
+                    "This order was cancelled, so there is no invoice for it.");
+        }
+
+        // First issue only: take the next number in this financial year's series
+        // and stamp it on the order. Numbering at ISSUE time (not order time)
+        // keeps the series chronological within its year by construction, and
+        // the write-once stamp means a re-download reproduces this same
+        // document rather than minting a second invoice for one supply.
+        if (order.getInvoiceNumber() == null) {
+            String fy = InvoiceNumbers.financialYear(LocalDate.now(clock));
+            invoiceSeries.ensureSeries(fy);
+            long sequence = invoiceSeries.findAndLockByFy(fy)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Invoice series row missing for financial year " + fy))
+                    .nextSeq();
+            order.markInvoiced(
+                    InvoiceNumbers.format(invoicePrefix, fy, sequence), Instant.now(clock));
+        }
+        return toDto(order, true);
     }
 
     @Override
@@ -314,10 +355,20 @@ class OrderServiceImpl implements OrderService {
                     : orders.findByStatusOrderByPlacedAtDescIdDesc(st, pageable);
         } else {
             // "A customer is on the phone about their order": match the order
-            // number, any part of the phone, or any part of the name — in SQL,
+            // code, any part of the phone, or any part of the name — in SQL,
             // so the pager describes the matches, not the page on screen.
             String like = "%" + escapeLike(term.toLowerCase()) + "%";
-            page = st == null ? orders.search(like, pageable) : orders.searchByStatus(st, like, pageable);
+            // The code branch searches the normalised term, so a dictated "oh"
+            // for zero or a typed-in hyphen still lands. "~" is outside the
+            // Crockford alphabet, so an unusable term matches no code at all
+            // rather than every one of them.
+            String normalized = OrderCodes.normalize(term);
+            String codeLike = normalized.isEmpty()
+                    ? "~"
+                    : "%" + escapeLike(normalized.toLowerCase()) + "%";
+            page = st == null
+                    ? orders.search(like, codeLike, pageable)
+                    : orders.searchByStatus(st, like, codeLike, pageable);
         }
         // Admin surface: never expose the delivery OTP (staff collect it at handover).
         return PagedResponse.of(page, o -> toDto(o, false));
@@ -383,13 +434,14 @@ class OrderServiceImpl implements OrderService {
         }
 
         events.publishEvent(new OrderStatusChanged(
-                order.getId(), order.getStoreId(), from.name(), to.name(),
+                order.getId(), order.getPublicCode(), order.getStoreId(), from.name(), to.name(),
                 order.getUserId(), order.getPublicToken().toString(),
                 order.getAssignedAgentId(), order.getAddressLine()));
         if (to == OrderStatus.DELIVERED) {
-            events.publishEvent(new OrderDelivered(order.getId(), order.getStoreId()));
+            events.publishEvent(new OrderDelivered(order.getId(), order.getPublicCode(), order.getStoreId()));
         } else if (to == OrderStatus.CANCELLED) {
-            events.publishEvent(new OrderCancelled(order.getId(), order.getStoreId(), request.reason()));
+            events.publishEvent(new OrderCancelled(
+                    order.getId(), order.getPublicCode(), order.getStoreId(), request.reason()));
         }
 
         // Admin surface: never expose the delivery OTP.
@@ -433,7 +485,7 @@ class OrderServiceImpl implements OrderService {
         // rider's phone again for an order they already have.
         if (!Objects.equals(previousAgentId, agentId)) {
             events.publishEvent(new OrderAssigned(
-                    order.getId(), order.getStoreId(), agentId, previousAgentId,
+                    order.getId(), order.getPublicCode(), order.getStoreId(), agentId, previousAgentId,
                     status.name(), order.getAddressLine()));
         }
         return toDto(order, false);
@@ -591,6 +643,7 @@ class OrderServiceImpl implements OrderService {
         return new OrderDto(
                 o.getId(),
                 o.getPublicToken().toString(),
+                o.getPublicCode(),
                 o.getStatus().name(),
                 o.getPaymentMethod(),
                 o.getPaymentStatus(),
@@ -604,6 +657,8 @@ class OrderServiceImpl implements OrderService {
                 deliveryOtp,
                 o.getPlacedAt(),
                 timeline,
-                o.getAssignedAgentId());
+                o.getAssignedAgentId(),
+                o.getInvoiceNumber(),
+                o.getInvoicedAt());
     }
 }

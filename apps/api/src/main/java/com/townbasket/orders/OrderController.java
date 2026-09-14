@@ -87,18 +87,18 @@ class OrderController {
     }
 
     @GetMapping("/track/{token}/invoice.pdf")
-    @Operation(summary = "Download a PDF invoice for an order (AUTHENTICATED, owner only — non-owners get 404).")
+    @Operation(summary = "Download the GST invoice PDF (AUTHENTICATED, owner only — non-owners get 404).")
     ResponseEntity<byte[]> invoice(@PathVariable UUID token, @AuthenticationPrincipal Long userId) {
-        return orderService.getOrderByToken(token, userId)
-                .map(order -> {
-                    byte[] pdf = invoiceService.renderInvoicePdf(order);
-                    return ResponseEntity.ok()
-                            .contentType(MediaType.APPLICATION_PDF)
-                            .header(HttpHeaders.CONTENT_DISPOSITION,
-                                    "attachment; filename=\"townbasket-invoice-" + order.id() + ".pdf\"")
-                            .body(pdf);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        // Issuing assigns this order's invoice number from the per-financial-year
+        // series on first download and returns the same number thereafter; a
+        // cancelled order has none and comes back as 422.
+        OrderDto order = orderService.issueInvoice(token, userId);
+        byte[] pdf = invoiceService.renderInvoicePdf(order);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"townbasket-invoice-" + order.publicCode() + ".pdf\"")
+                .body(pdf);
     }
 
     @PostMapping("/{id}/reorder")

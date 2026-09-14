@@ -67,29 +67,41 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     Page<OrderEntity> findByStatusOrderByPlacedAtDescIdDesc(OrderStatus status, Pageable pageable);
 
     /**
-     * Admin search: order number, phone or customer name. {@code like} arrives
-     * lower-cased with wildcards and escaping already applied by the caller.
-     * Two queries rather than one with a nullable status: Postgres cannot infer
-     * a type for a NULL enum parameter in {@code :status IS NULL}.
+     * Admin search: order code, phone, customer name, or the internal numeric
+     * id (kept so older references and support notes still resolve).
+     *
+     * <p>{@code like} arrives lower-cased with wildcards and escaping already
+     * applied by the caller. {@code codeLike} is the same term folded through
+     * {@link OrderCodes#normalize} first, so a customer who dictates "o" for
+     * zero or types a hyphen still finds their order; when the term can't be a
+     * code at all the caller passes a pattern that matches nothing.
+     *
+     * <p>Two queries rather than one with a nullable status: Postgres cannot
+     * infer a type for a NULL enum parameter in {@code :status IS NULL}.
      */
     @Query("""
             SELECT o FROM OrderEntity o
-            WHERE CAST(o.id AS string) LIKE :like ESCAPE '\\'
+            WHERE LOWER(o.publicCode) LIKE :codeLike ESCAPE '\\'
+               OR CAST(o.id AS string) LIKE :like ESCAPE '\\'
                OR o.phone LIKE :like ESCAPE '\\'
                OR LOWER(o.customerName) LIKE :like ESCAPE '\\'
             ORDER BY o.placedAt DESC, o.id DESC
             """)
-    Page<OrderEntity> search(@Param("like") String like, Pageable pageable);
+    Page<OrderEntity> search(
+            @Param("like") String like, @Param("codeLike") String codeLike, Pageable pageable);
 
     @Query("""
             SELECT o FROM OrderEntity o
             WHERE o.status = :status
-              AND (CAST(o.id AS string) LIKE :like ESCAPE '\\'
+              AND (LOWER(o.publicCode) LIKE :codeLike ESCAPE '\\'
+                   OR CAST(o.id AS string) LIKE :like ESCAPE '\\'
                    OR o.phone LIKE :like ESCAPE '\\'
                    OR LOWER(o.customerName) LIKE :like ESCAPE '\\')
             ORDER BY o.placedAt DESC, o.id DESC
             """)
-    Page<OrderEntity> searchByStatus(@Param("status") OrderStatus status, @Param("like") String like, Pageable pageable);
+    Page<OrderEntity> searchByStatus(
+            @Param("status") OrderStatus status, @Param("like") String like,
+            @Param("codeLike") String codeLike, Pageable pageable);
 
     Page<OrderEntity> findByUserIdOrderByPlacedAtDescIdDesc(Long userId, Pageable pageable);
 

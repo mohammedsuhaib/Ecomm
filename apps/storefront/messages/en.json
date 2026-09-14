@@ -187,7 +187,7 @@
     "someNoLongerAvailableEdit": "Some items are no longer available. Please <link>edit your cart</link> first.",
     "someShortageEdit": "Some items don’t have enough stock for the quantity you chose. Please <link>edit your cart</link> first.",
     "errorStoreClosed": "We’re closed right now, so this order can’t be placed. Your cart is saved — please order once we reopen.",
-    "upiComingSoon": "Paying online in advance is coming soon. For now, pay on delivery \u2014 cash or UPI at your door."
+    "upiComingSoon": "Paying online in advance is coming soon. For now, pay on delivery — cash or UPI at your door."
   },
   "login": {
     "signIn": "Sign in",
@@ -255,7 +255,7 @@
     "couldNotReorder": "Could not start a reorder. Some items may be unavailable.",
     "loadingOrders": "Loading your orders…",
     "none": "You haven’t placed any orders yet.",
-    "orderNumber": "Order #{id}",
+    "orderNumber": "Order #{code}",
     "itemsCount": "{count, plural, one {# item} other {# items}} · {total}",
     "view": "View",
     "reorder": "Reorder",
@@ -283,7 +283,7 @@
     "headlineDeliveryFailed": "We couldn't deliver your order",
     "deliveryFailedNotice": "Our rider couldn't complete the delivery. The store will call you to arrange a re-delivery — your items are still set aside for you.",
     "deliveryFailedReason": "Reason: {reason}",
-    "orderNumberTime": "Order #{id} · {time}",
+    "orderNumberTime": "Order #{code} · {time}",
     "deliveryCode": "Delivery code",
     "deliveryCodeHint": "Share this code with the delivery person at handover.",
     "orderStatusHeading": "Order status",
@@ -325,7 +325,8 @@
     "notifyOnHint": "We'll notify you as this order progresses. Tap to turn off.",
     "notifyWorking": "Just a moment…",
     "notifyBlocked": "Notifications are blocked for this site. Enable them in your browser settings to get order updates.",
-    "notifyFailed": "Could not change your notification setting. Please try again."
+    "notifyFailed": "Could not change your notification setting. Please try again.",
+    "invoiceCancelled": "This order was cancelled, so there’s no invoice for it."
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

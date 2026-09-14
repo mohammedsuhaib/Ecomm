@@ -74,7 +74,7 @@ export default function OrderHistory() {
           <li key={o.id} className="order-history-row">
             <div className="order-history-info">
               <span className="order-history-id">
-                {t('orderNumber', { id: o.id })}
+                {t('orderNumber', { code: o.publicCode })}
               </span>
               <LiveOrderStamp order={o} />
               <span className="muted">

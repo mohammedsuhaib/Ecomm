@@ -33,7 +33,14 @@ export interface OrderTimelineEntry {
 }
 
 export interface Order {
+  /** Internal numeric id — keys the admin transition/assign endpoints. */
   id: string;
+  /**
+   * The short order code the customer quotes (e.g. "7K4M2QX9"). Show this on
+   * the queue so staff and customer are talking about the same string; the
+   * search box matches it (and tolerates O-for-0 style mistakes).
+   */
+  publicCode: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: string;

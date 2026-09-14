@@ -140,6 +140,16 @@ townbasket:
       batch-size: ${CATALOG_TRANSLITERATION_BATCH_SIZE:25}
       backfill-initial-delay-ms: ${CATALOG_TRANSLITERATION_INITIAL_DELAY_MS:30000}
       backfill-interval-ms: ${CATALOG_TRANSLITERATION_INTERVAL_MS:300000}
+  invoice:
+    # Prefix of the GST invoice series, e.g. "TB" in TB/25-26/00001. The series
+    # itself is a per-financial-year consecutive counter (orders.invoice_series);
+    # CGST Rule 46(b) caps the whole number at 16 characters, so keep this to 4
+    # characters or fewer — a longer prefix fails fast at issue time rather than
+    # quietly producing non-compliant invoices.
+    series-prefix: ${TOWNBASKET_INVOICE_SERIES_PREFIX:TB}
+    # Shown on the invoice masthead. GSTIN is hidden while blank — set it once
+    # the store is registered, since a tax invoice must carry it.
+    gstin: ${TOWNBASKET_INVOICE_GSTIN:}
   serviceability:
     # TESTING ONLY: override the store's base coordinates for the 5 km gate so you
     # can test serviceability from your OWN location without changing the seeded

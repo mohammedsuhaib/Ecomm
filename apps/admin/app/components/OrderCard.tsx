@@ -131,7 +131,7 @@ export default function OrderCard({
     <article className={`order-card status-${order.status}`}>
       <header className="order-card-head">
         <div>
-          <span className="order-id">#{order.id}</span>
+          <span className="order-id">#{order.publicCode}</span>
           <span className="order-time">{formatTime(order.placedAt)}</span>
         </div>
         <span className={`status-badge status-${order.status}`}>

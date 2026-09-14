@@ -242,13 +242,18 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `townbasket-invoice-${order?.id ?? trackingToken}.pdf`;
+      a.download = `townbasket-invoice-${order?.publicCode ?? trackingToken}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch {
-      setInvoiceError(t('invoiceFailed'));
+    } catch (err) {
+      // 422: the order was cancelled, so there is no invoice to issue for it.
+      setInvoiceError(
+        err instanceof ApiError && err.status === 422
+          ? t('invoiceCancelled')
+          : t('invoiceFailed'),
+      );
     } finally {
       setInvoiceBusy(false);
     }
@@ -319,7 +324,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         <h1>{headlineTitle}</h1>
         <p className="muted">
           {t('orderNumberTime', {
-            id: order.id,
+            code: order.publicCode,
             time: formatTime(order.placedAt),
           })}
         </p>
@@ -452,15 +457,19 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          className="btn btn-outline btn-block"
-          onClick={onDownloadInvoice}
-          disabled={invoiceBusy}
-          style={{ marginTop: '0.75rem' }}
-        >
-          {invoiceBusy ? t('invoicePreparing') : t('downloadInvoice')}
-        </button>
+        {/* A cancelled order is not a supply, so it has no GST invoice — don't
+            offer a download that the server would refuse. */}
+        {!cancelled && (
+          <button
+            type="button"
+            className="btn btn-outline btn-block"
+            onClick={onDownloadInvoice}
+            disabled={invoiceBusy}
+            style={{ marginTop: '0.75rem' }}
+          >
+            {invoiceBusy ? t('invoicePreparing') : t('downloadInvoice')}
+          </button>
+        )}
         {invoiceError && <p className="notice error">{invoiceError}</p>}
       </section>
 

@@ -62,6 +62,23 @@ public interface OrderService {
     OrderDto cancelByToken(UUID trackingToken, Long userId);
 
     /**
+     * Issue the GST invoice for an order and return it with the invoice number
+     * set (AUTHENTICATED and owner-scoped, same access model as
+     * {@link #getOrderByToken}).
+     *
+     * <p>The number is taken from a per-financial-year consecutive series
+     * (CGST Rule 46(b)) on the FIRST call and stamped on the order with the
+     * issue timestamp; later calls return the same number, so a re-download
+     * reproduces the same document instead of billing one supply twice.
+     *
+     * @throws com.townbasket.shared.ResourceNotFoundException if the token is
+     *     unknown or the order is not owned by {@code userId}
+     * @throws com.townbasket.shared.BusinessRuleException if the order was
+     *     cancelled, and so has nothing to invoice (mapped to 422)
+     */
+    OrderDto issueInvoice(UUID trackingToken, Long userId);
+
+    /**
      * Whether the order belongs to {@code userId} — the ownership gate for the
      * per-order SSE tracking stream (which is keyed by the enumerable numeric
      * id, so it must not leak activity to non-owners). False for a null user,
