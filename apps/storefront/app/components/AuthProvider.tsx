@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { getMe, logout as logoutApi, phoneVerify } from '@/app/lib/api';
+import { subscribeIfAlreadyPermitted } from '@/app/lib/push';
 import {
   clearAuth,
   loadAuth,
@@ -140,6 +141,15 @@ export default function AuthProvider({
         user: res.user,
       });
       setUser(res.user);
+      // There is finally an account to attach a push subscription to. If the
+      // customer already allowed notifications — usually beside the location
+      // prompt, before they had signed in — the grant is redeemed here without
+      // another prompt. If they never allowed it, this does nothing and the
+      // opt-in button on the order page stays the deliberate way in.
+      //
+      // Not awaited: signing in must not wait on, or fail because of, a push
+      // service.
+      void subscribeIfAlreadyPermitted();
       return res.user;
     },
     [firebaseEnabled],

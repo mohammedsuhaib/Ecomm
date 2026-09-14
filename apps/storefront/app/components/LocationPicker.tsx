@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { requestNotificationPermissionQuietly } from '@/app/lib/push';
 import { useTranslations } from 'next-intl';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 
@@ -74,6 +75,13 @@ export default function LocationPicker({ lat, lng, onChange }: LocationPickerPro
         return;
       }
       setLocating(true);
+      // Ask about notifications on the back of this same tap. The customer is
+      // already being asked to share something, the gesture that permission
+      // prompts require is in hand, and order updates are the one thing this
+      // shop has to tell them later. Fire-and-forget: the browser queues the
+      // two prompts, and whatever they answer — including nothing — the
+      // location request below proceeds untouched.
+      void requestNotificationPermissionQuietly();
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setLocating(false);
