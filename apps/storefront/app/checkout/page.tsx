@@ -17,13 +17,14 @@ import { loadServiceability, saveServiceability } from '@/app/lib/serviceability
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
 import LocationPicker from '@/app/components/LocationPicker';
+import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 import type { PaymentMethod, SavedAddress } from '@/app/lib/types';
 
 export default function CheckoutPage() {
   const t = useTranslations('checkout');
   const tc = useTranslations('common');
   const router = useRouter();
-  const { cart, refresh } = useCart();
+  const { cart, refresh, priceChanges } = useCart();
   const { user, isAuthenticated } = useAuth();
   // Auth hydrates from localStorage after mount; wait a tick before gating so a
   // logged-in customer isn't bounced. Placing an order requires login.
@@ -179,6 +180,9 @@ export default function CheckoutPage() {
   const formValid =
     items.length > 0 &&
     !storeClosed &&
+    // expectedTotal is only a real guard if the prices behind it are ones the
+    // customer accepted; until then there is nothing safe to submit.
+    priceChanges.length === 0 &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -436,6 +440,7 @@ export default function CheckoutPage() {
               })}
             </p>
           )}
+          <PriceChangeNotice />
           <button
             type="submit"
             className="btn btn-block"

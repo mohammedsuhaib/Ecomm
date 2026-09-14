@@ -346,5 +346,11 @@
     "title": "You’re offline",
     "body": "Town Basket needs an internet connection to load fresh groceries. Please reconnect and try again — pages you’ve already visited may still be available.",
     "tryAgain": "Try again"
+  },
+  "priceChange": {
+    "title": "Prices changed.",
+    "body": "The store updated the price of these items while they were in your cart. Please check the new total before you continue.",
+    "wasNow": "was {was}, now {now}",
+    "accept": "Accept the new prices"
   }
 }

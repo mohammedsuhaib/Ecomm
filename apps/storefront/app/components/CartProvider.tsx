@@ -18,6 +18,13 @@ import {
 } from '@/app/lib/api';
 import { loadAuth } from '@/app/lib/auth';
 import { clearCartId, loadCartId, saveCartId } from '@/app/lib/cart';
+import {
+  acceptCartPrices,
+  acceptVariantPrice,
+  cartPriceChanges,
+  clearCartPrices,
+  type PriceChange,
+} from '@/app/lib/cartPrices';
 import type { Cart } from '@/app/lib/types';
 
 // Cart state shared across the storefront shell: the header badge, the
@@ -41,6 +48,15 @@ interface CartContextValue {
   qtyOf: (variantId: string) => number;
   /** Forget the local cart (called after a successful order). */
   reset: () => void;
+  /**
+   * Lines whose unit price changed since the customer accepted it — a store
+   * admin edited the selling price while the item sat in the cart. Non-empty
+   * blocks checkout until {@link acknowledgePriceChanges} is called, so a
+   * reprice can never be adopted silently on the customer's behalf.
+   */
+  priceChanges: PriceChange[];
+  /** The customer has seen the new prices: accept them and unblock checkout. */
+  acknowledgePriceChanges: () => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -136,6 +152,9 @@ export default function CartProvider({
       try {
         const updated = await addCartItem(id, variantId, qty);
         setCart(updated);
+        // The price on the button is the price the customer chose to add at —
+        // that is the baseline a later admin edit is measured against.
+        acceptVariantPrice(updated, variantId);
         return updated;
       } catch (err) {
         if (prev) setCart(prev); // roll back the optimistic change
@@ -211,8 +230,21 @@ export default function CartProvider({
 
   const reset = useCallback(() => {
     clearCartId();
+    clearCartPrices();
     setCart(null);
   }, []);
+
+  // Derived, not stored: every render compares the live cart against the pinned
+  // prices, so a refresh that repriced a line shows up immediately instead of
+  // being folded into the displayed total.
+  const priceChanges = useMemo(() => cartPriceChanges(cart), [cart]);
+
+  const acknowledgePriceChanges = useCallback(() => {
+    if (cart) acceptCartPrices(cart);
+    // Re-run the diff against the new pin by nudging the cart reference; the
+    // object is unchanged, only the baseline it is compared to.
+    setCart((current) => (current ? { ...current } : current));
+  }, [cart]);
 
   const qtyOf = useCallback(
     (variantId: string): number =>
@@ -232,6 +264,8 @@ export default function CartProvider({
       refresh,
       qtyOf,
       reset,
+      priceChanges,
+      acknowledgePriceChanges,
     }),
     [
       cart,
@@ -243,6 +277,8 @@ export default function CartProvider({
       refresh,
       qtyOf,
       reset,
+      priceChanges,
+      acknowledgePriceChanges,
     ],
   );
 

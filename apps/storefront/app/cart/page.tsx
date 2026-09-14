@@ -7,11 +7,12 @@ import { ApiError, getStore } from '@/app/lib/api';
 import { formatRupees, subtractRupees } from '@/app/lib/format';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
+import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 
 export default function CartPage() {
   const t = useTranslations('cart');
   const tc = useTranslations('common');
-  const { cart, loading, refresh, setQty, removeItem } = useCart();
+  const { cart, loading, refresh, setQty, removeItem, priceChanges } = useCart();
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   // Server-decided (its clock, not the device's): the shop is shut, so
   // checkout would refuse the order. Block "Proceed to checkout" here rather
@@ -66,6 +67,9 @@ export default function CartPage() {
   const canCheckout =
     items.length > 0 &&
     !storeClosed &&
+    // A line repriced under the customer must be accepted first, not carried
+    // into checkout inside a total they were never told had changed.
+    priceChanges.length === 0 &&
     !belowMin &&
     !hasUnavailable &&
     !hasShortage &&
@@ -190,6 +194,7 @@ export default function CartPage() {
             {storeClosed && (
               <p className="notice warn">{t('storeClosedNotice')}</p>
             )}
+            <PriceChangeNotice />
 
             {canCheckout ? (
               <Link href="/checkout" className="btn btn-block">
