@@ -32,6 +32,7 @@ record StoreSnapshot(
         LocalTime openingTime,
         LocalTime closingTime,
         BigDecimal minOrderValue,
+        String supportPhone,
         Instant closedUntil,
         String closedReason) {
 
@@ -46,6 +47,7 @@ record StoreSnapshot(
                 e.getOpeningTime(),
                 e.getClosingTime(),
                 e.getMinOrderValue(),
+                e.getSupportPhone(),
                 e.getClosedUntil(),
                 e.getClosedReason());
     }

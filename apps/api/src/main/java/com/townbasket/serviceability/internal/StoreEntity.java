@@ -45,6 +45,10 @@ class StoreEntity {
     @Column(name = "min_order_value", nullable = false)
     private BigDecimal minOrderValue;
 
+    /** Public contact number for customers; null until staff set one. */
+    @Column(name = "support_phone")
+    private String supportPhone;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -95,6 +99,10 @@ class StoreEntity {
         return minOrderValue;
     }
 
+    String getSupportPhone() {
+        return supportPhone;
+    }
+
     boolean isActive() {
         return active;
     }
@@ -110,7 +118,7 @@ class StoreEntity {
     // Settings are edited from the admin app; identity and `active` are not.
     void updateSettings(String name, String address, double lat, double lng,
                         int deliveryRadiusM, LocalTime openingTime, LocalTime closingTime,
-                        BigDecimal minOrderValue) {
+                        BigDecimal minOrderValue, String supportPhone) {
         this.name = name;
         this.address = address;
         this.lat = lat;
@@ -119,6 +127,7 @@ class StoreEntity {
         this.openingTime = openingTime;
         this.closingTime = closingTime;
         this.minOrderValue = minOrderValue;
+        this.supportPhone = supportPhone;
     }
 
     void closeUntil(Instant until, String reason) {

@@ -42,6 +42,12 @@ export interface Store {
   minOrderValue: number;
   lat: number;
   lng: number;
+  /**
+   * The store's public contact number, or null/absent when staff haven't set
+   * one. Copy that asks a customer to get in touch is shown only when this is
+   * present — there is nowhere to send them otherwise.
+   */
+  supportPhone?: string | null;
   /** Whether the store is serving right now, decided on the SERVER clock. */
   open: boolean;
   /** True when the next opening is the following day (today's window has closed). */

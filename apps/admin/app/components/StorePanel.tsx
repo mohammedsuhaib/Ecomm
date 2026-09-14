@@ -51,6 +51,7 @@ export default function StorePanel() {
   const [closing, setClosing] = useState('21:00');
   const [radiusKm, setRadiusKm] = useState('5');
   const [minOrder, setMinOrder] = useState('299');
+  const [supportPhone, setSupportPhone] = useState('');
 
   const hydrate = useCallback((s: StoreSettings) => {
     setStore(s);
@@ -62,6 +63,7 @@ export default function StorePanel() {
     setClosing(hhmm(s.closingTime));
     setRadiusKm(String(s.deliveryRadiusMeters / 1000));
     setMinOrder(String(s.minOrderValue));
+    setSupportPhone(s.supportPhone ?? '');
   }, []);
 
   const load = useCallback(async () => {
@@ -101,6 +103,7 @@ export default function StorePanel() {
         openingTime: opening,
         closingTime: closing,
         minOrderValue: Number(minOrder),
+        supportPhone: supportPhone.trim(),
       });
       hydrate(updated);
       setSuccess('Store settings saved. Customers see the new hours immediately.');
@@ -209,6 +212,15 @@ export default function StorePanel() {
           Delivery radius (km)
           <input type="number" min={0.5} max={50} step={0.5} value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />
         </label>
+        <label className="login-field store-form-wide">
+          Contact number for customers
+          <input
+            type="tel"
+            value={supportPhone}
+            onChange={(e) => setSupportPhone(e.target.value)}
+            placeholder="e.g. 0821 234 5678"
+          />
+        </label>
         <label className="login-field">
           Latitude
           <input type="number" step="any" value={lat} onChange={(e) => setLat(e.target.value)} />
@@ -224,6 +236,12 @@ export default function StorePanel() {
       <p className="muted" style={{ fontSize: '0.85rem' }}>
         Hours are store-local (IST). The closed banner appears on every storefront page within
         about five minutes without a reload; checkout blocks immediately.
+      </p>
+      <p className="muted" style={{ fontSize: '0.85rem' }}>
+        The contact number is shown to customers as a tap-to-call link — in the footer, and
+        wherever the app asks them to get in touch (a cancellation that came too late, for
+        instance). Leave it empty and the app stops offering to put them through, so a number
+        here is what makes that advice worth giving.
       </p>
     </section>
   );

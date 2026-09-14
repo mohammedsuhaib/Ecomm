@@ -172,8 +172,14 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         if (r.lat() < -90 || r.lat() > 90 || r.lng() < -180 || r.lng() > 180) {
             throw new IllegalArgumentException("lat/lng out of range");
         }
+        // The phone is optional and stored trimmed, with blank meaning "none" —
+        // a store with no published number must still be able to save the card,
+        // and an empty string would otherwise render as a call link to nowhere.
+        // Deliberately not format-validated: this has to accept a landline, a
+        // mobile, or a number with spaces or an STD code as staff write it.
         store.updateSettings(r.name().trim(), r.address().trim(), r.lat(), r.lng(),
-                r.deliveryRadiusMeters(), r.openingTime(), r.closingTime(), r.minOrderValue());
+                r.deliveryRadiusMeters(), r.openingTime(), r.closingTime(), r.minOrderValue(),
+                isBlank(r.supportPhone()) ? null : r.supportPhone().trim());
         return saveAndPublish(store);
     }
 
@@ -270,6 +276,7 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
                 storeLng(s),
                 open,
                 nextDay,
+                s.supportPhone(),
                 manuallyClosed,
                 manuallyClosed ? s.closedReason() : null,
                 manuallyClosed ? s.closedUntil() : null);

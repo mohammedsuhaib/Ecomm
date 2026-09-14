@@ -39,7 +39,7 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         serviceabilityService.updateStore(new StoreUpdateRequest(
                 original.name(), original.address(), original.lat(), original.lng(),
                 original.deliveryRadiusMeters(), original.openingTime(), original.closingTime(),
-                original.minOrderValue()));
+                original.minOrderValue(), original.supportPhone()));
     }
 
     @Test
@@ -49,9 +49,11 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         // Open 24h so the assertion cannot depend on the wall clock.
         StoreDto updated = serviceabilityService.updateStore(new StoreUpdateRequest(
                 "Town Basket QA", before.address(), before.lat(), before.lng(),
-                7_000, LocalTime.of(0, 0), LocalTime.of(23, 59), new BigDecimal("199.00")));
+                7_000, LocalTime.of(0, 0), LocalTime.of(23, 59), new BigDecimal("199.00"),
+                "08212345678"));
 
         assertThat(updated.name()).isEqualTo("Town Basket QA");
+        assertThat(updated.supportPhone()).isEqualTo("08212345678");
         assertThat(updated.deliveryRadiusMeters()).isEqualTo(7_000);
         assertThat(updated.minOrderValue()).isEqualByComparingTo("199.00");
         assertThat(updated.open()).as("00:00-23:59 is always open").isTrue();
@@ -66,7 +68,7 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         serviceabilityService.updateStore(new StoreUpdateRequest(
                 before.name(), before.address(), before.lat(), before.lng(),
                 before.deliveryRadiusMeters(), LocalTime.of(0, 0), LocalTime.of(23, 59),
-                before.minOrderValue()));
+                before.minOrderValue(), before.supportPhone()));
         assertThat(serviceabilityService.activeStore().orElseThrow().open()).isTrue();
 
         StoreDto closed = serviceabilityService.closeForToday("Power cut");
@@ -84,6 +86,19 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void aBlankSupportPhoneIsStoredAsNoNumber() {
+        StoreDto b = snapshot();
+        // The storefront offers a "call the store" link only when this is
+        // present, so blank has to mean absent: an empty string would render a
+        // call link to nowhere, which is the dead end this field exists to fix.
+        StoreDto updated = serviceabilityService.updateStore(new StoreUpdateRequest(
+                b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
+                b.openingTime(), b.closingTime(), b.minOrderValue(), "   "));
+
+        assertThat(updated.supportPhone()).isNull();
+    }
+
+    @Test
     void aBlankReasonIsStoredAsNoReason() {
         snapshot();
         assertThat(serviceabilityService.closeForToday("   ").closedReason()).isNull();
@@ -93,15 +108,16 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
     void invalidSettingsAreRejectedWholesale() {
         StoreDto b = snapshot();
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
-                b.name(), b.address(), b.lat(), b.lng(), 100, b.openingTime(), b.closingTime(), b.minOrderValue())))
+                b.name(), b.address(), b.lat(), b.lng(), 100, b.openingTime(), b.closingTime(),
+                b.minOrderValue(), b.supportPhone())))
                 .as("radius below 500 m").isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
                 b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
-                LocalTime.of(9, 0), LocalTime.of(9, 0), b.minOrderValue())))
+                LocalTime.of(9, 0), LocalTime.of(9, 0), b.minOrderValue(), b.supportPhone())))
                 .as("opening == closing").isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
                 " ", b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
-                b.openingTime(), b.closingTime(), b.minOrderValue())))
+                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone())))
                 .as("blank name").isInstanceOf(IllegalArgumentException.class);
         // Nothing changed.
         assertThat(serviceabilityService.activeStore().orElseThrow().name()).isEqualTo(b.name());

@@ -4,8 +4,15 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } from '@/app/lib/api';
-import { formatRupees } from '@/app/lib/format';
+import {
+  ApiError,
+  cancelOrder,
+  fetchOrderInvoice,
+  getOrder,
+  getStore,
+  orderStreamUrl,
+} from '@/app/lib/api';
+import { formatDateTime, formatRupees } from '@/app/lib/format';
 import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
@@ -55,17 +62,6 @@ const HEADLINE_KEY = {
   CANCELLED: 'headlineCancelled',
 } as const satisfies Record<OrderStatus, string>;
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
 export default function OrderPage({ params }: { params: { id: string } }) {
   // The route param is the unguessable tracking token, not the numeric id.
   const trackingToken = params.id;
@@ -97,6 +93,25 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  // The store's contact number, for the failures this page can't resolve on its
+  // own (a cancellation that came too late is the customer's problem now, and
+  // telling them so without telling them who to call is a dead end). Loaded
+  // separately and best-effort: no number, or a failed fetch, just means the
+  // notice stands on its own — it must never block the order from rendering.
+  const [supportPhone, setSupportPhone] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getStore()
+      .then((s) => {
+        if (!cancelled) setSupportPhone(s.supportPhone?.trim() || null);
+      })
+      .catch(() => {
+        /* best-effort — the notices below simply omit the call link */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Ticks once a second while the self-cancel window is open so the countdown
   // and the button's visibility stay live.
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -363,7 +378,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         <p className="muted">
           {t('orderNumberTime', {
             code: order.publicCode,
-            time: formatTime(order.placedAt),
+            time: formatDateTime(order.placedAt, locale),
           })}
         </p>
         {cancelEligible && (
@@ -381,7 +396,24 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             <p className="muted cancel-window-hint">{t('cancelWindowHint')}</p>
           </div>
         )}
-        {cancelError && <p className="notice error">{cancelError}</p>}
+        {/* Both cancel failures leave the customer with something only the shop
+            can resolve, so the notice carries the way to reach them. The copy
+            itself no longer says "contact support": it used to, while the app
+            carried no number anywhere, which sent people looking for a channel
+            that did not exist. */}
+        {cancelError && (
+          <p className="notice error">
+            {cancelError}
+            {supportPhone && (
+              <>
+                {' '}
+                <a href={`tel:${supportPhone.replace(/[^+\d]/g, '')}`}>
+                  {t('callStore', { phone: supportPhone })}
+                </a>
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       {order.status === 'OUT_FOR_DELIVERY' && order.deliveryOtp && (
@@ -414,7 +446,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           {lastUpdated && (
             <span className="muted" style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}>
               {t('lastUpdated', {
-                time: formatTime(new Date(lastUpdated).toISOString()),
+                time: formatDateTime(new Date(lastUpdated).toISOString(), locale),
               })}
             </span>
           )}
@@ -448,7 +480,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
                   </span>
                   <span className="status-text">
                     <span className="status-name">{ts(status)}</span>
-                    {at && <span className="muted status-at">{formatTime(at)}</span>}
+                    {at && <span className="muted status-at">{formatDateTime(at, locale)}</span>}
                   </span>
                 </li>
               );

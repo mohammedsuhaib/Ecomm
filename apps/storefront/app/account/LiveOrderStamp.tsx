@@ -1,25 +1,15 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getOrder, orderStreamUrl } from '@/app/lib/api';
+import { formatDateTime } from '@/app/lib/format';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
 const TERMINAL: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
   'DELIVERED',
   'CANCELLED',
 ]);
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 /**
  * Live status "stamps" for a single recent order (F6). Renders the current
@@ -32,6 +22,7 @@ function formatTime(iso: string): string {
 export default function LiveOrderStamp({ order }: { order: Order }) {
   const ts = useTranslations('orderStatus');
   const t = useTranslations('orderStamp');
+  const locale = useLocale();
   const [current, setCurrent] = useState<Order>(order);
 
   // Keep the latest server-provided order if the parent list reloads.
@@ -109,11 +100,11 @@ export default function LiveOrderStamp({ order }: { order: Order }) {
         )}
         {ts(current.status)}
         {currentAt && current.status !== 'PLACED' && (
-          <span className="muted"> · {formatTime(currentAt)}</span>
+          <span className="muted"> · {formatDateTime(currentAt, locale)}</span>
         )}
       </span>
       <span className="muted order-stamp-placed">
-        {t('placed', { time: formatTime(current.placedAt) })}
+        {t('placed', { time: formatDateTime(current.placedAt, locale) })}
       </span>
     </span>
   );
