@@ -87,11 +87,12 @@ class OrderController {
     }
 
     @GetMapping("/track/{token}/invoice.pdf")
-    @Operation(summary = "Download the GST invoice PDF (AUTHENTICATED, owner only — non-owners get 404).")
+    @Operation(summary = "Download the GST invoice PDF — delivered orders only (AUTHENTICATED, owner only).")
     ResponseEntity<byte[]> invoice(@PathVariable UUID token, @AuthenticationPrincipal Long userId) {
         // Issuing assigns this order's invoice number from the per-financial-year
-        // series on first download and returns the same number thereafter; a
-        // cancelled order has none and comes back as 422.
+        // series on the first download after delivery, and returns the same
+        // number thereafter. An order that is not delivered yet — or was
+        // cancelled — has no invoice and comes back as 422.
         OrderDto order = orderService.issueInvoice(token, userId);
         byte[] pdf = invoiceService.renderInvoicePdf(order);
         return ResponseEntity.ok()

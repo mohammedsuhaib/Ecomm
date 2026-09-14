@@ -326,7 +326,8 @@
     "notifyWorking": "Just a moment…",
     "notifyBlocked": "Notifications are blocked for this site. Enable them in your browser settings to get order updates.",
     "notifyFailed": "Could not change your notification setting. Please try again.",
-    "invoiceCancelled": "This order was cancelled, so there’s no invoice for it."
+    "invoiceCancelled": "This order was cancelled, so there’s no invoice for it.",
+    "invoiceAfterDelivery": "Your invoice will be available here once your order is delivered."
   },
   "search": {
     "prompt": "Type a product name in the search bar above to find groceries.",

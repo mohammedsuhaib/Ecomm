@@ -96,6 +96,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         assertThat(order.invoiceNumber()).isNull();
         assertThat(order.invoicedAt()).isNull();
 
+        deliver(order, customer);
         OrderDto issued = orderService.issueInvoice(token, customer);
         assertThat(issued.invoiceNumber()).startsWith("TB/" + TEST_FY + "/");
         assertThat(issued.invoiceNumber().length()).isLessThanOrEqualTo(16);
@@ -121,6 +122,8 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         Long customer = customer("9991110004");
         OrderDto first = place(customer, "inv-key-2");
         OrderDto second = place(customer, "inv-key-3");
+        deliver(first, customer);
+        deliver(second, customer);
 
         long a = sequenceOf(orderService
                 .issueInvoice(UUID.fromString(first.trackingToken()), customer).invoiceNumber());
@@ -132,6 +135,41 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         // exact +1 holds because the suite runs sequentially (no parallel
         // surefire/JUnit configuration), so nothing issues between these two.
         assertThat(b).isEqualTo(a + 1);
+    }
+
+    @Test
+    void noInvoiceUntilTheGoodsAreActuallyHandedOver() {
+        Long customer = customer("9991110008");
+        OrderDto order = place(customer, "inv-key-6");
+        UUID token = UUID.fromString(order.trackingToken());
+        Long id = order.id();
+
+        // Every state before handover: the goods are still the store's, on a
+        // shelf, in a crate, or in a bag on a bike.
+        assertThat(order.status()).isEqualTo("CONFIRMED");
+        assertRefusedBeforeDelivery(token, customer);
+
+        orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        assertRefusedBeforeDelivery(token, customer);
+
+        orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
+        assertRefusedBeforeDelivery(token, customer);
+
+        // A failed attempt brings the goods back, so it is still not a supply.
+        orderService.transition(id, new TransitionRequest("DELIVERY_FAILED", null, "Nobody home"));
+        assertRefusedBeforeDelivery(token, customer);
+
+        // None of those refusals may have consumed a number from the series.
+        assertThat(orderService.getOrderByToken(token, customer).orElseThrow().invoiceNumber())
+                .isNull();
+
+        // Second attempt lands: now there is a supply to bill.
+        orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, "Second attempt"));
+        String otp = orderService.getOrderByToken(token, customer).orElseThrow().deliveryOtp();
+        orderService.transition(id, new TransitionRequest("DELIVERED", otp, null));
+
+        assertThat(orderService.issueInvoice(token, customer).invoiceNumber())
+                .startsWith("TB/" + TEST_FY + "/");
     }
 
     @Test
@@ -165,9 +203,36 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         // A stranger's failed attempt must not have consumed a number.
         assertThat(orderService.getOrderByToken(token, owner).orElseThrow().invoiceNumber())
                 .isNull();
+
+        // Ownership is checked BEFORE the delivered-yet check, so the refusal a
+        // stranger sees is identical either way — they can't learn an order's
+        // status (or that it exists) by watching which error comes back.
+        OrderDto delivered = place(owner, "inv-key-7");
+        deliver(delivered, owner);
+        UUID deliveredToken = UUID.fromString(delivered.trackingToken());
+        assertThatThrownBy(() -> orderService.issueInvoice(deliveredToken, stranger))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     // ---- helpers -----------------------------------------------------------
+
+    /** An undelivered order is refused, and told when its invoice will exist. */
+    private void assertRefusedBeforeDelivery(UUID token, Long userId) {
+        assertThatThrownBy(() -> orderService.issueInvoice(token, userId))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("delivered");
+    }
+
+    /** Walk an order to DELIVERED — an invoice needs a supply to have happened. */
+    private void deliver(OrderDto order, Long ownerId) {
+        Long id = order.id();
+        orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
+        // The OTP reaches the customer only at OUT_FOR_DELIVERY, and only the owner.
+        String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), ownerId)
+                .orElseThrow().deliveryOtp();
+        orderService.transition(id, new TransitionRequest("DELIVERED", otp, null));
+    }
 
     /** The trailing sequence of an invoice number like {@code TB/23-24/00007}. */
     private static long sequenceOf(String invoiceNumber) {

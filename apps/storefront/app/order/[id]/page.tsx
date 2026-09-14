@@ -248,10 +248,14 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      // 422: the order was cancelled, so there is no invoice to issue for it.
+      // 422: no invoice for this order yet — either it isn't delivered (the
+      // button is hidden then, so this is a race: it was cancelled or the
+      // status moved in another tab) or it was cancelled outright.
       setInvoiceError(
         err instanceof ApiError && err.status === 422
-          ? t('invoiceCancelled')
+          ? order?.status === 'CANCELLED'
+            ? t('invoiceCancelled')
+            : t('invoiceAfterDelivery')
           : t('invoiceFailed'),
       );
     } finally {
@@ -457,9 +461,12 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             </span>
           </div>
         </div>
-        {/* A cancelled order is not a supply, so it has no GST invoice — don't
-            offer a download that the server would refuse. */}
-        {!cancelled && (
+        {/* A GST invoice records a supply that has happened, so the server
+            issues one only after handover. Offer the download once the order is
+            delivered (or once an invoice already exists), say when it will
+            appear while the order is still in flight, and say nothing at all
+            for a cancelled order — there will never be one. */}
+        {order.status === 'DELIVERED' || order.invoiceNumber ? (
           <button
             type="button"
             className="btn btn-outline btn-block"
@@ -469,6 +476,10 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           >
             {invoiceBusy ? t('invoicePreparing') : t('downloadInvoice')}
           </button>
+        ) : cancelled ? null : (
+          <p className="muted" style={{ fontSize: '0.8rem', marginTop: '0.75rem' }}>
+            {t('invoiceAfterDelivery')}
+          </p>
         )}
         {invoiceError && <p className="notice error">{invoiceError}</p>}
       </section>

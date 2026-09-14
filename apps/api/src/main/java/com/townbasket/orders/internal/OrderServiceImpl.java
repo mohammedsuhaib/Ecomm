@@ -275,20 +275,19 @@ class OrderServiceImpl implements OrderService {
                 .filter(o -> userId != null && userId.equals(o.getUserId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
-        // A cancelled order is not a supply, so there is nothing to bill. Minting
-        // a number for one would also drop a void document into a series that is
-        // supposed to record goods actually supplied.
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new BusinessRuleException(
-                    "This order was cancelled, so there is no invoice for it.");
-        }
-
-        // First issue only: take the next number in this financial year's series
-        // and stamp it on the order. Numbering at ISSUE time (not order time)
-        // keeps the series chronological within its year by construction, and
-        // the write-once stamp means a re-download reproduces this same
-        // document rather than minting a second invoice for one supply.
+        // An already-issued invoice is always served, whatever the order's
+        // status: a tax invoice that has been handed out has to stay
+        // retrievable. DELIVERED is terminal, so this can never serve a
+        // document issued before the goods actually changed hands.
+        //
+        // Otherwise this is a FIRST issue: require the supply to have happened,
+        // then take the next number in this financial year's series and stamp it
+        // on the order. Numbering at issue time (not order time) keeps the
+        // series chronological within its year by construction, and the
+        // write-once stamp means a re-download reproduces this same document
+        // rather than minting a second invoice for one supply.
         if (order.getInvoiceNumber() == null) {
+            requireDelivered(order);
             String fy = InvoiceNumbers.financialYear(LocalDate.now(clock));
             invoiceSeries.ensureSeries(fy);
             long sequence = invoiceSeries.findAndLockByFy(fy)
@@ -299,6 +298,28 @@ class OrderServiceImpl implements OrderService {
                     InvoiceNumbers.format(invoicePrefix, fy, sequence), Instant.now(clock));
         }
         return toDto(order, true);
+    }
+
+    /**
+     * A tax invoice records a supply that has actually taken place, so one is
+     * issued only once the order has been DELIVERED. Until handover the goods
+     * are still the store's — on a shelf, in a packing crate, or in a bag on a
+     * rider's bike — and a failed delivery attempt brings them back, so none of
+     * those states is a supply. Numbering before handover would also put the
+     * series out of order relative to when supplies occurred, which is the one
+     * property the per-financial-year counter exists to guarantee.
+     */
+    private static void requireDelivered(OrderEntity order) {
+        OrderStatus status = order.getStatus();
+        if (status == OrderStatus.DELIVERED) {
+            return;
+        }
+        if (status == OrderStatus.CANCELLED) {
+            throw new BusinessRuleException(
+                    "This order was cancelled, so there is no invoice for it.");
+        }
+        throw new BusinessRuleException(
+                "Your invoice will be available once this order has been delivered.");
     }
 
     @Override

@@ -66,15 +66,21 @@ public interface OrderService {
      * set (AUTHENTICATED and owner-scoped, same access model as
      * {@link #getOrderByToken}).
      *
-     * <p>The number is taken from a per-financial-year consecutive series
-     * (CGST Rule 46(b)) on the FIRST call and stamped on the order with the
-     * issue timestamp; later calls return the same number, so a re-download
-     * reproduces the same document instead of billing one supply twice.
+     * <p>An invoice is issued only once the order has been <strong>DELIVERED</strong>
+     * — it records a supply that has actually taken place, and until handover
+     * the goods are still the store's. The number is taken from a
+     * per-financial-year consecutive series (CGST Rule 46(b)) on the FIRST call
+     * and stamped on the order with the issue timestamp; later calls return the
+     * same number, so a re-download reproduces the same document instead of
+     * billing one supply twice. An already-issued invoice is always served,
+     * whatever the order's status.
      *
      * @throws com.townbasket.shared.ResourceNotFoundException if the token is
      *     unknown or the order is not owned by {@code userId}
-     * @throws com.townbasket.shared.BusinessRuleException if the order was
-     *     cancelled, and so has nothing to invoice (mapped to 422)
+     * @throws com.townbasket.shared.BusinessRuleException if no invoice has been
+     *     issued yet and the order is not delivered — whether it is still in
+     *     flight or was cancelled (mapped to 422; the message distinguishes the
+     *     two)
      */
     OrderDto issueInvoice(UUID trackingToken, Long userId);
 
