@@ -72,8 +72,14 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
             publicFor(Duration.ofSeconds(30), Duration.ofMinutes(2), "/api/v1/store"),
 
             // Serviceability of one lat/lng: a pure function of the store's
-            // location and delivery radius, neither of which moves.
-            publicFor(Duration.ofMinutes(5), Duration.ofMinutes(30),
+            // location and delivery radius, neither of which moves — but PRIVATE,
+            // not public. The URL carries the customer's own coordinates, so a
+            // shared cache would end up holding a set of customer doorsteps as
+            // cache keys. Nothing caches in front of this app today, and per §7
+            // nothing is planned to, which is exactly why the header should be
+            // right before anything is: the browser cache is the only consumer
+            // this endpoint needs.
+            privateFor(Duration.ofMinutes(5), Duration.ofMinutes(30),
                     "/api/v1/serviceability/check"));
 
     @Override
@@ -124,10 +130,24 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
      * refresh instead of a wait.
      */
     private static Rule publicFor(Duration maxAge, Duration staleWhileRevalidate, String... getPaths) {
-        String value = CacheControl.maxAge(maxAge)
+        return rule(CacheControl.maxAge(maxAge)
                 .cachePublic()
-                .staleWhileRevalidate(staleWhileRevalidate)
-                .getHeaderValue();
+                .staleWhileRevalidate(staleWhileRevalidate), getPaths);
+    }
+
+    /**
+     * Cacheable by the requesting browser only, never by a proxy between us and
+     * it. For a response whose body is specific to whoever asked — even when, as
+     * here, the thing that makes it specific is already in the URL.
+     */
+    private static Rule privateFor(Duration maxAge, Duration staleWhileRevalidate, String... getPaths) {
+        return rule(CacheControl.maxAge(maxAge)
+                .cachePrivate()
+                .staleWhileRevalidate(staleWhileRevalidate), getPaths);
+    }
+
+    private static Rule rule(CacheControl cacheControl, String... getPaths) {
+        String value = cacheControl.getHeaderValue();
         List<RequestMatcher> matchers = Arrays.stream(getPaths)
                 .map(path -> (RequestMatcher) new AntPathRequestMatcher(path, "GET"))
                 .toList();

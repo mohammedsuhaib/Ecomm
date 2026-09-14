@@ -49,8 +49,10 @@ class PublicReadCacheHeaderWriterTest {
                 .isEqualTo("max-age=60, public, stale-while-revalidate=300");
         assertThat(cacheControl("GET", "/api/v1/store", 200))
                 .isEqualTo("max-age=30, public, stale-while-revalidate=120");
+        // private, not public: the URL carries the customer's coordinates, so a
+        // shared cache must not key an entry on where someone lives.
         assertThat(cacheControl("GET", "/api/v1/serviceability/check", 200))
-                .isEqualTo("max-age=300, public, stale-while-revalidate=1800");
+                .isEqualTo("max-age=300, private, stale-while-revalidate=1800");
     }
 
     @Test
