@@ -76,6 +76,30 @@ class PublicReadCacheHeaderWriterTest {
     }
 
     @Test
+    void theProductsMatcherDoesNotCoverNestedPaths() {
+        // The matcher is one path segment deep on purpose. If it were
+        // /products/**, adding any nested endpoint later — a per-customer
+        // review, a saved-for-later flag — would silently publish it to shared
+        // caches, with nothing in the diff that added it to mention caching.
+        assertThat(cacheControl("GET", "/api/v1/products/42/anything", 200))
+                .isEqualTo("no-cache, no-store, max-age=0, must-revalidate");
+    }
+
+    @Test
+    void adminReadsOfTheSameResourcesAreNeverCacheable() {
+        // The admin catalogue lives under /api/v1/admin/catalog and returns
+        // cost_price; it must not be caught by the public /products matchers.
+        for (String uri : new String[] {
+                "/api/v1/admin/catalog/products",
+                "/api/v1/admin/catalog/categories",
+                "/api/v1/admin/analytics/revenue"}) {
+            assertThat(cacheControl("GET", uri, 200))
+                    .as(uri)
+                    .isEqualTo("no-cache, no-store, max-age=0, must-revalidate");
+        }
+    }
+
+    @Test
     void onlyReadsAreCacheable() {
         // A POST to /api/v1/products would be an admin write; the path matching
         // must not make its response cacheable.

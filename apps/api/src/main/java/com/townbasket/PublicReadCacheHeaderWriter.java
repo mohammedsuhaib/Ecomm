@@ -59,8 +59,12 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
             // Products (listing, search, detail). A short window because these
             // carry live stock counts — though a stale count is harmless, since
             // the cart and checkout both re-check stock against the database.
+            // One path segment, not "/**": the listing, /products/search and
+            // /products/{idOrSlug} are all that exist, and a wildcard over the
+            // whole subtree would silently mark a future nested endpoint
+            // (/products/{id}/something-personal) publicly cacheable.
             publicFor(Duration.ofSeconds(60), Duration.ofMinutes(5),
-                    "/api/v1/products", "/api/v1/products/**"),
+                    "/api/v1/products", "/api/v1/products/*"),
 
             // Store details: the payload's `open` flag flips at the opening and
             // closing times, and staff can close the shop at any moment, so keep

@@ -76,8 +76,6 @@ interface CartActionsValue {
    * the first landed on a disabled button and was silently dropped.
    */
   nudgeVariant: (variantId: string, delta: number) => void;
-  /** Add a variant at an explicit quantity (0 is a no-op). */
-  addItem: (variantId: string, qty: number) => Promise<Cart>;
   /** Set a line's quantity by line id (0 removes) — the cart page's editor. */
   setQty: (itemId: string, qty: number) => Promise<Cart>;
   /** Remove a line entirely. */
@@ -168,7 +166,25 @@ export default function CartProvider({
   const publishErrors = useCallback(() => setErrors(new Map(errorsRef.current)), []);
 
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const flushing = useRef(new Set<string>());
+
+  /**
+   * Cart writes run one at a time, across all variants — not one per variant.
+   * Every write returns the WHOLE cart, so two in flight together can finish
+   * out of order and the older response then overwrites the newer one: tap
+   * variant A (a POST that creates a line) and variant B (a cheaper PUT)
+   * within the same breath, and A's reply — computed before B's write
+   * committed — lands last and drops B's line from the display. The server has
+   * both, and nothing re-reads the cart, so the wrong number sits there until
+   * the customer opens the cart page. Serialising makes the last response
+   * always the newest.
+   */
+  const writes = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueue = useCallback((task: () => Promise<void>): Promise<void> => {
+    // Chained through `finally` so one failed write cannot stall the queue.
+    const next = writes.current.then(task, task);
+    writes.current = next.catch(() => undefined);
+    return next;
+  }, []);
 
   // Hydrate from a persisted cartId on mount.
   useEffect(() => {
@@ -204,15 +220,6 @@ export default function CartProvider({
     };
     window.addEventListener('tb:auth-changed', onAuthChanged);
     return () => window.removeEventListener('tb:auth-changed', onAuthChanged);
-  }, []);
-
-  // Don't leave a coalesced change unsent when the provider unmounts.
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      pending.forEach((timer) => clearTimeout(timer));
-      pending.clear();
-    };
   }, []);
 
   const ensureCartId = useCallback(async (): Promise<string> => {
@@ -252,50 +259,43 @@ export default function CartProvider({
    * sending, so every tap up to then is included in a single request.
    */
   const flush = useCallback(
-    async (variantId: string): Promise<void> => {
+    (variantId: string): Promise<void> => {
       timers.current.delete(variantId);
-      // A request for this variant is already in flight; the `finally` below
-      // picks up anything queued since, so ordering stays per-variant serial.
-      if (flushing.current.has(variantId)) return;
-      const target = targetsRef.current.get(variantId);
-      if (target === undefined) return;
+      return enqueue(async () => {
+        const target = targetsRef.current.get(variantId);
+        if (target === undefined) return;
+        try {
+          const id = await ensureCartId();
+          const line = cartRef.current?.items.find((i) => i.variantId === variantId);
+          const updated = line
+            ? await updateCartItem(id, line.itemId, target)
+            : await addCartItem(id, variantId, target);
 
-      flushing.current.add(variantId);
-      try {
-        const id = await ensureCartId();
-        const line = cartRef.current?.items.find((i) => i.variantId === variantId);
-        const updated = line
-          ? await updateCartItem(id, line.itemId, target)
-          : await addCartItem(id, variantId, target);
-
-        // Clear the pending target only if it is still the number we just sent.
-        // A tap during the request left a newer one, which must survive so the
-        // display does not jump backwards to the quantity the server confirmed.
-        if (targetsRef.current.get(variantId) === target) {
+          // Clear the pending target only if it is still the number we just
+          // sent. A tap during the request left a newer one, which must survive
+          // so the display does not jump backwards to the quantity the server
+          // confirmed — its own flush is already queued behind this one.
+          if (targetsRef.current.get(variantId) === target) {
+            targetsRef.current.delete(variantId);
+            publishTargets();
+          }
+          commit(updated);
+          // The price the customer was looking at when they chose the quantity
+          // is the baseline a later admin edit is measured against.
+          acceptVariantPrice(updated, variantId);
+        } catch (err) {
+          // The server refused (no stock left, line gone). Its cart is the
+          // truth: drop the optimistic target, resync, and tell the control why.
           targetsRef.current.delete(variantId);
           publishTargets();
+          const outOfStock = err instanceof ApiError && err.status === 409;
+          errorsRef.current.set(variantId, outOfStock ? 'stock' : 'failed');
+          publishErrors();
+          await refresh();
         }
-        commit(updated);
-        // The price the customer was looking at when they chose the quantity is
-        // the baseline a later admin edit is measured against.
-        acceptVariantPrice(updated, variantId);
-      } catch (err) {
-        // The server refused (no stock left, line gone). Its cart is the truth:
-        // drop the optimistic target, resync, and tell the control why.
-        targetsRef.current.delete(variantId);
-        publishTargets();
-        const outOfStock = err instanceof ApiError && err.status === 409;
-        errorsRef.current.set(variantId, outOfStock ? 'stock' : 'failed');
-        publishErrors();
-        await refresh();
-      } finally {
-        flushing.current.delete(variantId);
-        if (targetsRef.current.has(variantId)) {
-          void flush(variantId);
-        }
-      }
+      });
     },
-    [commit, ensureCartId, publishErrors, publishTargets, refresh],
+    [commit, enqueue, ensureCartId, publishErrors, publishTargets, refresh],
   );
 
   const nudgeVariant = useCallback(
@@ -330,26 +330,38 @@ export default function CartProvider({
     [commit, flush, publishErrors, publishTargets],
   );
 
-  const addItem = useCallback(
-    async (variantId: string, qty: number): Promise<Cart> => {
-      const id = await ensureCartId();
-      const prev = cartRef.current;
-      const existing = prev?.items.find((i) => i.variantId === variantId);
-      if (prev && existing) {
-        commit(withVariantQty(prev, variantId, existing.qty + qty));
-      }
-      try {
-        const updated = await addCartItem(id, variantId, qty);
-        commit(updated);
-        acceptVariantPrice(updated, variantId);
-        return updated;
-      } catch (err) {
-        if (prev) commit(prev); // roll back the optimistic change
-        throw err;
-      }
-    },
-    [commit, ensureCartId],
-  );
+  /**
+   * Send every coalesced change now, without waiting out its debounce.
+   *
+   * <p>Called when the page is being hidden or torn down. A tap in the last
+   * 250 ms before the customer switches apps or closes the tab would otherwise
+   * be dropped on the floor: its timer dies with the page. `pagehide` rather
+   * than `beforeunload` because iOS Safari never fires the latter, and
+   * `visibilitychange` as well because a backgrounded tab can be discarded
+   * without either. The request may still be cut short if the tab is killed
+   * instantly — this narrows the window, it cannot close it — but the customer
+   * is far likelier to keep what they tapped than to lose it.
+   */
+  const flushAllPending = useCallback(() => {
+    [...targetsRef.current.keys()].forEach((variantId) => {
+      const timer = timers.current.get(variantId);
+      if (timer) clearTimeout(timer);
+      void flush(variantId);
+    });
+  }, [flush]);
+
+  useEffect(() => {
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flushAllPending();
+    };
+    window.addEventListener('pagehide', flushAllPending);
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      window.removeEventListener('pagehide', flushAllPending);
+      document.removeEventListener('visibilitychange', onHide);
+      flushAllPending();
+    };
+  }, [flushAllPending]);
 
   const setQty = useCallback(
     async (itemId: string, qty: number): Promise<Cart> => {
@@ -407,14 +419,13 @@ export default function CartProvider({
   const actions = useMemo<CartActionsValue>(
     () => ({
       nudgeVariant,
-      addItem,
       setQty,
       removeItem,
       refresh,
       reset,
       acknowledgePriceChanges,
     }),
-    [nudgeVariant, addItem, setQty, removeItem, refresh, reset, acknowledgePriceChanges],
+    [nudgeVariant, setQty, removeItem, refresh, reset, acknowledgePriceChanges],
   );
 
   // Derived, not stored: every render compares the live cart against the pinned

@@ -8,7 +8,8 @@
  * on a phone pushed the first thing the customer looked at halfway down the
  * screen the moment they went to touch it.
  *
- * <p>Server components, so none of this ships to the browser.
+ * <p>No hooks and no state, but these DO ship to the browser: checkout is a
+ * client component, so anything it imports is part of the client bundle.
  */
 
 /** One shimmering bar. `width` accepts any CSS length or percentage. */

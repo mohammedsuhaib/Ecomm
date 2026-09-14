@@ -404,7 +404,6 @@ class OrderServiceImpl implements OrderService {
         return PagedResponse.of(page, o -> toDto(o, false));
     }
 
-    /** LIKE wildcards typed by a human are literal characters, not patterns. */
     /** The term as an order id when it is plausibly one, else null. */
     private static Long parseOrderId(String term) {
         if (term.isEmpty() || term.length() > 18 || !term.chars().allMatch(Character::isDigit)) {
@@ -417,6 +416,7 @@ class OrderServiceImpl implements OrderService {
         }
     }
 
+    /** LIKE wildcards typed by a human are literal characters, not patterns. */
     private static String escapeLike(String term) {
         return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
