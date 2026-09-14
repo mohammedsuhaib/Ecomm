@@ -514,14 +514,19 @@ class OrderServiceImpl implements OrderService {
         //
         // The message is written for the staff member who will read it verbatim
         // in the queue: the admin dropdown lists active riders as they were when
-        // the page loaded, so the way to get here is picking one who has been
-        // deactivated since. "Agent 5 is not an active delivery agent" named an
-        // internal id and read as a validation trace, and the UI's fallback
-        // ("please try again") was worse still — retrying never works.
+        // the page loaded, so the way to get here is picking one deactivated
+        // since. "Agent 5 is not an active delivery agent" named an internal id
+        // and read as a validation trace, and the UI's fallback ("please try
+        // again") was worse still — retrying never works. It stops short of
+        // asserting WHY, because this guard is equally false for an id that is
+        // not a rider at all and for one that does not exist; telling either of
+        // those callers to reactivate an account would send them looking for one
+        // that was never there.
         if (agentId != null && !authService.isActiveDeliveryAgent(agentId)) {
             throw new BusinessRuleException(
-                    "That rider's account has been deactivated — pick another rider, "
-                            + "or reactivate the account under Riders.");
+                    "That rider can no longer take orders — the account has been "
+                            + "deactivated, or is not a rider account. Pick another "
+                            + "rider, or check it under Riders.");
         }
         // Off duty is the rider's own switch: they keep what they hold, but a
         // NEW job must not land on someone who has gone home.

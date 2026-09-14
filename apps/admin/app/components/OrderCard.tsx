@@ -52,6 +52,16 @@ export default function OrderCard({
       : null;
   const assignedAgent =
     agents.find((a) => a.id === order.assignedAgentId) ?? null;
+  // The roster is active riders only, so an order still held by a rider who has
+  // been deactivated finds no match here — and a <select> whose value matches
+  // no <option> displays the FIRST one instead, i.e. "Unassigned" on an order
+  // that is very much assigned. Staff reading that would dispatch a second
+  // rider to a bag the first one is already carrying. Carry the missing rider
+  // as an explicit option so the card keeps saying who holds it.
+  const missingAssigneeId =
+    order.assignedAgentId != null && assignedAgent == null
+      ? order.assignedAgentId
+      : null;
 
   async function onAssign(value: string) {
     const agentId = value === '' ? null : Number(value);
@@ -96,11 +106,14 @@ export default function OrderCard({
         err instanceof ApiError &&
         (err.status === 400 || err.status === 422)
       ) {
+        // Not serverMessage() here: the transition guard speaks in state-machine
+        // terms ("Illegal transition PACKING -> CONFIRMED"), and the way staff
+        // reach it is a card that went stale behind them — which "refresh and
+        // try again" answers and the server's own wording does not.
         setError(
           next === 'DELIVERED'
             ? 'Incorrect delivery code. Please re-check with the customer.'
-            : serverMessage(err) ??
-                'That transition was rejected. Refresh and try again.',
+            : 'That transition was rejected. Refresh and try again.',
         );
       } else {
         setError('Could not update the order. Please try again.');
@@ -180,7 +193,11 @@ export default function OrderCard({
         <label htmlFor={`assign-${order.id}`}>Rider</label>
         {terminal ? (
           <span className="muted">
-            {assignedAgent ? agentLabel(assignedAgent) : 'Unassigned'}
+            {assignedAgent
+              ? agentLabel(assignedAgent)
+              : missingAssigneeId != null
+                ? `Agent #${missingAssigneeId} (no longer active)`
+                : 'Unassigned'}
           </span>
         ) : (
           <select
@@ -192,6 +209,11 @@ export default function OrderCard({
             <option value="">
               {agents.length === 0 ? 'No agents available' : 'Unassigned'}
             </option>
+            {missingAssigneeId != null && (
+              <option value={missingAssigneeId}>
+                Agent #{missingAssigneeId} (no longer active)
+              </option>
+            )}
             {agents.map((a) => {
               // Off duty = the rider's own switch. Keep them visible (so staff
               // see who exists) but not selectable; the server refuses anyway.

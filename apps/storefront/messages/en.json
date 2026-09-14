@@ -286,6 +286,11 @@
     "CANCELLED": "Cancelled",
     "DELIVERY_FAILED": "Delivery attempt failed"
   },
+  "paymentStatus": {
+    "PAID": "Paid",
+    "FAILED": "Payment failed",
+    "COD_PENDING": "Due at delivery"
+  },
   "orderStamp": {
     "placed": "Placed {time}"
   },

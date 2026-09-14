@@ -34,6 +34,17 @@ const STATUS_EMOJI: Record<OrderStatus, string> = {
   CANCELLED: '❌',
 };
 
+// Payment status reaches the client as the API's enum name (PAID, FAILED,
+// COD_PENDING). Only render one this build has customer copy for: anything
+// else shows the payment method alone, rather than dropping a raw
+// "COD_PENDING" into the middle of the customer's order summary.
+const PAYMENT_STATUS_KEYS = ['PAID', 'FAILED', 'COD_PENDING'] as const;
+type KnownPaymentStatus = (typeof PAYMENT_STATUS_KEYS)[number];
+
+function isKnownPaymentStatus(status: string): status is KnownPaymentStatus {
+  return (PAYMENT_STATUS_KEYS as readonly string[]).includes(status);
+}
+
 const HEADLINE_KEY = {
   PLACED: 'headlinePlaced',
   CONFIRMED: 'headlineConfirmed',
@@ -65,6 +76,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const ts = useTranslations('orderStatus');
   const tc = useTranslations('common');
   const tCheckout = useTranslations('checkout');
+  const tPayment = useTranslations('paymentStatus');
   const locale = useLocale();
 
   // Orders are owner-scoped server-side: the token alone grants nothing, so a
@@ -482,8 +494,10 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           <div className="cart-summary-row">
             <span>{t('payment')}</span>
             <span>
-              {order.paymentMethod === 'COD' ? tCheckout('cod') : 'UPI'} ·{' '}
-              {order.paymentStatus}
+              {order.paymentMethod === 'COD' ? tCheckout('cod') : 'UPI'}
+              {isKnownPaymentStatus(order.paymentStatus)
+                ? ` · ${tPayment(order.paymentStatus)}`
+                : ''}
             </span>
           </div>
         </div>

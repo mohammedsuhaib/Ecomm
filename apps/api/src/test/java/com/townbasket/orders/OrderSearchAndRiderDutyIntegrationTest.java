@@ -97,7 +97,7 @@ class OrderSearchAndRiderDutyIntegrationTest extends AbstractIntegrationTest {
         assertThatThrownBy(() -> orderService.assignAgent(order.id(), rider))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("deactivated")
-                .hasMessageContaining("pick another rider")
+                .hasMessageContaining("Pick another")
                 .as("the id is an internal detail, not something staff can act on")
                 .hasMessageNotContaining(String.valueOf(rider));
     }
