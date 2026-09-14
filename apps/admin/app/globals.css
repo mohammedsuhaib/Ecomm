@@ -1239,6 +1239,16 @@ a {
   align-items: flex-end;
   min-width: 150px;
 }
+/* A refused correction is explained in a full sentence — why the count can't go
+   below the reserved units, and what to do about it. The enclosing
+   .actions-col is `white-space: nowrap` to keep the row's buttons on one line,
+   which the message inherits, so it has to opt back into wrapping or it runs
+   off the edge of the cell with the remedy unread. */
+.inv-edit-error {
+  white-space: normal;
+  text-align: left;
+  max-width: 260px;
+}
 .inv-count-input {
   width: 80px;
   border: 1px solid var(--border);

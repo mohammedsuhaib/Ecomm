@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ApiError,
   correctStock,
   getStockLevels,
+  serverMessage,
   AuthRequiredError,
 } from '@/app/lib/api';
 import type { StockLevel } from '@/app/lib/types';
@@ -16,10 +18,33 @@ function fmt(n: number) {
 interface EditState {
   variantId: number;
   current: number;
+  /** Units already committed to open orders; a count may not go below this. */
+  reserved: number;
   newValue: string;
   reason: string;
   saving: boolean;
   error: string | null;
+}
+
+/**
+ * What to tell the operator when a correction is refused.
+ *
+ * The old text was "Correction failed. Try again." for every failure, which hid
+ * the one thing that mattered: a count below the units reserved for open orders
+ * is refused by rule, so trying again with the same number can only fail again.
+ * Prefer the server's message, and only fall back to generic advice when there
+ * genuinely isn't one.
+ */
+function correctionError(err: unknown): string {
+  if (err instanceof AuthRequiredError) {
+    return 'Session expired — please log in again.';
+  }
+  if (err instanceof ApiError && err.status === 0) {
+    return 'Could not reach the server. Check your connection.';
+  }
+  return (
+    serverMessage(err) ?? 'Could not save the correction. Please try again.'
+  );
 }
 
 export default function InventoryPanel() {
@@ -82,6 +107,7 @@ export default function InventoryPanel() {
     setEdit({
       variantId: item.variantId,
       current: item.onHand,
+      reserved: item.reserved,
       newValue: String(item.onHand),
       reason: '',
       saving: false,
@@ -96,13 +122,25 @@ export default function InventoryPanel() {
       setEdit((e) => e ? { ...e, error: 'Enter a valid non-negative number.' } : e);
       return;
     }
+    // Say it before the round-trip: the server enforces this, but a refusal the
+    // operator could have been warned about is a wasted attempt.
+    if (newOnHand < edit.reserved) {
+      setEdit((e) => e ? {
+        ...e,
+        error: `${edit.reserved} unit(s) are reserved for open orders, so the count `
+          + `can't go below ${edit.reserved}. Cancel or fulfil those orders first.`,
+      } : e);
+      return;
+    }
     setEdit((e) => e ? { ...e, saving: true, error: null } : e);
     try {
       await correctStock(edit.variantId, { newOnHand, reason: edit.reason || 'physical count' });
       setEdit(null);
       void load(page, search);
-    } catch {
-      setEdit((e) => e ? { ...e, saving: false, error: 'Correction failed. Try again.' } : e);
+    } catch (err) {
+      const message = correctionError(err);
+      setEdit((e) => e ? { ...e, saving: false, error: message } : e);
+      if (err instanceof AuthRequiredError) void refreshAuth();
     }
   };
 
@@ -186,7 +224,14 @@ export default function InventoryPanel() {
                           <div className="inv-edit-inline">
                             <input
                               type="number"
-                              min={0}
+                              // Reserved units are physically committed to open
+                              // orders, so they are the real floor — not 0.
+                              min={edit.reserved}
+                              title={
+                                edit.reserved > 0
+                                  ? `At least ${edit.reserved} — that many are reserved for open orders`
+                                  : undefined
+                              }
                               className="inv-count-input"
                               value={edit.newValue}
                               onChange={(e) =>
@@ -204,7 +249,11 @@ export default function InventoryPanel() {
                               }
                               aria-label="Correction reason"
                             />
-                            {edit.error && <p className="order-error" style={{ margin: 0 }}>{edit.error}</p>}
+                            {edit.error && (
+                              <p className="order-error inv-edit-error" role="alert">
+                                {edit.error}
+                              </p>
+                            )}
                             <div className="inv-edit-actions">
                               <button
                                 type="button"
