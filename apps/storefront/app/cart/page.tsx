@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { ApiError, getStore } from '@/app/lib/api';
 import { formatRupees, subtractRupees } from '@/app/lib/format';
+import { lineDisplayName } from '@/app/lib/productName';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
@@ -13,6 +14,7 @@ import CartEmptyState from '@/app/components/CartEmptyState';
 export default function CartPage() {
   const t = useTranslations('cart');
   const tc = useTranslations('common');
+  const locale = useLocale();
   const { cart, loading, refresh, setQty, removeItem, priceChanges } = useCart();
   const [minOrderValue, setMinOrderValue] = useState<number | null>(null);
   // Server-decided (its clock, not the device's): the shop is shut, so
@@ -52,7 +54,7 @@ export default function CartPage() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? t('limitedStock', { product: item.productName })
+          ? t('limitedStock', { product: lineDisplayName(item, locale) })
           : t('couldNotUpdate'),
       );
     } finally {
@@ -102,7 +104,9 @@ export default function CartPage() {
             {items.map((item) => (
               <li key={item.itemId} className="cart-row">
                 <div className="cart-row-info">
-                  <span className="cart-row-name">{item.productName}</span>
+                  <span className="cart-row-name">
+                    {lineDisplayName(item, locale)}
+                  </span>
                   <span className="muted cart-row-label">{item.label}</span>
                   <span className="muted">
                     {t('each', { price: formatRupees(item.unitPrice) })}
@@ -120,7 +124,12 @@ export default function CartPage() {
                   ) : null}
                 </div>
                 <div className="cart-row-actions">
-                  <div className="qty-stepper" aria-label={t('ariaQuantity', { product: item.productName })}>
+                  <div
+                    className="qty-stepper"
+                    aria-label={t('ariaQuantity', {
+                      product: lineDisplayName(item, locale),
+                    })}
+                  >
                     <button
                       type="button"
                       disabled={busyItem === item.itemId}

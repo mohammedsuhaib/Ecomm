@@ -7,6 +7,11 @@ import java.math.BigDecimal;
  * for the storefront to render the line and for {@code orders} to build the
  * order. No cost price.
  *
+ * <p>{@code productNameKn} is the Kannada name of the same product, {@code null}
+ * until the transliteration backfill reaches it. It ships alongside the English
+ * name so a cart line reads in whichever language the customer was browsing in —
+ * the storefront picks, and falls back to {@code productName}.
+ *
  * <p>{@code available} reflects the catalog availability flag (admin toggle).
  * {@code availableStock} is the live, sellable quantity ({@code on_hand -
  * reserved}) from inventory, so the storefront can warn about a shortage
@@ -17,6 +22,7 @@ public record CartItemDto(
         Long variantId,
         Long productId,
         String productName,
+        String productNameKn,
         String label,
         BigDecimal unitPrice,
         int qty,

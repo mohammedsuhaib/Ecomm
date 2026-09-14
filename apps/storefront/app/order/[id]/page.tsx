@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } from '@/app/lib/api';
 import { formatRupees } from '@/app/lib/format';
+import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
 import { rememberLastOrder } from '@/app/lib/lastOrder';
@@ -64,6 +65,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const ts = useTranslations('orderStatus');
   const tc = useTranslations('common');
   const tCheckout = useTranslations('checkout');
+  const locale = useLocale();
 
   // Orders are owner-scoped server-side: the token alone grants nothing, so a
   // signed-out visitor is sent to log in first (and brought back here). Auth
@@ -433,7 +435,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           {order.items.map((item, idx) => (
             <li key={idx} className="order-item-row">
               <span>
-                {item.productName}{' '}
+                {lineDisplayName(item, locale)}{' '}
                 <span className="muted">
                   {t('itemLine', { label: item.label, qty: item.qty })}
                 </span>

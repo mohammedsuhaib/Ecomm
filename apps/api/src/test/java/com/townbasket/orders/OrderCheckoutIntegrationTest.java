@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * End-to-end checkout + state-machine integration test against a real Postgres
@@ -53,6 +54,8 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     InventoryService inventoryService;
     @Autowired
     AuthService authService;
+    @Autowired
+    JdbcTemplate jdbc;
 
     /**
      * A variant that is priced high enough to clear the minimum order value AND
@@ -383,5 +386,37 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         assertThat(ids).contains(o1.id(), o2.id());
         // Newest (o2) appears before older (o1).
         assertThat(ids.indexOf(o2.id())).isLessThan(ids.indexOf(o1.id()));
+    }
+
+    @Test
+    void anOrderLineSnapshotsTheKannadaNameItWasSoldUnder() {
+        // The order screen has to name the item in the language the customer
+        // shopped in, and an order line is a SNAPSHOT — a later rename in the
+        // catalog must not rewrite a past order — so the Kannada name is frozen
+        // beside the English one at the moment of sale, not looked up on read.
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, QTY);
+        Long productId = cart.items().get(0).productId();
+        String english = cart.items().get(0).productName();
+
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE id = ?",
+                "\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1", productId);
+        try {
+            // Re-read: the cart resolves names against the catalog at read time.
+            assertThat(cartService.getCart(cart.cartId()).orElseThrow().items().get(0).productNameKn())
+                    .isEqualTo("\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1");
+
+            OrderDto order = orderService.placeOrder(
+                    request(cart.cartId(), PaymentMethod.COD), "kn-name-key-1", null);
+
+            assertThat(order.items()).isNotEmpty();
+            OrderItemDto line = order.items().get(0);
+            assertThat(line.productNameKn())
+                    .isEqualTo("\u0c95\u0ca8\u0ccd\u0ca8\u0ca1 \u0cb9\u0cc6\u0cb8\u0cb0\u0cc1");
+            // The English name is still there beside it — the invoice uses that one.
+            assertThat(line.productName()).isEqualTo(english);
+        } finally {
+            jdbc.update("UPDATE catalog.products SET name_kn = NULL WHERE id = ?", productId);
+        }
     }
 }

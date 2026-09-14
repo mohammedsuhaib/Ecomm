@@ -215,7 +215,7 @@ class OrderServiceImpl implements OrderService {
             TaxBreakdown breakdown = taxService.fromInclusiveAmount(item.lineTotal(), tax.gstRatePercent());
             totalTax = totalTax.add(breakdown.totalTax());
             order.addItem(new OrderItemEntity(
-                    item.variantId(), item.productName(), item.label(),
+                    item.variantId(), item.productName(), item.productNameKn(), item.label(),
                     item.unitPrice(), costPrice, item.qty(), item.lineTotal(),
                     tax.hsnCode(), tax.gstRatePercent(),
                     breakdown.taxableValue(), breakdown.cgst(), breakdown.sgst()));
@@ -667,7 +667,7 @@ class OrderServiceImpl implements OrderService {
     private OrderDto toDto(OrderEntity o, boolean customerFacing) {
         List<OrderItemDto> items = o.getItems().stream()
                 // NOTE: cost price (COGS) is intentionally NOT mapped — internal only.
-                .map(i -> new OrderItemDto(i.getProductName(), i.getLabel(),
+                .map(i -> new OrderItemDto(i.getProductName(), i.getProductNameKn(), i.getLabel(),
                         i.getUnitPrice(), i.getQty(), i.getLineTotal(),
                         i.getHsnCode(), i.getGstRate(),
                         i.getTaxableValue(), i.getCgst(), i.getSgst()))

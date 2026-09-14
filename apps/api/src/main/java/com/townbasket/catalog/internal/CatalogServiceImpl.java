@@ -212,6 +212,10 @@ class CatalogServiceImpl implements CatalogService {
                     v.getId(),
                     v.getProductId(),
                     product != null ? product.getName() : null,
+                    // Free: the product entity is already loaded above. Null
+                    // whenever the transliteration backfill has not reached this
+                    // product; callers fall back to the English name.
+                    product != null ? product.getNameKn() : null,
                     v.getLabel(),
                     v.getSellingPrice(),
                     available));

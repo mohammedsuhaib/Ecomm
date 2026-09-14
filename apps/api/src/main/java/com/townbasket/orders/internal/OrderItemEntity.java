@@ -39,6 +39,14 @@ class OrderItemEntity {
     @Column(name = "product_name", nullable = false)
     private String productName;
 
+    /**
+     * Kannada name as it stood at the moment of sale; {@code null} for orders
+     * placed before this column existed, and for products the transliteration
+     * backfill has not reached. Readers fall back to {@link #productName}.
+     */
+    @Column(name = "product_name_kn")
+    private String productNameKn;
+
     @Column(nullable = false)
     private String label;
 
@@ -75,12 +83,13 @@ class OrderItemEntity {
         // JPA
     }
 
-    OrderItemEntity(Long variantId, String productName, String label,
+    OrderItemEntity(Long variantId, String productName, String productNameKn, String label,
                     BigDecimal unitPrice, BigDecimal costPrice, int qty, BigDecimal lineTotal,
                     String hsnCode, BigDecimal gstRate,
                     BigDecimal taxableValue, BigDecimal cgst, BigDecimal sgst) {
         this.variantId = variantId;
         this.productName = productName;
+        this.productNameKn = productNameKn;
         this.label = label;
         this.unitPrice = unitPrice;
         this.costPrice = costPrice;
@@ -103,6 +112,10 @@ class OrderItemEntity {
 
     String getProductName() {
         return productName;
+    }
+
+    String getProductNameKn() {
+        return productNameKn;
     }
 
     String getLabel() {

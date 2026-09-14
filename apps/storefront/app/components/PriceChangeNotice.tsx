@@ -1,7 +1,8 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatRupees } from '@/app/lib/format';
+import { lineDisplayName } from '@/app/lib/productName';
 import { useCart } from '@/app/components/CartProvider';
 
 /**
@@ -18,6 +19,7 @@ import { useCart } from '@/app/components/CartProvider';
  */
 export default function PriceChangeNotice() {
   const t = useTranslations('priceChange');
+  const locale = useLocale();
   const { priceChanges, acknowledgePriceChanges } = useCart();
 
   if (priceChanges.length === 0) return null;
@@ -30,7 +32,7 @@ export default function PriceChangeNotice() {
       <ul className="price-change-list">
         {priceChanges.map((change) => (
           <li key={change.variantId}>
-            {change.productName}{' '}
+            {lineDisplayName(change, locale)}{' '}
             <span className="muted">({change.label})</span>{' '}
             {t('wasNow', {
               was: formatRupees(change.was),

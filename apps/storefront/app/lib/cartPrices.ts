@@ -31,6 +31,7 @@ interface PinnedPrices {
 export interface PriceChange {
   variantId: string;
   productName: string;
+  productNameKn?: string | null;
   label: string;
   /** Accepted and current unit price, in decimal rupees. */
   was: number;
@@ -126,6 +127,7 @@ export function cartPriceChanges(cart: Cart | null): PriceChange[] {
       changes.push({
         variantId: item.variantId,
         productName: item.productName,
+        productNameKn: item.productNameKn,
         label: item.label,
         was: accepted / 100,
         now: item.unitPrice,

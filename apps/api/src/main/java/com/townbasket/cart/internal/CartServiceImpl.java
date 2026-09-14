@@ -220,6 +220,7 @@ class CartServiceImpl implements CartService {
                     item.getVariantId(),
                     v != null ? v.productId() : null,
                     v != null ? v.productName() : null,
+                    v != null ? v.productNameKn() : null,
                     v != null ? v.label() : null,
                     unitPrice,
                     item.getQty(),
