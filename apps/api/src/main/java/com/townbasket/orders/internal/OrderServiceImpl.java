@@ -355,8 +355,11 @@ class OrderServiceImpl implements OrderService {
                             + "-second cancellation window has passed. Please contact support.");
         }
         // Reuse the state machine: releases reserved stock via OrderCancelled.
-        return transition(order.getId(),
-                new TransitionRequest(OrderStatus.CANCELLED.name(), null, "Cancelled by customer"));
+        // The reason is the reserved token, not a sentence: it lands on the
+        // timeline the customer reads, and only the storefront knows what
+        // language to say it in (see TransitionRequest.CUSTOMER_REQUEST).
+        return transition(order.getId(), new TransitionRequest(
+                OrderStatus.CANCELLED.name(), null, TransitionRequest.CUSTOMER_REQUEST));
     }
 
     @Override

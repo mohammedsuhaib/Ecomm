@@ -315,6 +315,21 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const failureReason = deliveryFailed
     ? [...order.timeline].reverse().find((e) => e.toStatus === 'DELIVERY_FAILED')?.note ?? null
     : null;
+  // Why the order was cancelled, from the same place: the note staff typed on
+  // the CANCELLED transition. Without it the screen said only that the order
+  // "was cancelled", leaving the one question the customer actually has —
+  // whether the shop ran out, or closed, or could not reach them — unanswered,
+  // with their money involved.
+  //
+  // CUSTOMER_REQUEST is the API's reserved token for a self-service cancel
+  // rather than a reason staff wrote (see TransitionRequest). That one is
+  // translated; a staff reason is rendered verbatim, because it is their own
+  // words about this order and nothing here can translate it.
+  const cancelNote = cancelled
+    ? [...order.timeline].reverse().find((e) => e.toStatus === 'CANCELLED')?.note ?? null
+    : null;
+  const cancelledByCustomer = cancelNote === 'CUSTOMER_REQUEST';
+  const cancelReason = cancelledByCustomer ? null : cancelNote;
   const headlineEmoji = STATUS_EMOJI[order.status] ?? STATUS_EMOJI.PLACED;
   const headlineTitle = t(HEADLINE_KEY[order.status] ?? 'headlinePlaced');
   // A failed attempt sits beside the flow, not on it: the order DID reach
@@ -400,7 +415,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           </p>
         )}
         {cancelled ? (
-          <p className="notice error">{t('cancelledNotice')}</p>
+          <p className="notice error">
+            {t('cancelledNotice')}
+            {cancelledByCustomer ? <> {t('cancelledByYou')}</> : null}
+            {cancelReason ? <> {t('cancelledReason', { reason: cancelReason })}</> : null}
+          </p>
         ) : (
           <ol className="status-timeline">
             {STATUS_FLOW.map((status, i) => {

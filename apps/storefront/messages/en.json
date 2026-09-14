@@ -307,6 +307,8 @@
     "liveTitle": "Live",
     "reconnectingTitle": "Reconnecting",
     "cancelledNotice": "This order was cancelled. Any reserved items have been released.",
+    "cancelledReason": "Reason: {reason}",
+    "cancelledByYou": "You cancelled it.",
     "orderSummary": "Order summary",
     "itemLine": "({label}) × {qty}",
     "subtotal": "Subtotal",

@@ -419,4 +419,50 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
             jdbc.update("UPDATE catalog.products SET name_kn = NULL WHERE id = ?", productId);
         }
     }
+
+    @Test
+    void aCancellationCarriesItsReasonToTheCustomersTimeline() {
+        // The customer's order screen used to say only that the order "was
+        // cancelled", never why — so the one question they have, with their money
+        // involved, went unanswered even though staff had typed an answer. The
+        // reason staff give is recorded on the CANCELLED timeline entry, which is
+        // what that screen reads.
+        ProductVariantDto variant = pickPricyVariant();
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(
+                request(cart.cartId(), PaymentMethod.COD), "cancel-reason-key-1", null);
+
+        OrderDto cancelled = orderService.transition(order.id(),
+                new TransitionRequest("CANCELLED", null, "Out of stock after packing"));
+
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(cancelled.timeline())
+                .filteredOn(e -> "CANCELLED".equals(e.toStatus()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.note()).isEqualTo("Out of stock after packing"));
+    }
+
+    @Test
+    void aSelfCancelRecordsTheReservedTokenRatherThanAnEnglishSentence() {
+        // A self-service cancel goes through the same transition, so its "reason"
+        // lands on the timeline the customer reads. The API therefore records a
+        // token saying WHO cancelled, not a sentence: only the storefront knows
+        // what language to say it in. (It used to store "Cancelled by customer",
+        // which a Kannada customer would have been shown verbatim.)
+        ProductVariantDto variant = pickPricyVariant();
+        Long owner = customer("9990005555");
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(
+                request(cart.cartId(), PaymentMethod.COD), "self-cancel-key-1", owner);
+
+        OrderDto cancelled =
+                orderService.cancelByToken(UUID.fromString(order.trackingToken()), owner);
+
+        assertThat(cancelled.status()).isEqualTo("CANCELLED");
+        assertThat(cancelled.timeline())
+                .filteredOn(e -> "CANCELLED".equals(e.toStatus()))
+                .singleElement()
+                .satisfies(e -> assertThat(e.note())
+                        .isEqualTo(TransitionRequest.CUSTOMER_REQUEST));
+    }
 }
