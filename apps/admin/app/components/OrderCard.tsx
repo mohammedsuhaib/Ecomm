@@ -106,14 +106,25 @@ export default function OrderCard({
   }
 
   async function cancel() {
-    const reason = window.prompt('Reason for cancelling this order?');
+    // The audience is stated because it changed: this reason is now shown to
+    // the customer on their order screen, word for word. Staff writing an
+    // internal note here would be writing to the customer without knowing it.
+    const reason = window.prompt(
+      'Why are you cancelling this order?\n\n' +
+        'The customer will see this on their order page, exactly as you type it.',
+    );
     if (reason == null) return;
     setBusy(true);
     setError(null);
     try {
       const updated = await transitionOrder(order.id, {
+        // Blank means blank. It used to become "Cancelled by staff", which is
+        // now a sentence the customer reads under "Reason:" while saying
+        // nothing their notice does not already say — and saying it in English
+        // whichever language they shop in. With no reason the storefront shows
+        // the plain cancellation notice.
         to: 'CANCELLED',
-        reason: reason || 'Cancelled by staff',
+        reason: reason.trim() || undefined,
       });
       onUpdated(updated);
     } catch (err) {

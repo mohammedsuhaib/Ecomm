@@ -29,7 +29,10 @@ export interface OrderItem {
 export interface OrderTimelineEntry {
   toStatus: OrderStatus;
   at: string; // ISO timestamp
-  note?: string | null; // reason recorded with the step (failed delivery, staff cancel)
+  // Reason recorded with the step (failed delivery, staff cancel). NOT an
+  // internal note: the customer's own order page renders it verbatim for both
+  // of those steps, so treat anything written here as customer-facing.
+  note?: string | null;
 }
 
 export interface Order {
