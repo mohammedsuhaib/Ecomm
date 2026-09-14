@@ -37,34 +37,80 @@ export interface PhoneSignInSession {
 }
 
 /**
- * Map the common Firebase auth error codes to friendly, user-facing messages.
- * Anything else falls through to a generic message for the stage that failed —
- * a failed CONFIRM must never claim the code "could not be sent", or a wrong
- * OTP reads as a resend problem instead of an invalid code.
+ * What went wrong, as a key in the storefront's `login` message namespace.
+ *
+ * <p>This module classifies; it does not write copy. It used to build English
+ * `Error` messages that the login page rendered verbatim, which handed a
+ * Kannada customer an English sentence at the one step they were stuck on —
+ * every other string on that page goes through next-intl. Returning a key
+ * keeps the wording in `messages/*.json` for both languages.
  */
-function friendlyFirebaseError(err: unknown, stage: 'send' | 'confirm'): Error {
+export type PhoneAuthErrorKey =
+  | 'codeIncorrect'
+  | 'codeMissing'
+  | 'codeExpired'
+  | 'invalidPhone'
+  | 'tooManyAttempts'
+  | 'smsQuotaExceeded'
+  | 'captchaFailed'
+  | 'codeNotVerified'
+  | 'requestCodeFirst'
+  | 'couldNotSend';
+
+/**
+ * A phone-sign-in failure the login UI can phrase for the customer.
+ *
+ * <p>`messageKey` is the customer-facing copy; `message` carries the
+ * underlying Firebase code for logs and is never displayed — showing a raw
+ * SDK message to a shopper is both unreadable and a small information leak.
+ */
+export class PhoneAuthError extends Error {
+  readonly messageKey: PhoneAuthErrorKey;
+
+  constructor(messageKey: PhoneAuthErrorKey, detail: string) {
+    super(`${messageKey} (${detail})`);
+    this.name = 'PhoneAuthError';
+    this.messageKey = messageKey;
+  }
+}
+
+/**
+ * Classify a Firebase auth error into one of the keys above.
+ *
+ * <p>Anything unrecognised falls back per stage: a failed CONFIRM must never
+ * claim the code "could not be sent", or a wrong OTP reads as a resend problem
+ * instead of a bad code.
+ */
+function classifyFirebaseError(
+  err: unknown,
+  stage: 'send' | 'confirm',
+): PhoneAuthError {
   const code =
     typeof err === 'object' && err !== null && 'code' in err
       ? String((err as { code: unknown }).code)
       : '';
   switch (code) {
     case 'auth/invalid-phone-number':
-      return new Error('That mobile number looks invalid. Please check it.');
+      return new PhoneAuthError('invalidPhone', code);
     case 'auth/invalid-verification-code':
+      return new PhoneAuthError('codeIncorrect', code);
     case 'auth/missing-verification-code':
-      return new Error('That code is incorrect. Please re-enter it.');
+      return new PhoneAuthError('codeMissing', code);
+    // The SMS code itself timed out, or the whole verification session did —
+    // either way the only way forward is a fresh code, not the same digits.
     case 'auth/code-expired':
-      return new Error('That code has expired. Please request a new one.');
+    case 'auth/session-expired':
+      return new PhoneAuthError('codeExpired', code);
     case 'auth/too-many-requests':
-      return new Error('Too many attempts. Please wait a little and try again.');
+      return new PhoneAuthError('tooManyAttempts', code);
     case 'auth/quota-exceeded':
-      return new Error('SMS limit reached. Please try again later.');
+      return new PhoneAuthError('smsQuotaExceeded', code);
     case 'auth/captcha-check-failed':
-      return new Error('Verification failed. Please reload and try again.');
+      return new PhoneAuthError('captchaFailed', code);
     default:
       return stage === 'confirm'
-        ? new Error('That code could not be verified. Please re-enter it.')
-        : new Error('Could not send the code. Please try again.');
+        ? new PhoneAuthError('codeNotVerified', code || 'unknown')
+        : new PhoneAuthError('couldNotSend', code || 'unknown');
   }
 }
 
@@ -91,7 +137,7 @@ export async function startPhoneSignIn(
   // every attempt on a fresh child element instead of the container itself.
   const container = document.getElementById(containerId);
   if (!container) {
-    throw new Error('Could not send the code. Please reload and try again.');
+    throw new PhoneAuthError('couldNotSend', 'recaptcha-container-missing');
   }
   container.replaceChildren();
   const mount = document.createElement('div');
@@ -114,7 +160,7 @@ export async function startPhoneSignIn(
           const cred = await confirmationResult.confirm(otp);
           return await cred.user.getIdToken();
         } catch (err) {
-          throw friendlyFirebaseError(err, 'confirm');
+          throw classifyFirebaseError(err, 'confirm');
         }
       },
     };
@@ -122,6 +168,6 @@ export async function startPhoneSignIn(
     // A failed send leaves the widget in an unknown state; drop it so the
     // next attempt (or resend) starts clean instead of hitting "already rendered".
     clearActiveVerifier();
-    throw friendlyFirebaseError(err, 'send');
+    throw classifyFirebaseError(err, 'send');
   }
 }

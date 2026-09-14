@@ -8,6 +8,7 @@ import { ApiError, cancelOrder, fetchOrderInvoice, getOrder, orderStreamUrl } fr
 import { formatRupees } from '@/app/lib/format';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
+import { rememberLastOrder } from '@/app/lib/lastOrder';
 import PushOptIn from '@/app/components/PushOptIn';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
@@ -100,6 +101,10 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       setLastUpdated(Date.now());
       if (!cartCleared.current) {
         cartCleared.current = true;
+        // Clearing the cart is what makes Back show "Your cart is empty", so
+        // leave a note in the same breath: the cart/checkout empty states read
+        // it and say the order was placed instead (see lib/lastOrder.ts).
+        rememberLastOrder(next);
         reset();
       }
     },

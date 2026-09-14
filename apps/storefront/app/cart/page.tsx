@@ -8,6 +8,7 @@ import { formatRupees, subtractRupees } from '@/app/lib/format';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
+import CartEmptyState from '@/app/components/CartEmptyState';
 
 export default function CartPage() {
   const t = useTranslations('cart');
@@ -94,12 +95,7 @@ export default function CartPage() {
           <div className="skeleton-row" />
         </div>
       ) : items.length === 0 ? (
-        <div className="empty-state">
-          <p>{t('empty')}</p>
-          <Link href="/" className="btn">
-            {tc('startShopping')}
-          </Link>
-        </div>
+        <CartEmptyState />
       ) : (
         <>
           <ul className="cart-list">

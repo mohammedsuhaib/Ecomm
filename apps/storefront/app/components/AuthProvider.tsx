@@ -19,6 +19,7 @@ import {
 } from '@/app/lib/auth';
 import { isFirebaseConfigured } from '@/app/lib/firebase';
 import {
+  PhoneAuthError,
   startPhoneSignIn,
   type PhoneSignInSession,
 } from '@/app/lib/firebasePhoneAuth';
@@ -42,7 +43,8 @@ interface AuthContextValue {
    * Step 1 — "send code". In real mode this actually sends an SMS OTP via
    * Firebase (an invisible reCAPTCHA is mounted on `recaptchaContainerId`) and
    * stashes the confirmation session for `loginWithPhone`. In dev mode this is
-   * a no-op (no SMS is sent). Throws a friendly Error if the send fails.
+   * a no-op (no SMS is sent). Throws a {@link PhoneAuthError} if the send
+   * fails, carrying the message key the login page should show.
    */
   startPhoneLogin: (phone: string, recaptchaContainerId: string) => Promise<void>;
   /**
@@ -122,7 +124,7 @@ export default function AuthProvider({
       if (firebaseEnabled) {
         const session = phoneSessionRef.current;
         if (!session) {
-          throw new Error('Please request a code before verifying.');
+          throw new PhoneAuthError('requestCodeFirst', 'no-session');
         }
         firebaseIdToken = await session.confirm(otp); // real Firebase ID token
       } else {

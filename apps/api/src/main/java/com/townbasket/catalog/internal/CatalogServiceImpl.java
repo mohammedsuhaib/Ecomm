@@ -191,22 +191,30 @@ class CatalogServiceImpl implements CatalogService {
             return Map.of();
         }
         // Two queries for the whole set, however many ids: the variants, then the
-        // product names they need. Previously one caller-side loop did two per line.
+        // products they belong to. Previously one caller-side loop did two per line.
+        // The products are needed for more than their names — see below.
         List<ProductVariantEntity> variants = variantRepository.findAllById(ids);
-        Map<Long, String> productNames = productRepository
+        Map<Long, ProductEntity> products = productRepository
                 .findAllById(variants.stream().map(ProductVariantEntity::getProductId).distinct().toList())
                 .stream()
-                .collect(Collectors.toMap(ProductEntity::getId, ProductEntity::getName));
+                .collect(Collectors.toMap(ProductEntity::getId, p -> p));
 
         Map<Long, VariantView> byVariantId = new LinkedHashMap<>();
         for (ProductVariantEntity v : variants) {
+            ProductEntity product = products.get(v.getProductId());
+            // The same conjunction toVariantDto applies, for the same reason: the
+            // product's flag is a master switch and this is what cart and orders
+            // read. A product that has gone missing counts as unavailable — the
+            // safe direction, since the alternative is selling something we
+            // cannot identify.
+            boolean available = product != null && product.isAvailable() && v.isAvailable();
             byVariantId.put(v.getId(), new VariantView(
                     v.getId(),
                     v.getProductId(),
-                    productNames.get(v.getProductId()),
+                    product != null ? product.getName() : null,
                     v.getLabel(),
                     v.getSellingPrice(),
-                    v.isAvailable()));
+                    available));
         }
         return byVariantId;
     }
@@ -658,7 +666,7 @@ class CatalogServiceImpl implements CatalogService {
 
     private ProductDto toProductDto(ProductEntity e, Map<Long, Integer> stock) {
         List<ProductVariantDto> variants = e.getVariants().stream()
-                .map(v -> toVariantDto(v, stock))
+                .map(v -> toVariantDto(v, stock, e.isAvailable()))
                 .toList();
         return new ProductDto(
                 e.getId(),
@@ -674,15 +682,35 @@ class CatalogServiceImpl implements CatalogService {
                 variants);
     }
 
-    private static ProductVariantDto toVariantDto(ProductVariantEntity v, Map<Long, Integer> stock) {
+    /**
+     * Availability is the CONJUNCTION of the product's flag and the variant's,
+     * never the variant's alone.
+     *
+     * <p>Products and variants carry independent {@code available} switches, and
+     * {@code setProductAvailability} deliberately does not cascade — turning a
+     * product back on must not resurrect variants that were individually off.
+     * That makes the product flag a master switch, and it only works if every
+     * reader honours it. Nothing did: a product marked unavailable kept
+     * reporting {@code available = true} on each of its variants, so the
+     * storefront still showed an Add button, the cart still accepted the line,
+     * and {@code placeOrder}'s unavailable check — which reads this same flag
+     * through {@link VariantView} — let the order through. QA reported it as
+     * "unavailable items are also orderable".
+     *
+     * <p>Stock follows availability: an unavailable variant reports 0 sellable,
+     * so nothing downstream has to special-case it.
+     */
+    private static ProductVariantDto toVariantDto(
+            ProductVariantEntity v, Map<Long, Integer> stock, boolean productAvailable) {
         // NOTE: cost_price (v.getCostPrice()) is intentionally NOT mapped — internal only.
+        boolean available = productAvailable && v.isAvailable();
         return new ProductVariantDto(
                 v.getId(),
                 v.getLabel(),
                 v.getSellingPrice(),
                 v.getMrp(),
-                v.isAvailable(),
-                stock.getOrDefault(v.getId(), 0));
+                available,
+                available ? stock.getOrDefault(v.getId(), 0) : 0);
     }
 
     /** Admin product mapping — includes cost price + the resolved category name. */

@@ -8,6 +8,7 @@ import { ApiError, getMyCart, mergeCart } from '@/app/lib/api';
 import { loadCartId, saveCartId } from '@/app/lib/cart';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
+import { PhoneAuthError } from '@/app/lib/firebasePhoneAuth';
 
 type Step = 'phone' | 'code';
 
@@ -66,9 +67,7 @@ export default function LoginPage() {
       setResent(false);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : t('couldNotSend'),
+        err instanceof PhoneAuthError ? t(err.messageKey) : t('couldNotSend'),
       );
     } finally {
       setBusy(false);
@@ -89,7 +88,9 @@ export default function LoginPage() {
       setResent(true);
       setResendIn(RESEND_COOLDOWN_S);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('couldNotSend'));
+      setError(
+        err instanceof PhoneAuthError ? t(err.messageKey) : t('couldNotSend'),
+      );
     } finally {
       setBusy(false);
     }
@@ -132,13 +133,13 @@ export default function LoginPage() {
 
       router.replace(next);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
+      if (err instanceof PhoneAuthError) {
+        // Wrong or expired code from the real Firebase flow — the one error a
+        // customer sees most, so it gets its own translated copy rather than
+        // the SDK's English message.
+        setError(t(err.messageKey));
+      } else if (err instanceof ApiError && err.status === 401) {
         setError(t('couldNotVerify'));
-      } else if (err instanceof ApiError) {
-        setError(t('signInError'));
-      } else if (err instanceof Error) {
-        // Friendly Firebase error (e.g. wrong/expired code) from the real flow.
-        setError(err.message);
       } else {
         setError(t('signInError'));
       }

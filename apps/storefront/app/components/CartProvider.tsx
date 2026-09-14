@@ -19,6 +19,7 @@ import {
 } from '@/app/lib/api';
 import { loadAuth } from '@/app/lib/auth';
 import { clearCartId, loadCartId, saveCartId } from '@/app/lib/cart';
+import { clearLastOrder } from '@/app/lib/lastOrder';
 import {
   acceptCartPrices,
   acceptVariantPrice,
@@ -153,6 +154,13 @@ export default function CartProvider({
   const commit = useCallback((next: Cart | null) => {
     cartRef.current = next;
     setCart(next);
+    // A basket with something in it is a NEW basket, so the "you just ordered"
+    // note has done its job — drop it. Without this the note outlives its
+    // purpose: order, shop again, empty the basket, and the empty state would
+    // announce the old order as if this basket were the one already placed.
+    // Ordering itself passes null here (the order page resets the cart), so the
+    // note survives exactly the Back-button case it exists for.
+    if (next && next.items.length > 0) clearLastOrder();
   }, []);
 
   // Coalescing state for the steppers. The refs are the authority (callbacks
@@ -192,18 +200,14 @@ export default function CartProvider({
     if (!id) return;
     setLoading(true);
     getCart(id)
-      .then((fetched) => {
-        cartRef.current = fetched;
-        setCart(fetched);
-      })
+      .then(commit)
       .catch(() => {
         // Stale/expired cartId — forget it and start fresh on next add.
         clearCartId();
-        cartRef.current = null;
-        setCart(null);
+        commit(null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [commit]);
 
   // Forget the cart when the session ends (logout, or a failed token refresh
   // clearing it). Now that carts follow the ACCOUNT — owned at creation and
@@ -214,13 +218,12 @@ export default function CartProvider({
     const onAuthChanged = () => {
       if (!loadAuth()) {
         clearCartId();
-        cartRef.current = null;
-        setCart(null);
+        commit(null);
       }
     };
     window.addEventListener('tb:auth-changed', onAuthChanged);
     return () => window.removeEventListener('tb:auth-changed', onAuthChanged);
-  }, []);
+  }, [commit]);
 
   const ensureCartId = useCallback(async (): Promise<string> => {
     const existing = loadCartId();

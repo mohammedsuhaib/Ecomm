@@ -140,6 +140,9 @@
     "title": "🧺 Your cart",
     "loading": "Loading your cart…",
     "empty": "Your cart is empty.",
+    "alreadyOrderedTitle": "Your order is placed",
+    "alreadyOrderedBody": "Order {code} is on its way. This basket has already been ordered, so it’s empty now — start a new one whenever you like.",
+    "viewOrder": "Track this order",
     "each": "{price} each",
     "outOfStockRemove": "Out of stock — remove to continue",
     "subtotal": "Subtotal",
@@ -162,6 +165,9 @@
     "phoneNumber": "Phone number",
     "phonePlaceholder": "10-digit mobile",
     "phoneError": "Enter a 10-digit phone number.",
+    "nameError": "Please enter your name.",
+    "addressError": "Please enter your full address, including the house or flat number.",
+    "locationError": "Please drop the pin on the map so the rider can find you.",
     "savedAddresses": "Saved addresses",
     "addressFallback": "Address",
     "deliveryAddress": "Delivery address",
@@ -215,7 +221,16 @@
     "smsHintVerify": "Enter the code from the SMS we just sent.",
     "devHintCode": "Local dev: any 6-digit code is accepted.",
     "couldNotVerify": "We could not verify that number. Please try again.",
-    "signInError": "Something went wrong signing you in. Please try again."
+    "signInError": "Something went wrong signing you in. Please try again.",
+    "codeIncorrect": "That code is not correct. Check the SMS and enter the 6 digits again, or ask for a new code.",
+    "codeMissing": "Enter the 6-digit code from the SMS.",
+    "codeExpired": "That code has expired. Please ask for a new code.",
+    "codeNotVerified": "We could not check that code. Please ask for a new code and try again.",
+    "requestCodeFirst": "Please ask for a code first.",
+    "invalidPhone": "That mobile number does not look right. Please check it.",
+    "tooManyAttempts": "Too many attempts from this number. Please wait a few minutes and try again.",
+    "smsQuotaExceeded": "We cannot send any more codes right now. Please try again later.",
+    "captchaFailed": "The security check did not complete. Please reload the page and try again."
   },
   "account": {
     "loadingAccount": "Loading your account…",
@@ -342,6 +357,13 @@
   "notFound": {
     "title": "Page not found",
     "body": "We couldn’t find what you were looking for."
+  },
+  "errorScreen": {
+    "title": "Something went wrong",
+    "body": "That didn’t load properly. Trying again usually fixes it — your cart is safe.",
+    "tryAgain": "Try again",
+    "clearAndReload": "Still stuck? Clear the app’s cache and reload",
+    "reference": "Reference: {digest}"
   },
   "offline": {
     "title": "You’re offline",
