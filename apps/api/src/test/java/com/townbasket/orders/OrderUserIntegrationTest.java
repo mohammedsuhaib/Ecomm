@@ -38,15 +38,39 @@ class OrderUserIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     AuthService authService;
 
+    /**
+     * A variant that is priced high enough to clear the minimum order value AND
+     * still has room for the orders this class places.
+     *
+     * <p>The stock requirement is not belt-and-braces, it is the reason this
+     * method exists in this form. Integration tests share ONE Postgres for the
+     * whole suite ({@link com.townbasket.AbstractIntegrationTest} keeps the
+     * container static and never stops it), and nothing resets inventory between
+     * classes. Seven classes place orders against the first variant priced over
+     * ₹120, and an order left CONFIRMED holds its reservation for the life of the
+     * suite, so `available` on that one variant only ever falls. Without this
+     * check the class quietly depends on how much the classes before it happened
+     * to consume. main was green; this branch added two more orders and six
+     * tests in this class then errored at "requested 5, available 4" — four
+     * units left of a hundred, so the margin had been thin for a while rather
+     * than the new orders being unreasonable. Asking for headroom makes each
+     * test roll onto a variant that can actually satisfy it, which is what the
+     * four sibling classes that hit this first already do.
+     */
+    /** Units per test order — enough of a ₹120+ variant to clear the ₹299 minimum. */
+    private static final int QTY = 5;
+
     private ProductVariantDto pricyVariant() {
-        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 100)).content()) {
+        for (ProductDto p : catalogService.listProducts(null, false, null, PageRequest.of(0, 200)).content()) {
             for (ProductVariantDto v : p.variants()) {
-                if (v.available() && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
+                if (v.available() && v.availableStock() >= QTY * 4
+                        && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0) {
                     return v;
                 }
             }
         }
-        throw new IllegalStateException("No suitable seeded variant found");
+        throw new IllegalStateException(
+                "No seeded variant with price >= 120 and enough stock left in the shared database");
     }
 
     private PlaceOrderRequest request(UUID cartId) {
@@ -65,8 +89,8 @@ class OrderUserIntegrationTest extends AbstractIntegrationTest {
         Long userId = authService.phoneVerify(new PhoneVerifyRequest("dev:9666600000")).user().id();
         ProductVariantDto v = pricyVariant();
 
-        OrderDto userOrder = orderService.placeOrder(request(cartWith(v, 5)), "user-order-1", userId);
-        OrderDto guestOrder = orderService.placeOrder(request(cartWith(v, 5)), "guest-order-1", null);
+        OrderDto userOrder = orderService.placeOrder(request(cartWith(v, QTY)), "user-order-1", userId);
+        OrderDto guestOrder = orderService.placeOrder(request(cartWith(v, QTY)), "guest-order-1", null);
 
         PagedResponse<OrderDto> mine = orderService.listUserOrders(userId, PageRequest.of(0, 20));
         assertThat(mine.content()).extracting(OrderDto::id).contains(userOrder.id());
