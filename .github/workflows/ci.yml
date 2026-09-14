@@ -70,10 +70,21 @@ jobs:
       - name: Type-check
         run: pnpm -r --if-present run typecheck
 
+      # `next lint` with --max-warnings 0 in every app. Until ESLint was added
+      # the lint scripts dropped into next's interactive setup prompt, so this
+      # step could never have run.
+      - name: Lint
+        run: pnpm -r --if-present run lint
+
       - name: Build storefront
         run: pnpm --filter @town-basket/storefront build
 
       - name: Build admin
         run: pnpm --filter @town-basket/admin build
+
+      # The delivery-agent PWA is in the workspace and was type-checked but
+      # never built here, so a build-only break in it reached main unnoticed.
+      - name: Build delivery
+        run: pnpm --filter @town-basket/delivery build
 
       # TODO (M2): Lighthouse PWA-installable gate on the storefront.

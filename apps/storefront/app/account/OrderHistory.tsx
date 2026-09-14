@@ -33,7 +33,7 @@ export default function OrderHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();

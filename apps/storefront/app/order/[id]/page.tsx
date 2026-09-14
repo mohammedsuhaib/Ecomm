@@ -131,7 +131,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     return () => {
       cancelled = true;
     };
-  }, [checked, isAuthenticated, trackingToken, applyOrder, router, loginUrl]);
+  }, [checked, isAuthenticated, trackingToken, applyOrder, router, loginUrl, t]);
 
   // Live updates: subscribe to the order SSE stream (keyed by the resolved
   // numeric id) and ALSO poll by the unguessable tracking token as the reliable

@@ -75,7 +75,7 @@ export default function AddressManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();

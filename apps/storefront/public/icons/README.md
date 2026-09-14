@@ -16,3 +16,22 @@ file conventions. The header logo is `public/images/logo-mark.png`
 (transparent background).
 
 To regenerate at other sizes, scale down from `brand/` — never scale up.
+
+## Keep them quantised
+
+These are saved as PNGs with a 256-colour adaptive palette and
+Floyd–Steinberg dithering, which halves them (`icon-512.png` 147 KB → 69 KB,
+`icon-192.png` 31 KB → 14 KB, `icon-maskable-512.png` 89 KB → 42 KB) at
+38–42 dB PSNR — indistinguishable side by side, because the artwork is flat
+colour with a couple of soft gradients. A truecolour re-export from `brand/`
+will quietly double them again, so finish with the quantise step:
+
+```python
+from PIL import Image
+im = Image.open(path).convert("RGB")   # convert("RGBA") if the source has alpha
+im.quantize(colors=256, method=Image.MEDIANCUT,
+            dither=Image.FLOYDSTEINBERG).save(path, optimize=True)
+```
+
+`app/apple-icon.png` is quantised the same way. The masters in `brand/` are
+deliberately left untouched — they are the source to scale down from.

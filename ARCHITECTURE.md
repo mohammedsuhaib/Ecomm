@@ -92,8 +92,24 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 - Search: Postgres full-text (`tsvector` + trigram for typo tolerance).
   Sufficient for a supermarket-sized catalog (~5–20k SKUs); a search
   service is a later extraction if ever needed.
-- Read-heavy: responses carry HTTP cache headers; CDN and Next.js cache
-  hot category/product pages. No Redis at this scale.
+- Read-heavy, and cached at three layers, none of them a CDN (there is no
+  CDN, and none is planned — see §7):
+  1. **HTTP cache headers.** The anonymous read endpoints (`/categories`,
+     `/products*`, `/store`, `/serviceability/check`) send a short
+     `public, max-age=…, stale-while-revalidate=…` plus a weak `ETag` for
+     conditional GETs; everything else sends `no-store`. Set by
+     `PublicReadCacheHeaderWriter`, which replaces Spring Security's own
+     blanket-`no-store` writer — until it existed, *every* response,
+     catalogue included, forbade caching outright.
+  2. **Next.js fetch cache.** Catalogue fetches revalidate every 60s, so a
+     burst of visitors costs one API call. Note this is the Data Cache, not
+     full-page ISR: the root layout reads the locale cookie, so the pages
+     themselves render per request even though they declare
+     `revalidate = 60`.
+  3. **Caffeine, in-process.** The active-store row and the category nav
+     only, both evicted by the admin writes that change them. No Redis at
+     this scale: one JVM, so a cache server would add a process to operate
+     and a network hop in place of a map lookup.
 - Owns: `categories`, `products`, `product_variants`, `product_images`.
 
 ### 3.3 `inventory`
@@ -271,8 +287,28 @@ Ecomm/
 - Vertical first → resize the droplet (more CPU/RAM); trivial on DO.
 - Read load → cache headers + Postgres tuning; add Redis if measured.
 - Then horizontal/managed → move to a managed/HA setup (managed DB +
-  multiple app instances behind a load balancer) — a deployment change,
-  no code rework, because the app is containerised and stateless.
+  multiple app instances behind a load balancer). This is **not** a
+  deployment-only change. The app is containerised but it is not stateless,
+  and a second instance breaks four things that work today precisely
+  because there is one JVM:
+  - `notifications.internal.SseRegistry` holds live `SseEmitter`s in a
+    `ConcurrentHashMap`. An order event only reaches the instance that
+    happens to hold that customer's connection, so behind a load balancer
+    live tracking silently stops updating for most customers. Needs a
+    shared pub/sub fan-out (Redis, or Postgres `LISTEN/NOTIFY`).
+  - `RateLimitFilter` counts per IP in a local `ConcurrentHashMap`, so N
+    instances mean N times the configured OTP/login limit. Needs a shared
+    counter.
+  - The Caffeine caches (§3.2) are per JVM, so one instance's eviction
+    leaves the others serving the old store row until their TTL lapses —
+    a staff closure would apply on some instances and not others. Needs a
+    shared cache or an eviction broadcast.
+  - `republish-outstanding-events-on-restart` re-reads the outbox at
+    startup. The registry is in Postgres and shared, so every instance
+    that restarts would republish the same outstanding events. Needs the
+    completion claim to be exclusive.
+  None of this is worth building now — it is work for the day the traffic
+  arrives, and listing it is how that day does not start with a surprise.
 - Module extraction → Modulith event externalization + lift the module's
   schema into its own database. Contracts don't change.
 
