@@ -1,5 +1,6 @@
 package com.townbasket;
 
+import com.townbasket.identity.AccountDeactivatedException;
 import com.townbasket.identity.InvalidCredentialsException;
 import com.townbasket.inventory.InsufficientStockException;
 import com.townbasket.shared.ApiError;
@@ -41,6 +42,17 @@ class GlobalExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     ResponseEntity<ApiError> handleUnauthorized(InvalidCredentialsException ex, HttpServletRequest request) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    /**
+     * Correct credentials on an account an admin has switched off -> 403. Kept
+     * apart from the 401 above on purpose: the login screens key their copy on
+     * the status, and "wrong password" would be a lie that sends the person to
+     * a reset that cannot help them. The message is written to be shown as is.
+     */
+    @ExceptionHandler(AccountDeactivatedException.class)
+    ResponseEntity<ApiError> handleDeactivated(AccountDeactivatedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     /** Missing/unknown resources (e.g. cart or order id) -> 404. */

@@ -536,3 +536,119 @@ html, body {
   margin: 0 0 .75rem; padding: .6rem .8rem; border-radius: 8px;
   background: #fef3c7; color: #78350f; border-left: 4px solid #d97706; font-size: .9rem;
 }
+
+/* ── Deliveries / Completed switch ─────────────────────────── */
+/* Two big thumb targets; the active one reads as the surface below it. */
+.view-tabs {
+  display: flex;
+  background: #e5e9ef;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+.view-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--clr-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background .15s, color .15s;
+}
+.view-tab.active {
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  box-shadow: var(--shadow);
+}
+.tab-count {
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* ── Today's tally (Completed view) ────────────────────────── */
+.day-summary {
+  background: var(--clr-surface);
+  border: 1.5px solid var(--clr-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.day-summary-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--clr-muted);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+.day-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.day-stat {
+  flex: 1 1 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--clr-bg);
+}
+/* Cash is the number the rider hands over at the end of the shift — it gets the colour. */
+.day-stat-cash {
+  background: #f3f0ff;
+  border: 1px solid #c4b5fd;
+}
+.day-stat-cash .day-stat-value { color: var(--clr-cod); }
+.day-stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.day-stat-label {
+  font-size: 13px;
+  color: var(--clr-muted);
+}
+.day-summary-hint {
+  font-size: 12px;
+  color: var(--clr-muted);
+}
+
+/* ── Completed cards ───────────────────────────────────────── */
+.completed-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--clr-muted);
+  margin: 4px 0 -4px;
+}
+.dcard-completed {
+  border-color: #bbf7d0;
+}
+.dcard-delivered-at {
+  color: var(--clr-success);
+  font-weight: 600;
+}
+.load-more {
+  align-self: center;
+  border: 1.5px solid var(--clr-border);
+  background: var(--clr-surface);
+}

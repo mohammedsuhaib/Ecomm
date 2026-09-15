@@ -3,6 +3,7 @@ package com.townbasket.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.townbasket.shared.ApiError;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -182,6 +183,26 @@ class MeHardeningIntegrationTest {
         assertThat(saw429)
                 .as("expected a 429 within the first %d requests", rateLimitCapacity + 1)
                 .isTrue();
+    }
+
+    @Test
+    void deactivatedAccountWithTheRightPasswordGets403NotWrongPassword() {
+        // The login screens key their copy on the status code: 401 says "wrong
+        // password", 403 says "your account is deactivated". A rider whose admin
+        // switched them off must get the second, or they go and reset a password
+        // that was never the problem.
+        String email = "off-http-" + UUID.randomUUID().toString().substring(0, 8) + "@townbasket.local";
+        Long rider = authService.createDeliveryAgent(
+                new CreateDeliveryAgentRequest("Off Over HTTP", email, "Rider@12345")).id();
+        authService.setDeliveryAgentActive(rider, false);
+
+        ResponseEntity<ApiError> res = rest.exchange(
+                "/api/v1/auth/staff/login", HttpMethod.POST,
+                json(new StaffLoginRequest(email, "Rider@12345")), ApiError.class);
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(res.getBody()).isNotNull();
+        assertThat(res.getBody().message()).contains("deactivated");
     }
 
     @Test

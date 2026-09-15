@@ -1,5 +1,6 @@
 package com.townbasket.identity.internal;
 
+import com.townbasket.identity.AccountDeactivatedException;
 import com.townbasket.identity.AddressInput;
 import com.townbasket.identity.AuthResponse;
 import com.townbasket.identity.AuthService;
@@ -120,11 +121,21 @@ class AuthServiceImpl implements AuthService {
         // single error message already avoids enumeration.
         if (user == null
                 || user.getRole() == Role.CUSTOMER
-                || !user.isActive()
                 || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             loginAttempts.recordFailure(email);
             throw new InvalidCredentialsException("Invalid email or password");
+        }
+        // Checked AFTER the password, deliberately: the right password on a
+        // switched-off account earns a truthful answer (403, "deactivated") so a
+        // rider isn't sent off to reset a password that was never the problem;
+        // a wrong password on the same account stays a plain 401, so the
+        // active/inactive state of an account cannot be probed without the
+        // credential. Neither a guess nor a success for the throttle: the
+        // failure count is left exactly as it was.
+        if (!user.isActive()) {
+            throw new AccountDeactivatedException(
+                    "Your account has been deactivated. Please contact the store manager.");
         }
         loginAttempts.clear(email);
         return issueAuthResponse(user);
@@ -328,7 +339,18 @@ class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery agent not found: " + agentId));
         agent.setActive(active);
         agent.touch();
-        return toDeliveryAgentDto(users.saveAndFlush(agent));
+        DeliveryAgentDto dto = toDeliveryAgentDto(users.saveAndFlush(agent));
+        if (!active) {
+            // Switching a rider off must end their session, not just block the
+            // next login: refresh() already refuses inactive users, but a phone
+            // that never has to refresh (active token still valid) would carry on
+            // until it expired. Revoking the family means the next refresh fails
+            // and the app returns to the login screen, where the truthful
+            // "deactivated" message waits. Access tokens run out within 15
+            // minutes. Same treatment resetPassword gives a changed credential.
+            refreshTokenRevoker.revokeFamily(agent.getId());
+        }
+        return dto;
     }
 
     @Override
