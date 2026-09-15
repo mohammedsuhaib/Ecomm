@@ -6,8 +6,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * Per-IP auth rate-limit settings under {@code townbasket.security.ratelimit}.
  * A fixed window of {@link #window} allows up to {@link #capacity} requests per
- * client IP per limited endpoint group. Sane defaults (10 requests / 60s) are
+ * client IP per limited endpoint group. Sane defaults (60 requests / 60s) are
  * baked in so the limiter works without any configuration.
+ *
+ * <p><strong>Why the default is 60 and not a handful.</strong> An IP is not a
+ * person here: a shop's WiFi, a shared office connection or a mobile carrier's
+ * CGNAT pool puts a whole group of customers behind ONE public address, so a
+ * tight per-IP budget locks out a crowd signing in together (which is a normal
+ * Saturday, not an attack). The credential-guessing job this number used to be
+ * doing is now done per account, where sharing an IP is irrelevant, by the
+ * identity module's staff-login failure throttle
+ * ({@code townbasket.security.login-throttle}) — so this budget can be sized for
+ * "a busy minute of real people" while password guessing stays bounded.
  *
  * <p>Root-package infrastructure (not an identity-module concern): the limiter
  * is a servlet filter that runs ahead of the controllers.
@@ -31,7 +41,7 @@ record RateLimitProperties(int capacity, Duration window, boolean trustForwarded
 
     RateLimitProperties {
         if (capacity <= 0) {
-            capacity = 10;
+            capacity = 60;
         }
         if (window == null) {
             window = Duration.ofSeconds(60);

@@ -140,6 +140,12 @@ export default function LoginPage() {
         setError(t(err.messageKey));
       } else if (err instanceof ApiError && err.status === 401) {
         setError(t('couldNotVerify'));
+      } else if (err instanceof ApiError && err.status === 429) {
+        // The auth endpoints are rate-limited per client IP, and an IP is not a
+        // person: a shop's WiFi or a carrier's CGNAT pool can put a whole group
+        // of customers on one address. So this is "the queue ahead of you", not
+        // "you did something wrong" — and waiting, not retrying, is the fix.
+        setError(t('tooManySignInAttempts'));
       } else {
         setError(t('signInError'));
       }

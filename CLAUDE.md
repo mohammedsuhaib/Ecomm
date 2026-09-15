@@ -111,8 +111,15 @@ is on). E.g. an order state transition emits an event consumed by `inventory`,
   local/docker), a **FAKE verifier** is active that accepts only `dev:<10-digit-phone>`
   tokens. Setting the project-id activates the real Google-signed-token verifier.
   Never give that property an empty-string default — empty counts as "present".
-- Access-token TTL 15m, refresh 30d; auth endpoints have an in-memory per-IP
-  fixed-window rate limit (no Redis).
+- Access-token TTL 15m, refresh 30d. Auth abuse limits are **two layers**, both
+  in-memory fixed windows (no Redis): `RateLimitFilter` per **client IP** across
+  `/auth/*` (default 60/60s — sized for a crowd behind one NAT/CGNAT address,
+  not for one person), and `identity.internal.LoginAttemptLimiter` per **staff
+  account**, counting only *failed* passwords and cleared by a success (default
+  10 / 5 min) — that second layer is what bounds password guessing, so don't
+  re-tighten the IP budget to do it. Customer login needs no per-credential
+  twin: Firebase verifies the OTP, and `/auth/phone/verify` only consumes the
+  resulting signed token.
 
 ## Frontend architecture
 

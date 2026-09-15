@@ -299,7 +299,13 @@ Ecomm/
   retries; SSE clients auto-reconnect.
 
 **Scalability (the dial, when needed)**
-- Vertical first → resize the droplet (more CPU/RAM); trivial on DO.
+- Vertical first → resize the droplet (more CPU/RAM); trivial on DO. Six
+  containers share that box, so each has a `mem_limit` in
+  `docker-compose.prod.yml` and the API's heap is derived from its limit
+  (`MaxRAMPercentage`): after a resize, raise the limits to use the new RAM —
+  otherwise the box grows and nothing takes the extra. Unbounded, the ceiling
+  is not throughput but an OOM-killed container, which reads like a
+  performance problem and is a budgeting one.
 - Read load → cache headers + Postgres tuning; add Redis if measured.
 - Then horizontal/managed → move to a managed/HA setup (managed DB +
   multiple app instances behind a load balancer). This is **not** a
@@ -311,9 +317,10 @@ Ecomm/
     happens to hold that customer's connection, so behind a load balancer
     live tracking silently stops updating for most customers. Needs a
     shared pub/sub fan-out (Redis, or Postgres `LISTEN/NOTIFY`).
-  - `RateLimitFilter` counts per IP in a local `ConcurrentHashMap`, so N
-    instances mean N times the configured OTP/login limit. Needs a shared
-    counter.
+  - `RateLimitFilter` counts per IP in a local `ConcurrentHashMap`, and
+    `identity.internal.LoginAttemptLimiter` counts failed staff logins per
+    account the same way, so N instances mean N times both configured
+    limits. Both need a shared counter.
   - The Caffeine caches (§3.2) are per JVM, so one instance's eviction
     leaves the others serving the old store row until their TTL lapses —
     a staff closure would apply on some instances and not others. Needs a
@@ -332,8 +339,13 @@ Ecomm/
   per endpoint; admin app behind staff roles.
 - Paytm PG webhook/checksum verification; idempotent webhook handling.
 - Secrets in environment files with restricted permissions (never in the
-  repo); firewall (only 80/443 + restricted SSH); auto-TLS via Caddy;
-  rate limiting on OTP and checkout endpoints.
+  repo); firewall (only 80/443 + restricted SSH); auto-TLS via Caddy.
+- Auth abuse limits are **two layers**, because one IP is not one person:
+  many customers share a public address (shop WiFi, carrier CGNAT), so the
+  per-IP window on `/auth/*` is sized for a crowd signing in together, and
+  password guessing is bounded **per staff account** by a failed-attempt
+  throttle that a correct password clears. Tightening the per-IP number to
+  guard passwords instead would just answer 429 to real customers.
 
 **Observability**
 - Structured JSON logs (shipped/retained off-server); Spring Boot Actuator

@@ -229,6 +229,7 @@
     "devHintCode": "Local dev: any 6-digit code is accepted.",
     "couldNotVerify": "We could not verify that number. Please try again.",
     "signInError": "Something went wrong signing you in. Please try again.",
+    "tooManySignInAttempts": "Too many sign-in attempts just now. Please wait a minute and try again.",
     "codeIncorrect": "That code is not correct. Check the SMS and enter the 6 digits again, or ask for a new code.",
     "codeMissing": "Enter the 6-digit code from the SMS.",
     "codeExpired": "That code has expired. Please ask for a new code.",

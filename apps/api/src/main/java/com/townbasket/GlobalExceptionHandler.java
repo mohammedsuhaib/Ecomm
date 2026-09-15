@@ -5,9 +5,11 @@ import com.townbasket.inventory.InsufficientStockException;
 import com.townbasket.shared.ApiError;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
+import com.townbasket.shared.TooManyRequestsException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -66,6 +68,23 @@ class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     ResponseEntity<ApiError> handleUnprocessable(BusinessRuleException ex, HttpServletRequest request) {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    /**
+     * A per-caller limit was hit (e.g. too many failed staff logins for one
+     * account) -> 429 with {@code Retry-After}, so the client knows the request
+     * itself was fine and when to repeat it. The edge limiter on
+     * {@code /api/v1/auth/*} produces the same shape from a servlet filter,
+     * which runs outside this advice.
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    ResponseEntity<ApiError> handleTooManyRequests(TooManyRequestsException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.TOO_MANY_REQUESTS;
+        ApiError body = ApiError.of(
+                status.value(), status.getReasonPhrase(), ex.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+                .body(body);
     }
 
     @ExceptionHandler(IllegalStateException.class)

@@ -33,6 +33,20 @@ townbasket:
       secret: test-only-jwt-secret-which-is-long-enough-32+
       access-ttl: PT15M
       refresh-ttl: P30D
+    ratelimit:
+      # PINNED LOW on purpose. Production defaults to 60/min per IP (sized for a
+      # crowd behind one NAT), which would make the 429 test fire 61 HTTP
+      # requests to prove one thing. The test reads this property rather than
+      # hard-coding the count, so changing it here cannot silently break it.
+      capacity: 10
+      window: PT60S
+    login-throttle:
+      # Likewise pinned low (production: 10) so the staff-login throttle test
+      # needs a handful of wrong passwords. Only FAILED attempts count and a
+      # successful login clears the account, so the many tests that log in as
+      # the seeded admin never consume this budget.
+      max-failures: 3
+      window: PT5M
   payments:
     # Tests keep the UPI plumbing covered (fake provider) so the path is ready
     # when a live gateway lands. Production defaults to OFF — see

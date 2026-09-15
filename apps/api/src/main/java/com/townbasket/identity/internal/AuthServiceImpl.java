@@ -38,9 +38,11 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link InvalidCredentialsException} (mapped to 401) with no detail about which
  * factor failed. No tokens, hashes or passwords are ever logged.
  *
- * <p>Follow-up (documented, not implemented): rate-limiting on the OTP/login
- * endpoints. At ~100 orders/day there is no Redis; a simple per-phone/IP
- * in-memory or DB counter is the intended add-on if abuse appears.
+ * <p>Abuse limits are two-layered, both in-memory (one JVM, no Redis): the edge
+ * filter caps requests per client IP across the whole auth surface, and
+ * {@link LoginAttemptLimiter} caps FAILED password attempts per staff account
+ * here — see that class for why one IP bucket alone cannot do both jobs when a
+ * crowd shares a public IP.
  */
 @Service
 @Transactional
@@ -55,6 +57,7 @@ class AuthServiceImpl implements AuthService {
     private final JwtTokenService tokens;
     private final PhoneTokenVerifier phoneVerifier;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptLimiter loginAttempts;
 
     AuthServiceImpl(UserRepository users,
                     AddressRepository addresses,
@@ -62,7 +65,8 @@ class AuthServiceImpl implements AuthService {
                     RefreshTokenRevoker refreshTokenRevoker,
                     JwtTokenService tokens,
                     PhoneTokenVerifier phoneVerifier,
-                    PasswordEncoder passwordEncoder) {
+                    PasswordEncoder passwordEncoder,
+                    LoginAttemptLimiter loginAttempts) {
         this.users = users;
         this.addresses = addresses;
         this.refreshTokens = refreshTokens;
@@ -70,6 +74,7 @@ class AuthServiceImpl implements AuthService {
         this.tokens = tokens;
         this.phoneVerifier = phoneVerifier;
         this.passwordEncoder = passwordEncoder;
+        this.loginAttempts = loginAttempts;
     }
 
     @Override
@@ -105,7 +110,12 @@ class AuthServiceImpl implements AuthService {
         if (request == null || isBlank(request.email()) || isBlank(request.password())) {
             throw new InvalidCredentialsException("Invalid email or password");
         }
-        UserEntity user = users.findByEmail(request.email().trim().toLowerCase()).orElse(null);
+        String email = request.email().trim().toLowerCase();
+        // Per-account failure budget, checked before any BCrypt work so a
+        // locked-out account is cheap to refuse (429, not 401).
+        loginAttempts.check(email);
+
+        UserEntity user = users.findByEmail(email).orElse(null);
         // Constant-ish work even when the user is missing isn't critical here; the
         // single error message already avoids enumeration.
         if (user == null
@@ -113,8 +123,10 @@ class AuthServiceImpl implements AuthService {
                 || !user.isActive()
                 || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            loginAttempts.recordFailure(email);
             throw new InvalidCredentialsException("Invalid email or password");
         }
+        loginAttempts.clear(email);
         return issueAuthResponse(user);
     }
 

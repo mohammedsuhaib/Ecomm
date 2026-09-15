@@ -64,6 +64,12 @@ services:
       CATALOG_IMAGES_SECRET_KEY: ${CATALOG_IMAGES_SECRET_KEY:-}
     ports:
       - "8080:8080"
+    # The image sizes its heap from the container limit (MaxRAMPercentage), so
+    # without one the JVM would claim a share of the DEV MACHINE's RAM and local
+    # memory behaviour would tell you nothing about the droplet's. 1g here ≈
+    # 700m of heap, ample for the seeded catalogue; prod's limits live in
+    # infra/deploy/docker-compose.prod.yml.
+    mem_limit: ${API_MEM_LIMIT:-1g}
     depends_on:
       postgres:
         condition: service_healthy

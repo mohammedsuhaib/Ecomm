@@ -9,10 +9,26 @@
 # missing or blank value stops `docker compose up` with a message naming the var
 # instead of starting a half-configured production stack. Optional vars use
 # ${VAR:-default} and say what the default means.
+#
+# ───── Memory budget ─────
+# Six containers share ONE droplet, so each one's ceiling is stated here rather
+# than left to chance. Unbounded, any single container can take the whole box
+# and the kernel picks the victim: the API's heap grows to 25% of the droplet,
+# the Next.js apps take what they like, and the first busy evening ends with an
+# OOM-killed container that looks like a performance problem but is a budgeting
+# one. The API's heap is derived from its limit (MaxRAMPercentage=70 in
+# apps/api/Dockerfile), so raising API_MEM_LIMIT raises the heap with it.
+#
+# Defaults total ~3.1 GB of the planned 4 GB droplet (ARCHITECTURE §8), leaving
+# ~900 MB for the OS, Docker itself and the page cache. On a 2 GB box, lower
+# every one of these in .env; if you uncomment the self-hosted postgres service
+# below, give it its own limit and take that out of the API's share.
 services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # Reverse proxy + TLS only; it streams rather than buffers.
+    mem_limit: ${CADDY_MEM_LIMIT:-128m}
     ports:
       - "80:80"
       - "443:443"
@@ -29,6 +45,11 @@ services:
   api:
     image: ${REGISTRY:?set REGISTRY in .env}/town-basket-api:${TAG:-latest}
     restart: unless-stopped
+    # The JVM reads this limit and takes 70% of it as max heap (~1 GB here), so
+    # this single number sizes both the container and the heap. Everything
+    # non-heap — metaspace, code cache, 200 Tomcat thread stacks, the 16 Hikari
+    # connections' buffers — comes out of the remaining 30%.
+    mem_limit: ${API_MEM_LIMIT:-1500m}
     environment:
       # Recommended: point at DO Managed Postgres. A blank value does NOT fall
       # back to application.yml's localhost default — Spring treats an empty env
@@ -56,6 +77,15 @@ services:
       # looks like it comes from Caddy and one visitor can exhaust the window
       # for everyone. Do NOT set this true anywhere the API is directly reachable.
       TOWNBASKET_RATELIMIT_TRUST_FORWARDED_FOR: "true"
+      # Auth abuse limits — the values below MIRROR application.yml's defaults
+      # (stated again here only so they are tunable from .env without a rebuild;
+      # keep the two in step). The per-IP budget must fit a CROWD, because one
+      # address can be a whole shop's WiFi or a carrier's CGNAT pool; guessing a
+      # staff password is bounded per account by the login throttle instead, where
+      # sharing an IP is irrelevant. See .env.example for when to move each.
+      TOWNBASKET_RATELIMIT_CAPACITY: ${TOWNBASKET_RATELIMIT_CAPACITY:-60}
+      TOWNBASKET_LOGIN_THROTTLE_MAX_FAILURES: ${TOWNBASKET_LOGIN_THROTTLE_MAX_FAILURES:-10}
+      TOWNBASKET_LOGIN_THROTTLE_WINDOW: ${TOWNBASKET_LOGIN_THROTTLE_WINDOW:-PT5M}
       # Web Push (order notifications). Optional: blank leaves the channel off
       # and the apps fall back to in-app SSE. Generate once with
       # `npx web-push generate-vapid-keys` — the private key is a SECRET.
@@ -80,6 +110,9 @@ services:
   storefront:
     image: ${REGISTRY:?set REGISTRY in .env}/town-basket-storefront:${TAG:-latest}
     restart: unless-stopped
+    # Most generous of the three frontends: it serves every customer and holds
+    # the ISR render cache (`revalidate = 60` on the catalogue pages).
+    mem_limit: ${STOREFRONT_MEM_LIMIT:-512m}
     environment:
       # SSR (server-side, inside this network) — a real runtime var, read by
       # getApiBaseUrl() when there is no `window`. Keeps server rendering off
@@ -97,6 +130,8 @@ services:
   admin:
     image: ${REGISTRY:?set REGISTRY in .env}/town-basket-admin:${TAG:-latest}
     restart: unless-stopped
+    # A handful of staff tabs.
+    mem_limit: ${ADMIN_MEM_LIMIT:-384m}
     environment:
       # SSR-side URL (container-to-container). NEXT_PUBLIC_API_BASE_URL is
       # build-time only and inert here — CI passes it as a build arg.
@@ -107,6 +142,8 @@ services:
   delivery:
     image: ${REGISTRY:?set REGISTRY in .env}/town-basket-delivery:${TAG:-latest}
     restart: unless-stopped
+    # A few riders' phones.
+    mem_limit: ${DELIVERY_MEM_LIMIT:-384m}
     environment:
       # SSR-side URL (container-to-container). NEXT_PUBLIC_API_BASE_URL is
       # build-time only and inert here — CI passes it as a build arg.
@@ -120,6 +157,9 @@ services:
     image: grafana/alloy:latest
     profiles: ["monitoring"]
     restart: unless-stopped
+    # Optional and off by default, but it must never be the reason the API dies:
+    # a log shipper that cannot reach Grafana buffers locally.
+    mem_limit: ${ALLOY_MEM_LIMIT:-256m}
     command:
       - run
       - /etc/alloy/config.alloy
@@ -137,10 +177,14 @@ services:
       - alloy_data:/var/lib/alloy/data
 
   # Optional self-hosted Postgres (fallback to DO Managed Database).
-  # Uncomment only for a cost-sensitive single-box deployment.
+  # Uncomment only for a cost-sensitive single-box deployment — and re-cut the
+  # memory budget above when you do: Postgres wants its own limit (start around
+  # 768m) plus page cache, so lower API_MEM_LIMIT to make room rather than
+  # letting the two compete for the same GB.
   # postgres:
   #   image: postgres:16-alpine
   #   restart: unless-stopped
+  #   mem_limit: ${POSTGRES_MEM_LIMIT:-768m}
   #   environment:
   #     POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME in .env}
   #     POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}

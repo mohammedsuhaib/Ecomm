@@ -28,6 +28,13 @@ export default function LoginGate({ children }: { children: ReactNode }) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Incorrect email or password. Please try again.');
+      } else if (err instanceof ApiError && err.status === 429) {
+        // The backend throttles repeated FAILED passwords per account, so
+        // "try again" is exactly the wrong advice here: the next attempt is
+        // refused too until the window passes.
+        setError(
+          'Too many failed sign-in attempts. Please wait a few minutes before trying again.',
+        );
       } else if (err instanceof ApiError && err.status === 0) {
         setError('Could not reach the server. Check your connection.');
       } else {

@@ -22,6 +22,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>Limited (one bucket per IP, per endpoint group):
  * {@code POST /api/v1/auth/phone/verify}, {@code POST /api/v1/auth/staff/login},
  * {@code POST /api/v1/auth/refresh}. {@code POST /api/v1/auth/logout} is exempt.
+ *
+ * <p><strong>What this layer is and is not for.</strong> It sheds bulk traffic
+ * from one address before any auth work happens; it is not the guard on a
+ * password, because an IP can be shared by a whole shop's worth of customers
+ * (NAT/CGNAT) and its budget therefore has to fit a crowd — see
+ * {@link RateLimitProperties}. Guessing a specific staff password is bounded per
+ * account by the identity module's login-failure throttle. Customer login needs
+ * no per-credential twin: {@code /auth/phone/verify} consumes an already-verified
+ * Firebase ID token (Firebase owns the OTP), so there is nothing here to guess.
  * Any other path that reaches this filter passes straight through (it is
  * registered only for {@code /api/v1/auth/*}).
  *
