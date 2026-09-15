@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.tax.HsnSuggestion;
-import com.townbasket.tax.InvoiceTaxSplitter;
 import com.townbasket.tax.TaxBreakdown;
 import com.townbasket.tax.TaxService;
 import java.io.IOException;
@@ -19,18 +18,27 @@ import org.springframework.stereotype.Service;
 /**
  * Module-internal {@link TaxService} implementation.
  *
- * <p>Back-calculation: for gross {@code G} at rate {@code r}%, the taxable
- * value is {@code G × 100 / (100 + r)} rounded half-up to paise; the tax is
- * whatever remains of {@code G}, halved between CGST and SGST with one of them
- * taking the odd paisa — so the three parts always re-add to {@code G}
+ * <p><strong>Back-calculation.</strong> For gross {@code G} at combined rate
+ * {@code r}%, CGST and SGST are each computed directly as
+ * {@code G × (r/2) / (100 + r)} — the half-rate levy the statute actually
+ * describes, since an intra-state supply at 18% is 9% central tax and 9% State
+ * tax on the same value, not one 18% tax cut in two. The taxable value is then
+ * whatever remains of {@code G}, so the three parts re-add to {@code G}
  * exactly.
  *
- * <p>Which side takes that paisa is the caller's choice, because it only looks
- * arbitrary one line at a time. {@link #fromInclusiveAmount} always gives it to
- * CGST, which is right for a standalone amount and wrong for the lines of an
- * invoice: the same side would win on every line and the invoice's two totals
- * would drift a paisa apart per odd-paise line. {@link #invoiceSplitter()}
- * alternates it towards whichever side is behind, so the bias cancels.
+ * <p><strong>Why this shape.</strong> Deriving the tax first and halving it
+ * cannot always split evenly — ₹600 at 18% carries ₹91.53, an odd number of
+ * paise — so one side had to take the extra paisa, and since the choice was
+ * made per line the same side won every time. The bias then accumulated down
+ * an invoice: two such lines showed CGST ₹52.94 against SGST ₹52.92 (QA's
+ * TC-TAX-005). Computing both halves from one expression removes the choice
+ * instead of managing it: they are equal on every line, so any invoice's
+ * totals are equal however many lines it has.
+ *
+ * <p>The residue lands on the taxable value instead, up to a paisa off the
+ * pure {@code G × 100 / (100 + r)}. That is the right place for it: the
+ * taxable value has no exact two-decimal form anyway, and nothing requires it
+ * to be halved — whereas CGST and SGST are, by construction, halves.
  */
 @Service
 class GstCalculator implements TaxService {
@@ -67,26 +75,6 @@ class GstCalculator implements TaxService {
 
     @Override
     public TaxBreakdown fromInclusiveAmount(BigDecimal grossAmount, BigDecimal ratePercent) {
-        // A lone amount has no invoice to stay balanced with, so the odd paisa
-        // goes to CGST — the behaviour every caller of this method has always
-        // seen. Anything summed into an invoice uses invoiceSplitter() instead.
-        return extract(grossAmount, ratePercent, true);
-    }
-
-    @Override
-    public InvoiceTaxSplitter invoiceSplitter() {
-        return new BalancingSplitter();
-    }
-
-    /**
-     * Extract the breakdown, directing the odd paisa (when the tax is an odd
-     * number of paise) to CGST or to SGST as asked.
-     *
-     * <p>Halving by {@code RoundingMode.DOWN} and handing the remainder to one
-     * side keeps the identity {@code taxable + cgst + sgst == gross} exact for
-     * either choice — which is what lets the caller pick a side freely.
-     */
-    private TaxBreakdown extract(BigDecimal grossAmount, BigDecimal ratePercent, boolean oddPaisaToCgst) {
         if (grossAmount == null || grossAmount.signum() < 0) {
             throw new BusinessRuleException("Amount to tax must be a non-negative value.");
         }
@@ -96,36 +84,21 @@ class GstCalculator implements TaxService {
         if (ratePercent.signum() == 0) {
             return new TaxBreakdown(gross, zero(), zero());
         }
-        BigDecimal taxable = gross.multiply(HUNDRED)
-                .divide(HUNDRED.add(ratePercent), 2, RoundingMode.HALF_UP);
-        BigDecimal tax = gross.subtract(taxable);
-        BigDecimal half = tax.divide(TWO, 2, RoundingMode.DOWN);
-        BigDecimal oddPaisa = tax.subtract(half).subtract(half); // 0.00 or 0.01
-        return oddPaisaToCgst
-                ? new TaxBreakdown(taxable, half.add(oddPaisa), half)
-                : new TaxBreakdown(taxable, half, half.add(oddPaisa));
-    }
-
-    /**
-     * Gives each odd paisa to whichever side is behind on the invoice so far,
-     * so the bias cancels instead of accumulating. Not thread-safe; one per
-     * invoice (see {@link InvoiceTaxSplitter}).
-     */
-    private final class BalancingSplitter implements InvoiceTaxSplitter {
-
-        private BigDecimal cgstSoFar = BigDecimal.ZERO;
-        private BigDecimal sgstSoFar = BigDecimal.ZERO;
-
-        @Override
-        public TaxBreakdown split(BigDecimal grossAmount, BigDecimal ratePercent) {
-            // Ties go to CGST, which makes a single-line invoice identical to
-            // fromInclusiveAmount and the whole sequence deterministic.
-            TaxBreakdown breakdown =
-                    extract(grossAmount, ratePercent, cgstSoFar.compareTo(sgstSoFar) <= 0);
-            cgstSoFar = cgstSoFar.add(breakdown.cgst());
-            sgstSoFar = sgstSoFar.add(breakdown.sgst());
-            return breakdown;
-        }
+        // Each half-levy straight from the gross, in ONE division:
+        //   half = G × (r/2) / (100 + r)
+        // Deriving both halves from the same expression is what makes them
+        // equal — there is no combined tax figure to divide, so no odd paisa to
+        // award to one side. Computing it in one step also avoids rounding the
+        // taxable value and then rounding again on the way to the half.
+        BigDecimal half = gross.multiply(ratePercent)
+                .divide(HUNDRED.add(ratePercent).multiply(TWO), 2, RoundingMode.HALF_UP);
+        // The taxable value is what is left, so the three parts re-add to the
+        // gross exactly. It can sit a paisa off the pure G × 100 / (100 + r) —
+        // that figure has no exact two-decimal value either (₹600 at 18% is
+        // ₹508.4745…), and of the two derived numbers it is the one with no
+        // legal halving requirement on it.
+        BigDecimal taxable = gross.subtract(half).subtract(half);
+        return new TaxBreakdown(taxable, half, half);
     }
 
     private static BigDecimal zero() {
