@@ -212,7 +212,7 @@ testing possible without real money or SMS.
 |---|---|---|---|---|---|
 | TC-ORD-001 | Positive | Track by link | Open the tracking link from the confirmation page | Status, items, totals, address and timeline shown | P1 |
 | TC-ORD-002 | Positive | Live status updates | Keep the tracking page open; move the order to PACKING in Admin | Status updates within seconds without a manual refresh (no connection badge is shown — judge it by the status and the "updated HH:MM" time) | P1 |
-| TC-ORD-003 | Edge | Live falls back to polling | Block SSE (throttle/offline briefly) then restore | Page keeps updating via polling; indicator shows "updating" | P2 |
+| TC-ORD-003 | Edge | Live falls back to polling | Block SSE (throttle/offline briefly) then restore | Page keeps updating via polling — the status and the "updated HH:MM" time keep moving; no connection badge is shown either way | P2 |
 | TC-ORD-004 | Positive | Delivery code appears at the right time | Watch the page as the order goes to OUT_FOR_DELIVERY | OTP is hidden at PLACED/CONFIRMED/PACKING and appears ONLY at OUT_FOR_DELIVERY | P1 |
 | TC-ORD-005 | Positive | Order history | Account → Orders | Past orders newest-first with their statuses | P2 |
 | TC-ORD-006 | Positive | Reorder / buy again | Account → an old order → Reorder | New cart populated with the still-available lines | P2 |
@@ -457,7 +457,7 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-NOTIF-014 | Positive | Admin new-order alert | Admin → Orders → enable 🔔 Alerts → place an order from the storefront | Chime plays and a desktop notification appears, even with the tab in the background | P1 |
 | TC-NOTIF-015 | Positive | Alert preference remembered | Enable alerts, reload the admin app | Still enabled | P2 |
 | TC-NOTIF-016 | Negative | Alerts silent by default | Fresh browser, place an order | No sound until the toggle is switched on | P2 |
-| TC-NOTIF-017 | Negative | Transitions do not spam staff | Move several orders through statuses with alerts on | Chime fires only for genuinely NEW orders | P2 |
+| TC-NOTIF-017 | Negative | Transitions do not spam staff | Move several orders through CONFIRMED → PACKING → OUT_FOR_DELIVERY with alerts on | No chime for staff's own mid-flow steps. Only three things alert: a new order, a cancellation and a delivery — and each fires EXACTLY ONCE per order (a cancellation must not double-chime) | P2 |
 | TC-NOTIF-018 | Edge | Dead subscription cleanup | Subscribe, clear site data / uninstall, then trigger a notification | Server prunes the dead subscription; no repeated failures in the API log | P3 |
 
 ---

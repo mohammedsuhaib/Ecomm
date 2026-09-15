@@ -282,7 +282,9 @@ export async function getProduct(
  * purpose (fast first paint, SEO), and a stale count there is recoverable
  * because the cart and checkout both re-check stock against the database.
  *
- * <p>A caller that genuinely wants caching can still pass `revalidate`.
+ * <p>A caller that genuinely wants caching has to pass `noStore: false`
+ * alongside its `revalidate` — `apiFetch` reads `noStore` first, so
+ * `revalidate` on its own is ignored here.
  */
 export function searchProducts(
   q: string,

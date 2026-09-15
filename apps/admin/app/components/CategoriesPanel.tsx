@@ -44,6 +44,18 @@ export default function CategoriesPanel({
   /** The category a delete just failed on, and why — rendered under that row. */
   const [rowError, setRowError] = useState<{ id: number; message: string } | null>(null);
 
+  /**
+   * Wipe both messages. Called at the start of every action, so a refusal that
+   * has been dealt with stops being shown: the row message used to survive
+   * until the next DELETE, which meant "move its products first" sat under a
+   * category long after the products had been moved — and looked like the
+   * delete had just failed again.
+   */
+  function clearMessages() {
+    setError(null);
+    setRowError(null);
+  }
+
   function mapError(err: unknown, action: 'delete' | 'save'): string {
     if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
     if (err instanceof ApiError) {
@@ -78,8 +90,7 @@ export default function CategoriesPanel({
       return;
     }
     setBusy(true);
-    setError(null);
-    setRowError(null);
+    clearMessages();
     try {
       await deleteCategory(cat.id);
       await onChanged();
@@ -103,7 +114,7 @@ export default function CategoriesPanel({
           onClick={() => {
             setAdding((a) => !a);
             setEditingId(null);
-            setError(null);
+            clearMessages();
           }}
         >
           {adding ? 'Cancel' : 'Add category'}
@@ -119,7 +130,7 @@ export default function CategoriesPanel({
           onCancel={() => setAdding(false)}
           onSubmit={async (payload) => {
             setBusy(true);
-            setError(null);
+            clearMessages();
             try {
               await createCategory({
                 name: payload.name,
@@ -155,7 +166,7 @@ export default function CategoriesPanel({
                   onCancel={() => setEditingId(null)}
                   onSubmit={async (payload) => {
                     setBusy(true);
-                    setError(null);
+                    clearMessages();
                     try {
                       await updateCategory(cat.id, {
                         name: payload.name,
@@ -189,7 +200,7 @@ export default function CategoriesPanel({
                     onClick={() => {
                       setEditingId(cat.id);
                       setAdding(false);
-                      setError(null);
+                      clearMessages();
                     }}
                   >
                     Edit

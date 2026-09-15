@@ -34,6 +34,38 @@ import {
  * bug. Each of those states is spelled out here instead, so a customer (and
  * whoever they report it to) can tell "off" from "unavailable".
  */
+/**
+ * How long to wait for a service worker before concluding there isn't one.
+ * Generous enough for a first visit that is still installing one, short enough
+ * that nobody is left staring at a skeleton.
+ */
+const SW_READY_TIMEOUT_MS = 5000;
+
+/**
+ * The active service worker, or {@code null} if this page hasn't got one.
+ *
+ * <p>{@code navigator.serviceWorker.ready} never rejects and never resolves
+ * when no worker is or becomes registered — it simply waits forever. The
+ * storefront's worker is disabled in development and absent from any build
+ * where Serwist didn't emit it, so awaiting it directly left this component
+ * stuck on 'loading' and rendering a permanent skeleton: exactly the "looks
+ * broken" state the rest of the file exists to avoid. A timeout turns that
+ * into an answer.
+ */
+async function activeServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), SW_READY_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export default function NotificationSettings() {
   const t = useTranslations('notifications');
 
@@ -69,7 +101,14 @@ export default function NotificationSettings() {
         setState('blocked');
         return;
       }
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await activeServiceWorker();
+      if (!registration) {
+        // No worker means nothing can receive a push, so this is the same
+        // "can't tell you it's on, can't offer to switch it on" state as a
+        // deployment without keys — and it says so rather than spinning.
+        setState('unavailable');
+        return;
+      }
       const existing = await registration.pushManager.getSubscription();
       setState(existing ? 'on' : 'off');
     } catch {

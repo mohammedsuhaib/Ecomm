@@ -141,23 +141,30 @@ export default function OrderQueue() {
      * what the team should be doing next. Every other step (CONFIRMED, PACKING,
      * …) is staff's own action coming back to them, so it stays silent — that
      * is what keeps a busy shift from becoming a wall of noise.
+     *
+     * <p>Keyed on the frame's `type`, NOT its `status`. One transition emits
+     * two admin frames: the customer-facing STATUS_CHANGED and the dashboard's
+     * own ORDER_CANCELLED/ORDER_DELIVERED, and both carry the same `status`. A
+     * status match therefore chimed twice for a single cancellation. The
+     * ORDER_* types are the admin-intent messages and there is exactly one per
+     * transition, so they are the ones to alert on.
      */
     const alertFor = (event: MessageEvent<string>) => {
-      let status: string | undefined;
+      let type: string | undefined;
       try {
-        status = (JSON.parse(event.data) as { status?: string }).status;
+        type = (JSON.parse(event.data) as { type?: string }).type;
       } catch {
         // A frame we can't parse is still worth refetching for; just don't
         // guess at an alert for it.
         return;
       }
-      if (status === 'CANCELLED') {
+      if (type === 'ORDER_CANCELLED') {
         notifyRef.current({
           title: 'Order cancelled',
           body: 'An order was just cancelled.',
           tag: 'tb-order-cancelled',
         });
-      } else if (status === 'DELIVERED') {
+      } else if (type === 'ORDER_DELIVERED') {
         notifyRef.current({
           title: 'Order delivered',
           body: 'An order was just delivered.',
