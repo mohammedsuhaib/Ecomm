@@ -374,6 +374,13 @@ export default function CheckoutPage() {
         <nav className="breadcrumb">
           <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
         </nav>
+        {/* A refusal can be what emptied the cart: order a cart that has
+            already been ordered (a second device, a stale tab) and the 422
+            handler above refreshes into a checked-out cart, which is dropped.
+            Without this line the reason would vanish with the form and the
+            customer would be left reading "Your cart is empty" as the answer
+            to "why was my order refused?". */}
+        {error && <p className="notice error">{error}</p>}
         <CartEmptyState />
       </>
     );

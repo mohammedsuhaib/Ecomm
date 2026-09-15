@@ -207,9 +207,15 @@ export default function CartProvider({
   const commitServerCart = useCallback(
     (next: Cart) => {
       if (next.checkedOut) {
-        clearCartId();
-        clearCartPrices();
-        commit(null);
+        // Only if this is still the cart we are holding. A slow read started
+        // before a reorder saved its new cart id would otherwise clear that
+        // id — throwing away the basket the reorder just built, because a cart
+        // abandoned two screens ago came back checked out.
+        if (loadCartId() === next.cartId) {
+          clearCartId();
+          clearCartPrices();
+          commit(null);
+        }
         return;
       }
       commit(next);
