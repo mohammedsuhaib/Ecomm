@@ -194,20 +194,43 @@ export default function CartProvider({
     return next;
   }, []);
 
+  /**
+   * Take a cart as the server just gave it to us.
+   *
+   * <p>A cart that has become an order is finished — the server keeps it for
+   * the order's sake but refuses every write — so keeping its id would show
+   * the customer the items they already bought as if they were still shopping.
+   * Clearing it starts the next basket instead. The order page normally does
+   * this the moment checkout lands; this catches the checkout whose order page
+   * never loaded (tab closed, connection dropped).
+   */
+  const commitServerCart = useCallback(
+    (next: Cart) => {
+      if (next.checkedOut) {
+        clearCartId();
+        clearCartPrices();
+        commit(null);
+        return;
+      }
+      commit(next);
+    },
+    [commit],
+  );
+
   // Hydrate from a persisted cartId on mount.
   useEffect(() => {
     const id = loadCartId();
     if (!id) return;
     setLoading(true);
     getCart(id)
-      .then(commit)
+      .then(commitServerCart)
       .catch(() => {
         // Stale/expired cartId — forget it and start fresh on next add.
         clearCartId();
         commit(null);
       })
       .finally(() => setLoading(false));
-  }, [commit]);
+  }, [commit, commitServerCart]);
 
   // Forget the cart when the session ends (logout, or a failed token refresh
   // clearing it). Now that carts follow the ACCOUNT — owned at creation and
@@ -248,14 +271,14 @@ export default function CartProvider({
     }
     setLoading(true);
     try {
-      commit(await getCart(id));
+      commitServerCart(await getCart(id));
     } catch {
       clearCartId();
       commit(null);
     } finally {
       setLoading(false);
     }
-  }, [commit]);
+  }, [commit, commitServerCart]);
 
   /**
    * Send one variant's coalesced quantity. Reads the target at the moment of
