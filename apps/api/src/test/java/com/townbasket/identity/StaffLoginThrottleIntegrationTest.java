@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import com.townbasket.AbstractIntegrationTest;
 import com.townbasket.shared.TooManyRequestsException;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,12 +21,22 @@ import org.springframework.beans.factory.annotation.Value;
  * per-account budget alone. The budget is read from configuration
  * ({@code townbasket.security.login-throttle.max-failures}, pinned low for
  * tests) rather than hard-coded.
+ *
+ * <p><strong>Every account here is created by the test that uses it.</strong>
+ * The limiter is a singleton in the Spring context that all
+ * {@link AbstractIntegrationTest} classes share, and its state is keyed by
+ * email and outlives a test class, so filling the budget of a SEEDED account
+ * (admin@townbasket.local) locks it for every later class that signs in as it —
+ * an earlier version of this test did exactly that and took three
+ * {@code AdminPasswordResetIntegrationTest} cases down with it, since a correct
+ * password on a throttled account is refused too. Fresh per-test accounts have
+ * no such reach: nothing else knows their addresses. For the same reason no
+ * assertion here may depend on a shared account's failure count, which any
+ * other class is free to change.
  */
 class StaffLoginThrottleIntegrationTest extends AbstractIntegrationTest {
 
-    /** Seeded admin (see the identity seed migration). */
-    private static final String ADMIN_EMAIL = "admin@townbasket.local";
-    private static final String ADMIN_PASSWORD = "Admin@12345";
+    private static final String PASSWORD = "Rider@12345";
     private static final String WRONG_PASSWORD = "definitely-not-the-password";
 
     @Autowired
@@ -74,27 +85,42 @@ class StaffLoginThrottleIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void aCorrectPasswordClearsTheAccountsFailures() {
-        // Stay one short of the budget, so the account is not yet locked...
-        for (int i = 0; i < maxFailures - 1; i++) {
-            assertThatThrownBy(() -> authService.staffLogin(
-                    new StaffLoginRequest(ADMIN_EMAIL, WRONG_PASSWORD)))
-                    .isInstanceOf(InvalidCredentialsException.class);
-        }
+        // This account's own rider, so filling and emptying its budget cannot
+        // reach any other test — see the class note.
+        String email = newRider();
 
-        assertThat(authService.staffLogin(new StaffLoginRequest(ADMIN_EMAIL, ADMIN_PASSWORD)).accessToken())
+        // Stay one short of the budget, so the account is not yet locked...
+        fumble(email, maxFailures - 1);
+
+        assertThat(authService.staffLogin(new StaffLoginRequest(email, PASSWORD)).accessToken())
+                .as("still under the budget, so the right password works")
                 .isNotBlank();
 
         // ...and the successful login must have reset the count: the same number of
-        // fumbles again is still a 401, not a lockout. This is what keeps staff (and
-        // every other test class logging in as this admin) out of the limiter's way.
-        for (int i = 0; i < maxFailures - 1; i++) {
-            assertThatThrownBy(() -> authService.staffLogin(
-                    new StaffLoginRequest(ADMIN_EMAIL, WRONG_PASSWORD)))
+        // fumbles again is still a 401, not a lockout. This is what keeps staff who
+        // mistype, then get it right, then mistype again out of the limiter's way.
+        fumble(email, maxFailures - 1);
+
+        assertThat(authService.staffLogin(new StaffLoginRequest(email, PASSWORD)).accessToken())
+                .as("the count restarted, so the budget was not exhausted")
+                .isNotBlank();
+    }
+
+    // ---- helpers -----------------------------------------------------------
+
+    /** A rider nobody else knows about, with {@link #PASSWORD}. Returns its email. */
+    private String newRider() {
+        String slug = "throttle-" + UUID.randomUUID().toString().substring(0, 8);
+        return authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
+                "Rider " + slug, slug + "@townbasket.local", PASSWORD)).email();
+    }
+
+    /** {@code times} wrong passwords, each of which must still be a plain 401. */
+    private void fumble(String email, int times) {
+        for (int i = 0; i < times; i++) {
+            assertThatThrownBy(() -> authService.staffLogin(new StaffLoginRequest(email, WRONG_PASSWORD)))
+                    .as("fumble %d of %d should be a plain 401, not a lockout", i + 1, times)
                     .isInstanceOf(InvalidCredentialsException.class);
         }
-
-        // Leave the shared account's bucket empty for whichever class runs next.
-        assertThat(authService.staffLogin(new StaffLoginRequest(ADMIN_EMAIL, ADMIN_PASSWORD)).accessToken())
-                .isNotBlank();
     }
 }

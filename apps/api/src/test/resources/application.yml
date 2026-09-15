@@ -45,6 +45,16 @@ townbasket:
       # needs a handful of wrong passwords. Only FAILED attempts count and a
       # successful login clears the account, so the many tests that log in as
       # the seeded admin never consume this budget.
+      #
+      # WRITING A TEST THAT FAILS A LOGIN ON PURPOSE? Create your own account
+      # for it (AuthService.createDeliveryAgent) and fail THAT one. The limiter
+      # is a singleton in the shared Spring context and is keyed by email, so
+      # failures against a SEEDED account (admin@/staff@townbasket.local)
+      # accumulate across test classes and, at the cap, refuse even the correct
+      # password for the whole window — which is how one test once failed three
+      # AdminPasswordResetIntegrationTest cases in another class. The suite has
+      # exactly one deliberate failure on a seeded account today
+      # (IdentityIntegrationTest's "wrong password rejected"); keep it that way.
       max-failures: 3
       window: PT5M
   payments:
