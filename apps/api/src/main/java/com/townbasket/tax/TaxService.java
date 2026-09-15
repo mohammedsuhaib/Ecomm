@@ -42,12 +42,25 @@ public interface TaxService {
     /**
      * Extract GST from a tax-inclusive gross amount.
      *
-     * <p>Guarantees {@code taxableValue + cgst + sgst == grossAmount} exactly
-     * (rounding differences are absorbed by SGST), so line breakdowns always
-     * re-add to the price the customer actually paid.
+     * <p>Guarantees {@code taxableValue + cgst + sgst == grossAmount} exactly,
+     * so a breakdown always re-adds to the price the customer actually paid. An
+     * odd paisa of tax cannot be halved, and this method gives it to CGST.
+     *
+     * <p><strong>For a single amount only.</strong> Splitting each line of a
+     * multi-line invoice with this method biases every one of them the same
+     * way, so the invoice's CGST and SGST totals drift a paisa apart per
+     * odd-paise line — use {@link #invoiceSplitter()} for anything that will be
+     * summed into an invoice.
      *
      * @param grossAmount tax-inclusive amount, ≥ 0
      * @param ratePercent GST rate — must be a valid slab
      */
     TaxBreakdown fromInclusiveAmount(BigDecimal grossAmount, BigDecimal ratePercent);
+
+    /**
+     * A fresh {@link InvoiceTaxSplitter} for the lines of one invoice, which
+     * keeps that invoice's CGST and SGST totals within a paisa of each other.
+     * Stateful and single-use — see {@link InvoiceTaxSplitter}.
+     */
+    InvoiceTaxSplitter invoiceSplitter();
 }

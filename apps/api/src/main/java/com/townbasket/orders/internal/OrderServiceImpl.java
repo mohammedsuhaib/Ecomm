@@ -33,6 +33,7 @@ import com.townbasket.shared.events.OrderConfirmed;
 import com.townbasket.shared.events.OrderDelivered;
 import com.townbasket.shared.events.OrderPlaced;
 import com.townbasket.shared.events.OrderStatusChanged;
+import com.townbasket.tax.InvoiceTaxSplitter;
 import com.townbasket.tax.TaxBreakdown;
 import com.townbasket.tax.TaxService;
 import java.math.BigDecimal;
@@ -210,11 +211,18 @@ class OrderServiceImpl implements OrderService {
         // exactly the cart total either way. Snapshotting at sale time keeps
         // later catalog rate edits from mutating issued invoices.
         BigDecimal totalTax = BigDecimal.ZERO;
+        // One splitter for this order's lines: an odd paisa of tax cannot be
+        // halved, and deciding per line in isolation gave it to CGST every
+        // time — so a two-line invoice's CGST and SGST totals came out 2 paise
+        // apart (a ₹600 line at 18% and a ₹300.99 line at 5% showed CGST
+        // ₹52.94 against SGST ₹52.92). The splitter hands each odd paisa to
+        // whichever side is behind, so the invoice summary stays balanced.
+        InvoiceTaxSplitter taxSplitter = taxService.invoiceSplitter();
         for (CartItemDto item : cart.items()) {
             BigDecimal costPrice = catalogService.costPrice(item.variantId()).orElse(BigDecimal.ZERO);
             VariantTaxView tax = catalogService.taxInfo(item.variantId())
                     .orElse(new VariantTaxView(null, BigDecimal.ZERO));
-            TaxBreakdown breakdown = taxService.fromInclusiveAmount(item.lineTotal(), tax.gstRatePercent());
+            TaxBreakdown breakdown = taxSplitter.split(item.lineTotal(), tax.gstRatePercent());
             totalTax = totalTax.add(breakdown.totalTax());
             order.addItem(new OrderItemEntity(
                     item.variantId(), item.productName(), item.productNameKn(), item.label(),
