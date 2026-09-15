@@ -200,15 +200,24 @@ export default function CartProvider({
    * <p>Writes are serialised below (see `writes`) so they cannot land out of
    * order. Reads were not, and a read is just as capable of putting an old
    * cart back: the cart page refreshes on mount, so tapping Add and opening
-   * the cart in the same breath sends a GET that was answered before the item
-   * existed. If it arrives after the add's reply — a moment's mobile latency
-   * is enough — it overwrites the cart with the version that has no item in
-   * it. The customer sees "Your cart is empty" (or, freshly after ordering,
-   * the order note in its place) while the server has exactly what they
-   * added, and it looks like Add simply does nothing.
+   * the cart in the same breath has a GET and a POST in the air together. Let
+   * the GET reach the server first and it is answered without the item; if its
+   * reply then lands after the add's, it overwrites the cart with the version
+   * that has no item in it. The customer is told the cart is empty — or, just
+   * after ordering, is shown the order note again — while the server has
+   * exactly what they added, so Add looks like it does nothing.
    *
-   * <p>So every response is stamped with the moment its request was SENT, and
-   * one older than what is already on screen is dropped as old news.
+   * <p>Which request was SENT first says nothing about this: the tap goes out
+   * before the cart page's refresh, yet the debounce and a slower add can
+   * still have the server answer the read first. What matters is whether a
+   * write overlapped the read at all — if one did, its own reply describes the
+   * cart afterwards, and the read is describing a moment that has passed. So a
+   * read is committed only when no write was in flight when it started, none
+   * started while it was out, and none is in flight when it comes back.
+   *
+   * <p>`stamp`/`commitFetched` keep the writes themselves in order; the ones
+   * the queue does not cover (the cart page's own +/−/Remove) cannot then
+   * cross each other either.
    */
   const issuedSeq = useRef(0);
   const appliedSeq = useRef(0);
@@ -222,6 +231,34 @@ export default function CartProvider({
     },
     [commit],
   );
+
+  // Writes in flight, and a counter that moves whenever one starts or ends —
+  // together they tell a read whether anything changed under it.
+  const writesInFlight = useRef(0);
+  const writeEpoch = useRef(0);
+  const beginWrite = useCallback(() => {
+    writesInFlight.current += 1;
+    writeEpoch.current += 1;
+  }, []);
+  const endWrite = useCallback(() => {
+    writesInFlight.current -= 1;
+    writeEpoch.current += 1;
+  }, []);
+
+  /**
+   * Read the cart, and say so when a write overlapped the read instead of
+   * returning a cart that is already out of date. Nothing is committed in that
+   * case: the overlapping write's own reply is the newer picture.
+   */
+  const readCart = useCallback(async (id: string): Promise<Cart | null> => {
+    const epoch = writeEpoch.current;
+    const busy = writesInFlight.current;
+    const cart = await getCart(id);
+    if (busy > 0 || writesInFlight.current > 0 || writeEpoch.current !== epoch) {
+      return null;
+    }
+    return cart;
+  }, []);
 
   /**
    * Take a cart as the server just gave it to us.
@@ -258,8 +295,11 @@ export default function CartProvider({
     if (!id) return;
     setLoading(true);
     const seq = stamp();
-    getCart(id)
-      .then((cart) => commitServerCart(seq, cart))
+    readCart(id)
+      .then((cart) => {
+        // null: a write overlapped this read, and its reply is the newer one.
+        if (cart) commitServerCart(seq, cart);
+      })
       .catch(() => {
         // Stale/expired cartId — forget it and start fresh on next add. Only
         // if it is still the id we read, though: a reorder may have saved its
@@ -269,7 +309,7 @@ export default function CartProvider({
         commitFetched(seq, null);
       })
       .finally(() => setLoading(false));
-  }, [commitFetched, commitServerCart, stamp]);
+  }, [commitFetched, commitServerCart, readCart, stamp]);
 
   // Forget the cart when the session ends (logout, or a failed token refresh
   // clearing it). Now that carts follow the ACCOUNT — owned at creation and
@@ -311,7 +351,8 @@ export default function CartProvider({
     setLoading(true);
     const seq = stamp();
     try {
-      commitServerCart(seq, await getCart(id));
+      const cart = await readCart(id);
+      if (cart) commitServerCart(seq, cart);
     } catch {
       if (loadCartId() === id) {
         clearCartId();
@@ -320,7 +361,7 @@ export default function CartProvider({
     } finally {
       setLoading(false);
     }
-  }, [commitFetched, commitServerCart, stamp]);
+  }, [commitFetched, commitServerCart, readCart, stamp]);
 
   /**
    * Send one variant's coalesced quantity. Reads the target at the moment of
@@ -333,10 +374,13 @@ export default function CartProvider({
         const target = targetsRef.current.get(variantId);
         if (target === undefined) return;
         const seq = stamp();
+        let failed = false;
+        beginWrite();
+        let updated: Cart;
         try {
           const id = await ensureCartId();
           const line = cartRef.current?.items.find((i) => i.variantId === variantId);
-          const updated = line
+          updated = line
             ? await updateCartItem(id, line.itemId, target)
             : await addCartItem(id, variantId, target);
 
@@ -355,16 +399,32 @@ export default function CartProvider({
         } catch (err) {
           // The server refused (no stock left, line gone). Its cart is the
           // truth: drop the optimistic target, resync, and tell the control why.
+          // endWrite() first: this write is over, and the refresh below has to
+          // be allowed to commit what it reads.
+          endWrite();
+          failed = true;
           targetsRef.current.delete(variantId);
           publishTargets();
           const outOfStock = err instanceof ApiError && err.status === 409;
           errorsRef.current.set(variantId, outOfStock ? 'stock' : 'failed');
           publishErrors();
           await refresh();
+        } finally {
+          if (!failed) endWrite();
         }
       });
     },
-    [commitFetched, enqueue, ensureCartId, publishErrors, publishTargets, refresh, stamp],
+    [
+      beginWrite,
+      commitFetched,
+      endWrite,
+      enqueue,
+      ensureCartId,
+      publishErrors,
+      publishTargets,
+      refresh,
+      stamp,
+    ],
   );
 
   const nudgeVariant = useCallback(
@@ -440,6 +500,7 @@ export default function CartProvider({
       const line = prev?.items.find((i) => i.itemId === itemId);
       if (prev && line) commit(withVariantQty(prev, line.variantId, qty));
       const seq = stamp();
+      beginWrite();
       try {
         const updated = await updateCartItem(id, itemId, qty);
         commitFetched(seq, updated);
@@ -447,9 +508,11 @@ export default function CartProvider({
       } catch (err) {
         if (prev) commit(prev);
         throw err;
+      } finally {
+        endWrite();
       }
     },
-    [commit, commitFetched, stamp],
+    [beginWrite, commit, commitFetched, endWrite, stamp],
   );
 
   const removeItem = useCallback(
@@ -457,11 +520,16 @@ export default function CartProvider({
       const id = loadCartId();
       if (!id) throw new Error('No cart');
       const seq = stamp();
-      const updated = await removeCartItem(id, itemId);
-      commitFetched(seq, updated);
-      return updated;
+      beginWrite();
+      try {
+        const updated = await removeCartItem(id, itemId);
+        commitFetched(seq, updated);
+        return updated;
+      } finally {
+        endWrite();
+      }
     },
-    [commitFetched, stamp],
+    [beginWrite, commitFetched, endWrite, stamp],
   );
 
   const reset = useCallback(() => {
