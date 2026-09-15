@@ -616,6 +616,19 @@ a {
   flex-direction: column;
   gap: 0.1rem;
 }
+/* Why a delete was refused, under the row it was refused on. `flex-basis: 100%`
+   because .cat-row is a wrapping flex row — without it the message would try to
+   sit beside the buttons. */
+.cat-row-error {
+  flex-basis: 100%;
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0.6rem;
+  border-left: 3px solid var(--danger, #c62828);
+  border-radius: 4px;
+  background: #fdecea;
+  color: #8a1c13;
+  font-size: 0.85rem;
+}
 .cat-name {
   font-weight: 600;
 }
@@ -733,6 +746,11 @@ a {
 }
 .veg-dot.veg {
   color: #2e7d32;
+}
+/* Non-veg is the state staff most need to spot, so it must be visible and not
+   merely "the absence of green". Same red the storefront's marker uses. */
+.veg-dot.nonveg {
+  color: #c62828;
 }
 .prod-badges {
   display: inline-flex;

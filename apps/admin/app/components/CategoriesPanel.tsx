@@ -6,6 +6,7 @@ import {
   AuthRequiredError,
   createCategory,
   deleteCategory,
+  serverMessage,
   updateCategory,
 } from '@/app/lib/api';
 import type { Category } from '@/app/lib/types';
@@ -17,6 +18,13 @@ import { ListSkeleton } from './Skeleton';
  * that still has products returns 422 from the backend — we surface that as a
  * clear "move or remove its products first" message rather than a generic error.
  * Mirrors ChangePassword's busy / error / success pattern.
+ *
+ * <p>A failed DELETE reports AT THE ROW, not only in the panel's banner. The
+ * banner sits above the list, so staff who scrolled down to a category, hit
+ * Delete and got a 422 saw the row simply stay put with the explanation off
+ * screen — indistinguishable from nothing having happened. The message now
+ * appears under the category it is about (and still in the banner, for anyone
+ * looking there).
  */
 export default function CategoriesPanel({
   categories,
@@ -33,12 +41,19 @@ export default function CategoriesPanel({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The category a delete just failed on, and why — rendered under that row. */
+  const [rowError, setRowError] = useState<{ id: number; message: string } | null>(null);
 
   function mapError(err: unknown, action: 'delete' | 'save'): string {
     if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
     if (err instanceof ApiError) {
       if (action === 'delete' && err.status === 422) {
-        return 'This category still has products. Move or remove them before deleting it.';
+        // The server names the rule it enforced; prefer its wording over a
+        // second copy of the same sentence that can drift from it.
+        return (
+          serverMessage(err) ??
+          'This category still has products. Move or remove them before deleting it.'
+        );
       }
       if (err.status === 409) {
         return 'A category with that name or slug already exists.';
@@ -64,11 +79,14 @@ export default function CategoriesPanel({
     }
     setBusy(true);
     setError(null);
+    setRowError(null);
     try {
       await deleteCategory(cat.id);
       await onChanged();
     } catch (err) {
-      setError(mapError(err, 'delete'));
+      const message = mapError(err, 'delete');
+      setError(message);
+      setRowError({ id: cat.id, message });
       await handleAuth(err);
     } finally {
       setBusy(false);
@@ -185,6 +203,11 @@ export default function CategoriesPanel({
                     Delete
                   </button>
                 </div>
+                {rowError?.id === cat.id && (
+                  <p className="cat-row-error" role="alert">
+                    {rowError.message}
+                  </p>
+                )}
               </li>
             ),
           )}

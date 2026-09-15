@@ -33,7 +33,12 @@ export default function OrderQueue() {
   const [agents, setAgents] = useState<DeliveryAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [live, setLive] = useState(false);
+  // Three honest states, not two. `live` alone started false and was rendered
+  // as "reconnecting", so the queue claimed to be reconnecting before it had
+  // ever connected — and kept claiming it when the stream was down but the 8s
+  // poll was keeping the list perfectly current. Mirrors the storefront
+  // tracking page's connecting/live/polling indicator.
+  const [conn, setConn] = useState<'connecting' | 'live' | 'polling'>('connecting');
 
   // Keep the latest filter in a ref so the SSE/polling handlers refetch the
   // right slice without re-subscribing on every filter change.
@@ -59,7 +64,7 @@ export default function OrderQueue() {
   // form (the queue then unmounts). Show a clear message on the way out.
   const onAuthExpired = useCallback(() => {
     setError('Session expired — please log in again.');
-    setLive(false);
+    setConn('polling');
     refreshAuth();
   }, [refreshAuth]);
 
@@ -112,6 +117,9 @@ export default function OrderQueue() {
   useEffect(() => {
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let es: EventSource | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let torndown = false;
+    let attempt = 0;
 
     const refetch = () => {
       getAdminOrders(statusRef.current || undefined, qRef.current || undefined)
@@ -134,27 +142,99 @@ export default function OrderQueue() {
     // new orders / transitions appear instantly when it works.
     pollTimer = setInterval(refetch, 8000);
 
-    if (typeof EventSource !== 'undefined') {
+    /**
+     * Alert on the transitions staff actually need to look up for. A new order
+     * is the loud one; a cancellation and a delivery are the two that change
+     * what the team should be doing next. Every other step (CONFIRMED, PACKING,
+     * …) is staff's own action coming back to them, so it stays silent — that
+     * is what keeps a busy shift from becoming a wall of noise.
+     */
+    const alertFor = (event: MessageEvent<string>) => {
+      let status: string | undefined;
+      try {
+        status = (JSON.parse(event.data) as { status?: string }).status;
+      } catch {
+        // A frame we can't parse is still worth refetching for; just don't
+        // guess at an alert for it.
+        return;
+      }
+      if (status === 'CANCELLED') {
+        notifyRef.current({
+          title: 'Order cancelled',
+          body: 'An order was just cancelled.',
+          tag: 'tb-order-cancelled',
+        });
+      } else if (status === 'DELIVERED') {
+        notifyRef.current({
+          title: 'Order delivered',
+          body: 'An order was just delivered.',
+          tag: 'tb-order-delivered',
+        });
+      }
+    };
+
+    /**
+     * Open the stream, and keep it openable.
+     *
+     * <p>The URL is rebuilt on every attempt because it carries the access
+     * token as `?token=` — EventSource cannot set headers. That token lives 15
+     * minutes, and when it expires the server answers the stream request with a
+     * 401; per the EventSource spec a non-200 response fails the connection
+     * PERMANENTLY, with no automatic retry. So the old code's single connection
+     * simply died a quarter of an hour into every shift, the indicator stuck on
+     * "reconnecting" forever, and no new-order alert ever fired again — while
+     * the poll quietly kept the list correct, which is what made it look like
+     * only the alerts were broken. Reconnecting with a freshly read token (the
+     * poll's own 401 handling has refreshed it by then) is the fix.
+     */
+    const connect = () => {
+      if (torndown || typeof EventSource === 'undefined') return;
       try {
         es = new EventSource(adminOrderStreamUrl());
-        es.onopen = () => setLive(true);
-        // Only a genuinely new order alerts; status transitions must not, or a
-        // busy shift becomes a wall of noise.
-        es.addEventListener('order-placed', () => {
-          notifyRef.current('A new order just came in.');
-          refetch();
-        });
-        es.addEventListener('order-updated', () => refetch());
-        es.onmessage = () => refetch();
-        es.onerror = () => setLive(false);
       } catch {
-        /* polling covers it */
+        setConn('polling'); // polling covers it
+        return;
       }
-    }
+      es.onopen = () => {
+        attempt = 0;
+        setConn('live');
+      };
+      es.addEventListener('order-placed', () => {
+        notifyRef.current({
+          title: 'New order',
+          body: 'A new order just came in.',
+          tag: 'tb-new-order',
+        });
+        refetch();
+      });
+      es.addEventListener('order-updated', (event) => {
+        alertFor(event as MessageEvent<string>);
+        refetch();
+      });
+      es.onmessage = () => refetch();
+      es.onerror = () => {
+        setConn('polling');
+        if (es) {
+          es.close();
+          es = null;
+        }
+        if (torndown) return;
+        // 5s, 10s, 20s, 40s, then every minute. The poll is already keeping the
+        // queue current, so there is nothing to gain by hammering a stream whose
+        // token may simply not be valid yet.
+        const delay = Math.min(5000 * 2 ** attempt, 60_000);
+        attempt += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+    };
+
+    connect();
 
     return () => {
+      torndown = true;
       if (es) es.close();
       if (pollTimer) clearInterval(pollTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
     };
   }, [onAuthExpired]);
 
@@ -206,8 +286,24 @@ export default function OrderQueue() {
             {tab.label}
           </button>
         ))}
-        <span className={`live-dot ${live ? 'on' : ''}`}>
-          {live ? '● live' : '○ reconnecting'}
+        {/* "polling" is not a failure state to apologise for: the queue is
+            still refreshing every 8 seconds, it just isn't instant. Saying
+            "reconnecting" made a working dashboard look broken. */}
+        <span
+          className={`live-dot ${conn === 'live' ? 'on' : ''}`}
+          title={
+            conn === 'live'
+              ? 'Live: new orders appear the moment they are placed'
+              : conn === 'connecting'
+                ? 'Opening the live stream…'
+                : 'Live stream unavailable — the queue refreshes every 8 seconds instead'
+          }
+        >
+          {conn === 'live'
+            ? '● live'
+            : conn === 'connecting'
+              ? '○ connecting'
+              : '○ updating every 8s'}
         </span>
         <button
           type="button"
@@ -216,8 +312,8 @@ export default function OrderQueue() {
           onClick={() => void alert.toggle()}
           title={
             alert.enabled
-              ? 'New-order alerts are on for this browser'
-              : 'Play a sound and show a notification when a new order arrives'
+              ? 'Alerts are on for this browser — new, cancelled and delivered orders'
+              : 'Play a sound and show a notification when an order arrives, is cancelled or is delivered. Per browser: switch it on wherever staff watch the queue.'
           }
         >
           {alert.enabled ? '🔔 Alerts on' : '🔕 Alerts off'}

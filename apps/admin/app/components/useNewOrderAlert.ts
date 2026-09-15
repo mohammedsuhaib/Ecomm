@@ -5,8 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const STORAGE_KEY = 'tb-admin-order-alert';
 
 /**
- * Alerts staff to a new order while the dashboard is open: a short chime plus a
- * desktop notification, so the queue does not have to be watched continuously.
+ * Alerts staff to order activity while the dashboard is open — a new order, a
+ * cancellation or a delivery — with a short chime plus a desktop notification,
+ * so the queue does not have to be watched continuously.
  *
  * <p>Deliberately page-scoped rather than Web Push — staff keep the dashboard
  * open through the shift, and a desktop notification from an open tab needs no
@@ -58,18 +59,28 @@ export function useNewOrderAlert() {
     }
   }, []);
 
-  /** Call when a new order arrives. No-op while the alert is switched off. */
+  /**
+   * Call when an order event worth looking up for arrives. No-op while the
+   * alert is switched off.
+   *
+   * <p>The caller supplies the title and tag because the queue alerts on more
+   * than arrivals now — a cancellation and a delivery each need their own
+   * heading, and their own tag so one does not silently replace the other. A
+   * single hard-coded 'New order' title would have labelled a cancellation as
+   * a new order, which is worse than not alerting at all.
+   */
   const notify = useCallback(
-    (message: string) => {
+    ({ title, body, tag }: { title: string; body: string; tag: string }) => {
       if (!enabled) return;
       chime();
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('New order', {
-            body: message,
-            // One notification at a time — replace rather than stack a row per
-            // order during a busy spell.
-            tag: 'tb-new-order',
+          new Notification(title, {
+            body,
+            // One notification per KIND — replace rather than stack a row per
+            // order during a busy spell, without a delivery evicting the alert
+            // about a brand-new order that still needs picking.
+            tag,
           });
         }
       } catch {

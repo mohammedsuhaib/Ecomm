@@ -283,8 +283,16 @@ export default function ProductForm({
     if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
     if (err instanceof ApiError) {
       if (err.status === 409) return 'A product with that name or slug already exists.';
-      if (err.status === 400 || err.status === 422)
-        return 'Some fields were rejected by the server. Re-check and try again.';
+      if (err.status === 400 || err.status === 422) {
+        // The server's own message names the actual problem ("MRP must be
+        // greater than or equal to the selling price", a bad GST rate, a blank
+        // label). Re-stating it as "some fields were rejected" threw that away
+        // and left staff to find the offending field by trial and error.
+        return (
+          serverMessage(err) ??
+          'Some fields were rejected by the server. Re-check and try again.'
+        );
+      }
       if (err.status === 0) return 'Could not reach the server. Check your connection.';
     }
     return 'Could not save the product. Please try again.';
