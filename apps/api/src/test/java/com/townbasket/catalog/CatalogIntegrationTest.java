@@ -87,6 +87,49 @@ class CatalogIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void searchFindsAProductByItsKannadaName() {
+        // The storefront shows name_kn to customers browsing in Kannada, so a
+        // Kannada query has to find it. Before catalog V3_9 the search vector
+        // carried only the English name and this returned nothing at all.
+        //
+        // The UPDATE also exercises the second half of that fix: the trigger now
+        // fires on a change to name_kn ALONE (which is all the transliteration
+        // backfill ever writes), so the vector is rebuilt here without any other
+        // column being touched.
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE slug = ?",
+                "ಟಾಟಾ ಚಹಾ ಪ್ರೀಮಿಯಂ", "tata-tea-premium");
+
+        PagedResponse<ProductDto> byFullKannadaName =
+                catalogService.search("ಟಾಟಾ ಚಹಾ ಪ್ರೀಮಿಯಂ", null, PageRequest.of(0, 20));
+        assertThat(byFullKannadaName.content()).extracting(ProductDto::slug)
+                .as("the whole Kannada name").contains("tata-tea-premium");
+
+        PagedResponse<ProductDto> byOneKannadaWord =
+                catalogService.search("ಚಹಾ", null, PageRequest.of(0, 20));
+        assertThat(byOneKannadaWord.content()).extracting(ProductDto::slug)
+                .as("one word of it — full-text, not a whole-string match")
+                .contains("tata-tea-premium");
+
+        // The English name still finds it: Kannada is additive, not a swap.
+        assertThat(catalogService.search("Tata Tea", null, PageRequest.of(0, 20)).content())
+                .extracting(ProductDto::slug).contains("tata-tea-premium");
+    }
+
+    @Test
+    void kannadaSearchSurvivesSorting() {
+        // The sorted path is a separate query whose match set must stay identical
+        // to the unsorted one — re-sorting may change the order, never the hits.
+        jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE slug = ?",
+                "ಅಮುಲ್ ಹಾಲು", "amul-gold-milk");
+
+        for (ProductSort sort : new ProductSort[] {ProductSort.PRICE_ASC, ProductSort.NAME}) {
+            assertThat(catalogService.search("ಅಮುಲ್ ಹಾಲು", sort, PageRequest.of(0, 20)).content())
+                    .as("sorted by %s", sort)
+                    .extracting(ProductDto::slug).contains("amul-gold-milk");
+        }
+    }
+
+    @Test
     void searchIsTypoTolerantViaTrigram() {
         // "biscit" is a typo for "biscuit" — trigram similarity should still match Parle-G.
         PagedResponse<ProductDto> results = catalogService.search("biscit", null, PageRequest.of(0, 20));

@@ -35,7 +35,9 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     boolean existsByNameIgnoreCase(String name);
 
     /**
-     * Admin name search (case-insensitive contains), optionally scoped to a category.
+     * Admin name search (case-insensitive contains) over the English AND Kannada
+     * name, optionally scoped to a category. Staff who maintain {@code name_kn}
+     * need to be able to find a product by the value they typed into it.
      *
      * <p>Raw {@code ILIKE} rather than Spring Data's {@code ...NameContainingIgnoreCase}
      * derivation on purpose: that derivation generates {@code upper(name) LIKE upper(?)},
@@ -47,13 +49,15 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     @Query("""
             SELECT p FROM ProductEntity p
             WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
+               OR LOWER(COALESCE(p.nameKn, '')) LIKE LOWER(CONCAT('%', :name, '%'))
             """)
     Page<ProductEntity> searchByName(@Param("name") String name, Pageable pageable);
 
     @Query("""
             SELECT p FROM ProductEntity p
             WHERE p.categoryId = :categoryId
-              AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
+              AND (LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))
+                   OR LOWER(COALESCE(p.nameKn, '')) LIKE LOWER(CONCAT('%', :name, '%')))
             """)
     Page<ProductEntity> searchByNameInCategory(
             @Param("categoryId") Long categoryId, @Param("name") String name, Pageable pageable);
@@ -128,6 +132,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             ) agg ON agg.product_id = p.id
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
                OR word_similarity(:q, p.name) >= 0.3
+               OR word_similarity(:q, coalesce(p.name_kn, '')) >= 0.3
             ORDER BY
               CASE WHEN :sort = 'PRICE_ASC'  THEN agg.min_price    END ASC  NULLS LAST,
               CASE WHEN :sort = 'PRICE_DESC' THEN agg.min_price    END DESC NULLS LAST,
@@ -140,6 +145,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             SELECT count(*) FROM catalog.products p
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
                OR word_similarity(:q, p.name) >= 0.3
+               OR word_similarity(:q, coalesce(p.name_kn, '')) >= 0.3
             """,
             nativeQuery = true)
     Page<ProductEntity> searchSorted(@Param("q") String q,
@@ -150,25 +156,38 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
     List<ProductEntity> findByNameKnIsNull(Pageable pageable);
 
     /**
-     * Full-text + trigram search over product name/description.
+     * Full-text + trigram search over product name (English AND Kannada) and
+     * description.
      *
      * <p>Combines Postgres full-text matching (websearch_to_tsquery against the
      * trigger-maintained {@code search_vector}) with a pg_trgm similarity match
      * on the name, so typos ("biscit" -> "biscuit") still surface results.
      * Ordered by full-text rank, then trigram similarity.
+     *
+     * <p><strong>Kannada.</strong> {@code search_vector} carries {@code name_kn}
+     * as of catalog V3_9, which is what makes a Kannada query match at all; the
+     * similarity fallback covers it too, so a near-miss in Kannada behaves like
+     * one in English rather than returning nothing. Before that the storefront
+     * would show a customer a Kannada product name it could not then find.
+     * {@code coalesce} because {@code name_kn} is null until the transliteration
+     * backfill reaches a product — comparing against NULL would make the whole
+     * OR-arm NULL rather than false, which is harmless here but says nothing.
      */
     @Query(value = """
             SELECT * FROM catalog.products p
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
                OR word_similarity(:q, p.name) >= 0.3
+               OR word_similarity(:q, coalesce(p.name_kn, '')) >= 0.3
             ORDER BY ts_rank(p.search_vector, websearch_to_tsquery('simple', :q)) DESC,
-                     word_similarity(:q, p.name) DESC,
+                     GREATEST(word_similarity(:q, p.name),
+                              word_similarity(:q, coalesce(p.name_kn, ''))) DESC,
                      p.name ASC
             """,
             countQuery = """
             SELECT count(*) FROM catalog.products p
             WHERE p.search_vector @@ websearch_to_tsquery('simple', :q)
                OR word_similarity(:q, p.name) >= 0.3
+               OR word_similarity(:q, coalesce(p.name_kn, '')) >= 0.3
             """,
             nativeQuery = true)
     Page<ProductEntity> search(@Param("q") String q, Pageable pageable);
