@@ -247,6 +247,19 @@
     "loggingOut": "Logging out…",
     "recentOrders": "Recent orders"
   },
+  "notifications": {
+    "title": "Order notifications",
+    "enable": "🔔 Turn on notifications",
+    "enableHint": "Get a notification when your order is packed and on its way — even with the app closed.",
+    "on": "🔔 Notifications on",
+    "onHint": "We'll notify you as your orders progress. Tap to turn off.",
+    "working": "Just a moment…",
+    "perDevice": "This setting applies to this device only. Turn it on separately on your phone and your computer.",
+    "blocked": "Notifications are blocked for this site in your browser settings. Allow them there, then come back to this page.",
+    "unsupported": "This browser can't show notifications. On an iPhone, add Town Basket to your home screen first.",
+    "unavailable": "Order notifications aren't available right now. You can still track your order on its page.",
+    "failed": "Could not change your notification setting. Please try again."
+  },
   "profile": {
     "customer": "Customer",
     "editName": "Edit name",
