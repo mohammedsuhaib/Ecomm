@@ -211,7 +211,7 @@ testing possible without real money or SMS.
 | ID | Type | Scenario | Steps | Expected result | Pri |
 |---|---|---|---|---|---|
 | TC-ORD-001 | Positive | Track by link | Open the tracking link from the confirmation page | Status, items, totals, address and timeline shown | P1 |
-| TC-ORD-002 | Positive | Live status updates | Keep the tracking page open; move the order to PACKING in Admin | Status updates within seconds without a manual refresh; "live" indicator lit | P1 |
+| TC-ORD-002 | Positive | Live status updates | Keep the tracking page open; move the order to PACKING in Admin | Status updates within seconds without a manual refresh (no connection badge is shown — judge it by the status and the "updated HH:MM" time) | P1 |
 | TC-ORD-003 | Edge | Live falls back to polling | Block SSE (throttle/offline briefly) then restore | Page keeps updating via polling; indicator shows "updating" | P2 |
 | TC-ORD-004 | Positive | Delivery code appears at the right time | Watch the page as the order goes to OUT_FOR_DELIVERY | OTP is hidden at PLACED/CONFIRMED/PACKING and appears ONLY at OUT_FOR_DELIVERY | P1 |
 | TC-ORD-005 | Positive | Order history | Account → Orders | Past orders newest-first with their statuses | P2 |

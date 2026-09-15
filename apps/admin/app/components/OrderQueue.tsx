@@ -33,12 +33,6 @@ export default function OrderQueue() {
   const [agents, setAgents] = useState<DeliveryAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Three honest states, not two. `live` alone started false and was rendered
-  // as "reconnecting", so the queue claimed to be reconnecting before it had
-  // ever connected — and kept claiming it when the stream was down but the 8s
-  // poll was keeping the list perfectly current. Mirrors the storefront
-  // tracking page's connecting/live/polling indicator.
-  const [conn, setConn] = useState<'connecting' | 'live' | 'polling'>('connecting');
 
   // Keep the latest filter in a ref so the SSE/polling handlers refetch the
   // right slice without re-subscribing on every filter change.
@@ -64,7 +58,6 @@ export default function OrderQueue() {
   // form (the queue then unmounts). Show a clear message on the way out.
   const onAuthExpired = useCallback(() => {
     setError('Session expired — please log in again.');
-    setConn('polling');
     refreshAuth();
   }, [refreshAuth]);
 
@@ -181,23 +174,27 @@ export default function OrderQueue() {
      * minutes, and when it expires the server answers the stream request with a
      * 401; per the EventSource spec a non-200 response fails the connection
      * PERMANENTLY, with no automatic retry. So the old code's single connection
-     * simply died a quarter of an hour into every shift, the indicator stuck on
-     * "reconnecting" forever, and no new-order alert ever fired again — while
-     * the poll quietly kept the list correct, which is what made it look like
-     * only the alerts were broken. Reconnecting with a freshly read token (the
-     * poll's own 401 handling has refreshed it by then) is the fix.
+     * simply died a quarter of an hour into every shift and no new-order alert
+     * ever fired again — while the poll quietly kept the list correct, which is
+     * what made it look like only the alerts were broken. Reconnecting with a
+     * freshly read token (the poll's own 401 handling has refreshed it by then)
+     * is the fix.
+     *
+     * <p>Nothing about the transport is shown to staff: the queue is current
+     * either way, and a badge that says "reconnecting" only invites someone to
+     * treat a working dashboard as broken.
      */
     const connect = () => {
       if (torndown || typeof EventSource === 'undefined') return;
       try {
         es = new EventSource(adminOrderStreamUrl());
       } catch {
-        setConn('polling'); // polling covers it
-        return;
+        return; // polling covers it
       }
+      // A successful open resets the backoff, so a stream that drops once after
+      // an hour of working retries promptly rather than at the previous delay.
       es.onopen = () => {
         attempt = 0;
-        setConn('live');
       };
       es.addEventListener('order-placed', () => {
         notifyRef.current({
@@ -213,7 +210,6 @@ export default function OrderQueue() {
       });
       es.onmessage = () => refetch();
       es.onerror = () => {
-        setConn('polling');
         if (es) {
           es.close();
           es = null;
@@ -286,25 +282,6 @@ export default function OrderQueue() {
             {tab.label}
           </button>
         ))}
-        {/* "polling" is not a failure state to apologise for: the queue is
-            still refreshing every 8 seconds, it just isn't instant. Saying
-            "reconnecting" made a working dashboard look broken. */}
-        <span
-          className={`live-dot ${conn === 'live' ? 'on' : ''}`}
-          title={
-            conn === 'live'
-              ? 'Live: new orders appear the moment they are placed'
-              : conn === 'connecting'
-                ? 'Opening the live stream…'
-                : 'Live stream unavailable — the queue refreshes every 8 seconds instead'
-          }
-        >
-          {conn === 'live'
-            ? '● live'
-            : conn === 'connecting'
-              ? '○ connecting'
-              : '○ updating every 8s'}
-        </span>
         <button
           type="button"
           className={`queue-alert-toggle ${alert.enabled ? 'on' : ''}`}

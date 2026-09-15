@@ -255,15 +255,6 @@ a {
   color: var(--on-primary);
   border-color: var(--green);
 }
-.live-dot {
-  margin-left: auto;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-.live-dot.on {
-  color: var(--green-dark); /* dark tone stays readable on the light page bg */
-}
 .queue-empty {
   text-align: center;
   color: var(--muted);

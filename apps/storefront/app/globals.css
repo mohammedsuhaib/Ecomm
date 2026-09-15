@@ -946,16 +946,6 @@ a:hover {
 .otp-hint {
   font-size: 0.85rem;
 }
-.live-dot {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--muted);
-  vertical-align: middle;
-}
-.live-dot.on {
-  color: var(--green-dark); /* dark tone stays readable on the light page bg */
-}
-
 .status-timeline {
   list-style: none;
   margin: 0.5rem 0;

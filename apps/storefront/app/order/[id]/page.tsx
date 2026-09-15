@@ -115,9 +115,6 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   // Ticks once a second while the self-cancel window is open so the countdown
   // and the button's visibility stay live.
   const [nowMs, setNowMs] = useState(() => Date.now());
-  // 'connecting' until the first successful read; then 'live' (SSE open) or
-  // 'polling' (SSE unavailable but we're still refreshing every few seconds).
-  const [conn, setConn] = useState<'connecting' | 'live' | 'polling'>('connecting');
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   // Once we've successfully loaded the order, clear the local cart exactly once.
   const cartCleared = useRef(false);
@@ -210,21 +207,19 @@ export default function OrderPage({ params }: { params: { id: string } }) {
     };
 
     // Steady polling fallback so the customer keeps getting updates even if SSE
-    // never opens or stays silent.
-    setConn((c) => (c === 'live' ? c : 'polling'));
+    // never opens or stays silent. It runs unconditionally: the stream only ever
+    // makes updates quicker, never the difference between working and not.
     pollTimer = setInterval(refetch, 6000);
 
     if (typeof EventSource !== 'undefined') {
       try {
         es = new EventSource(orderStreamUrl(String(streamId)));
-        es.onopen = () => setConn('live');
         es.addEventListener('status', refetch); // backend pushes NAMED "status" events
         es.onmessage = refetch; // also handle any unnamed events
-        es.onerror = () => {
-          // Browser auto-reconnects EventSource; meanwhile keep polling so we
-          // stay current.
-          setConn((c) => (c === 'live' ? 'polling' : c));
-        };
+        // No onerror handler: the browser auto-reconnects an EventSource that
+        // dropped, and the poll above covers the gap either way. Nothing is
+        // shown to the customer about the transport, so there is no state to
+        // keep in step with it.
       } catch {
         /* polling already covers updates */
       }
@@ -432,23 +427,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
 
       <section>
         <h2 className="section-title">
-          {t('orderStatusHeading')}{' '}
-          <span
-            className={`live-dot ${conn === 'live' ? 'on' : ''}`}
-            title={
-              conn === 'live'
-                ? t('connLiveTitle')
-                : conn === 'polling'
-                  ? t('connPollingTitle')
-                  : t('connConnectingTitle')
-            }
-          >
-            {conn === 'live'
-              ? `● ${t('connLive')}`
-              : conn === 'polling'
-                ? `↻ ${t('connUpdating')}`
-                : `○ ${t('connConnecting')}`}
-          </span>
+          {t('orderStatusHeading')}
           {lastUpdated && (
             <span className="muted" style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}>
               {t('lastUpdated', {
