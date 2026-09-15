@@ -9,14 +9,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Module-internal wiring for identity: the {@link PasswordEncoder} used for
- * staff/admin password hashing and verification, and the JWT configuration
- * properties. Kept inside {@code internal} so the encoder and JWT settings are
- * implementation details of the module. Enables scheduling for the refresh-token
- * cleanup job ({@link RefreshTokenCleanup}).
+ * staff/admin password hashing and verification, the JWT configuration
+ * properties and the staff-login failure throttle's settings
+ * ({@link LoginThrottleProperties}). Kept inside {@code internal} so the
+ * encoder and both settings groups are implementation details of the module.
+ * Enables scheduling for the refresh-token cleanup job
+ * ({@link RefreshTokenCleanup}).
  */
 @Configuration
 @EnableScheduling
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, LoginThrottleProperties.class})
 class IdentitySupportConfiguration {
 
     /** BCrypt (cost 10, the seed migration's cost) for staff/admin passwords. */

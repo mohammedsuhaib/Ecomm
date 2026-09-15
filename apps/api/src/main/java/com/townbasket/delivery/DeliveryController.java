@@ -1,11 +1,14 @@
 package com.townbasket.delivery;
 
+import com.townbasket.orders.AgentDaySummary;
 import com.townbasket.orders.OrderDto;
 import com.townbasket.orders.OrderService;
 import com.townbasket.orders.TransitionRequest;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Clock;
+import java.time.LocalDate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,9 +39,12 @@ class DeliveryController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final OrderService orderService;
+    /** The store's clock (Asia/Kolkata): "today" for the rider's tally is the store day. */
+    private final Clock clock;
 
-    DeliveryController(OrderService orderService) {
+    DeliveryController(OrderService orderService, Clock clock) {
         this.orderService = orderService;
+        this.clock = clock;
     }
 
     /**
@@ -60,6 +66,19 @@ class DeliveryController {
         return isAdmin()
                 ? orderService.listOrders(status, pageable)
                 : orderService.listAgentOrders(userId, status, pageable);
+    }
+
+    /**
+     * GET /api/v1/delivery/summary — the caller's own tally for today (store
+     * day, IST): orders delivered and Pay-on-Delivery cash collected. Always the
+     * CALLER's figures, even for an ADMIN — the dispatcher view of the queue
+     * does not apply here because the money in question is in one rider's
+     * pocket, and an admin who delivered nothing sees zeros.
+     */
+    @GetMapping("/summary")
+    @Operation(summary = "My day so far — deliveries completed and cash collected on delivery today.")
+    AgentDaySummary summary(@AuthenticationPrincipal Long userId) {
+        return orderService.agentDaySummary(userId, LocalDate.now(clock));
     }
 
     /**

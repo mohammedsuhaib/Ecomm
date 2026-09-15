@@ -33,6 +33,30 @@ townbasket:
       secret: test-only-jwt-secret-which-is-long-enough-32+
       access-ttl: PT15M
       refresh-ttl: P30D
+    ratelimit:
+      # PINNED LOW on purpose. Production defaults to 60/min per IP (sized for a
+      # crowd behind one NAT), which would make the 429 test fire 61 HTTP
+      # requests to prove one thing. The test reads this property rather than
+      # hard-coding the count, so changing it here cannot silently break it.
+      capacity: 10
+      window: PT60S
+    login-throttle:
+      # Likewise pinned low (production: 10) so the staff-login throttle test
+      # needs a handful of wrong passwords. Only FAILED attempts count and a
+      # successful login clears the account, so the many tests that log in as
+      # the seeded admin never consume this budget.
+      #
+      # WRITING A TEST THAT FAILS A LOGIN ON PURPOSE? Create your own account
+      # for it (AuthService.createDeliveryAgent) and fail THAT one. The limiter
+      # is a singleton in the shared Spring context and is keyed by email, so
+      # failures against a SEEDED account (admin@/staff@townbasket.local)
+      # accumulate across test classes and, at the cap, refuse even the correct
+      # password for the whole window — which is how one test once failed three
+      # AdminPasswordResetIntegrationTest cases in another class. The suite has
+      # exactly one deliberate failure on a seeded account today
+      # (IdentityIntegrationTest's "wrong password rejected"); keep it that way.
+      max-failures: 3
+      window: PT5M
   payments:
     # Tests keep the UPI plumbing covered (fake provider) so the path is ready
     # when a live gateway lands. Production defaults to OFF — see

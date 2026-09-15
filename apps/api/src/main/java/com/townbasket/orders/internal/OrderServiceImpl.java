@@ -9,6 +9,7 @@ import com.townbasket.identity.AuthService;
 import com.townbasket.inventory.InventoryService;
 import com.townbasket.inventory.ReservationLine;
 import com.townbasket.orders.AddressDto;
+import com.townbasket.orders.AgentDaySummary;
 import com.townbasket.orders.AgentDeliveryStat;
 import com.townbasket.orders.OrderDto;
 import com.townbasket.orders.OrderItemDto;
@@ -41,6 +42,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -556,6 +558,18 @@ class OrderServiceImpl implements OrderService {
                         agentId, parseStatus(status), pageable);
         // Agent surface: never expose the OTP — they collect it from the customer.
         return PagedResponse.of(page, o -> toDto(o, false));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AgentDaySummary agentDaySummary(Long agentId, LocalDate day) {
+        // The store day, not the UTC day: a rider settling up at 21:30 IST is
+        // still on the same shift, and 21:30 IST is already tomorrow in UTC.
+        ZoneId zone = clock.getZone();
+        Instant from = day.atStartOfDay(zone).toInstant();
+        Instant to = day.plusDays(1).atStartOfDay(zone).toInstant();
+        OrderRepository.AgentDayRow row = orders.summarizeAgentDeliveries(agentId, from, to);
+        return new AgentDaySummary(day, row.getDeliveries(), row.getCodOrders(), row.getCodAmount());
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.townbasket.identity.internal;
 
+import com.townbasket.identity.AccountDeactivatedException;
 import com.townbasket.identity.AddressInput;
 import com.townbasket.identity.AuthResponse;
 import com.townbasket.identity.AuthService;
@@ -38,9 +39,11 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link InvalidCredentialsException} (mapped to 401) with no detail about which
  * factor failed. No tokens, hashes or passwords are ever logged.
  *
- * <p>Follow-up (documented, not implemented): rate-limiting on the OTP/login
- * endpoints. At ~100 orders/day there is no Redis; a simple per-phone/IP
- * in-memory or DB counter is the intended add-on if abuse appears.
+ * <p>Abuse limits are two-layered, both in-memory (one JVM, no Redis): the edge
+ * filter caps requests per client IP across the whole auth surface, and
+ * {@link LoginAttemptLimiter} caps FAILED password attempts per staff account
+ * here — see that class for why one IP bucket alone cannot do both jobs when a
+ * crowd shares a public IP.
  */
 @Service
 @Transactional
@@ -55,6 +58,7 @@ class AuthServiceImpl implements AuthService {
     private final JwtTokenService tokens;
     private final PhoneTokenVerifier phoneVerifier;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptLimiter loginAttempts;
 
     AuthServiceImpl(UserRepository users,
                     AddressRepository addresses,
@@ -62,7 +66,8 @@ class AuthServiceImpl implements AuthService {
                     RefreshTokenRevoker refreshTokenRevoker,
                     JwtTokenService tokens,
                     PhoneTokenVerifier phoneVerifier,
-                    PasswordEncoder passwordEncoder) {
+                    PasswordEncoder passwordEncoder,
+                    LoginAttemptLimiter loginAttempts) {
         this.users = users;
         this.addresses = addresses;
         this.refreshTokens = refreshTokens;
@@ -70,6 +75,7 @@ class AuthServiceImpl implements AuthService {
         this.tokens = tokens;
         this.phoneVerifier = phoneVerifier;
         this.passwordEncoder = passwordEncoder;
+        this.loginAttempts = loginAttempts;
     }
 
     @Override
@@ -105,16 +111,33 @@ class AuthServiceImpl implements AuthService {
         if (request == null || isBlank(request.email()) || isBlank(request.password())) {
             throw new InvalidCredentialsException("Invalid email or password");
         }
-        UserEntity user = users.findByEmail(request.email().trim().toLowerCase()).orElse(null);
+        String email = request.email().trim().toLowerCase();
+        // Per-account failure budget, checked before any BCrypt work so a
+        // locked-out account is cheap to refuse (429, not 401).
+        loginAttempts.check(email);
+
+        UserEntity user = users.findByEmail(email).orElse(null);
         // Constant-ish work even when the user is missing isn't critical here; the
         // single error message already avoids enumeration.
         if (user == null
                 || user.getRole() == Role.CUSTOMER
-                || !user.isActive()
                 || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            loginAttempts.recordFailure(email);
             throw new InvalidCredentialsException("Invalid email or password");
         }
+        // Checked AFTER the password, deliberately: the right password on a
+        // switched-off account earns a truthful answer (403, "deactivated") so a
+        // rider isn't sent off to reset a password that was never the problem;
+        // a wrong password on the same account stays a plain 401, so the
+        // active/inactive state of an account cannot be probed without the
+        // credential. Neither a guess nor a success for the throttle: the
+        // failure count is left exactly as it was.
+        if (!user.isActive()) {
+            throw new AccountDeactivatedException(
+                    "Your account has been deactivated. Please contact the store manager.");
+        }
+        loginAttempts.clear(email);
         return issueAuthResponse(user);
     }
 
@@ -316,7 +339,18 @@ class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("Delivery agent not found: " + agentId));
         agent.setActive(active);
         agent.touch();
-        return toDeliveryAgentDto(users.saveAndFlush(agent));
+        DeliveryAgentDto dto = toDeliveryAgentDto(users.saveAndFlush(agent));
+        if (!active) {
+            // Switching a rider off must end their session, not just block the
+            // next login: refresh() already refuses inactive users, but a phone
+            // that never has to refresh (active token still valid) would carry on
+            // until it expired. Revoking the family means the next refresh fails
+            // and the app returns to the login screen, where the truthful
+            // "deactivated" message waits. Access tokens run out within 15
+            // minutes. Same treatment resetPassword gives a changed credential.
+            refreshTokenRevoker.revokeFamily(agent.getId());
+        }
+        return dto;
     }
 
     @Override

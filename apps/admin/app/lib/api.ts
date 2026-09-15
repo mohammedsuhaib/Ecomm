@@ -274,7 +274,11 @@ async function authPost<T>(path: string, body: unknown): Promise<T> {
 
 // ---- Auth endpoints (contract §2, all PUBLIC) ------------------------------
 
-/** POST /auth/staff/login — email+password staff/admin login. 401 on bad creds. */
+/**
+ * POST /auth/staff/login — email+password staff/admin login. 401 on bad creds;
+ * 429 once this ACCOUNT has failed too many passwords in the backend's window
+ * (a correct password clears that count), with `Retry-After` on the response.
+ */
 export function staffLogin(
   email: string,
   password: string,

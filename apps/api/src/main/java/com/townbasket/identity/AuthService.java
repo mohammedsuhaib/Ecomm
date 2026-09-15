@@ -21,9 +21,12 @@ public interface AuthService {
     AuthResponse phoneVerify(PhoneVerifyRequest request);
 
     /**
-     * Staff/admin login by email + password (BCrypt-verified).
+     * Staff/admin/rider login by email + password (BCrypt-verified).
      *
-     * @throws InvalidCredentialsException if the credentials don't match
+     * @throws InvalidCredentialsException if the credentials don't match (401)
+     * @throws AccountDeactivatedException if they DO match but an admin has
+     *     switched the account off (403) — only ever after the password has
+     *     been verified, so account state cannot be probed without it
      */
     AuthResponse staffLogin(StaffLoginRequest request);
 
@@ -103,7 +106,10 @@ public interface AuthService {
 
     /**
      * Admin: activate or deactivate a delivery agent. Deactivated agents can't log
-     * in and drop out of the order-assignment dropdown.
+     * in (they are told so: {@link AccountDeactivatedException}), drop out of the
+     * order-assignment dropdown, and — on deactivation — have every refresh
+     * token revoked so a phone that is already signed in is back at the login
+     * screen as soon as its current access token expires.
      *
      * @throws com.townbasket.shared.ResourceNotFoundException if {@code agentId}
      *     doesn't refer to a delivery agent (mapped to 404)

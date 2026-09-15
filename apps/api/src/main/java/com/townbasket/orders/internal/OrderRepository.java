@@ -60,6 +60,53 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
             """, nativeQuery = true)
     List<AgentDeliveryRow> countDeliveredByAgentAndDay(@Param("since") Instant since);
 
+    /** Projection for {@link #summarizeAgentDeliveries(Long, Instant, Instant)}. Aggregates: never null. */
+    interface AgentDayRow {
+        long getDeliveries();
+        long getCodOrders();
+        BigDecimal getCodAmount();
+    }
+
+    /**
+     * One rider's deliveries in a time window: how many, how many were Pay on
+     * Delivery, and the cash those came to. The window is half-open
+     * ({@code from} inclusive, {@code to} exclusive) and is a store calendar
+     * day computed by the caller in IST — unlike
+     * {@link #countDeliveredByAgentAndDay}'s UTC date, this is the number a
+     * rider reconciles against the notes in their pocket at the end of a
+     * shift, so it has to be the day they lived.
+     *
+     * <p>Shape chosen for the rider's index: the outer scan is
+     * {@code idx_orders_agent_status} (one rider's DELIVERED orders — hundreds,
+     * not the store's fifty thousand), and the LATERAL picks each order's first
+     * DELIVERED event through {@code idx_order_events_delivered_at}
+     * index-only. MIN(at) for the same reason as the report above: a
+     * double-tapped confirm can commit two DELIVERED events, and the order must
+     * still count — and be paid — once.
+     *
+     * <p>{@code o.status = 'DELIVERED'} is implied by the event's existence
+     * (DELIVERED is terminal) and is there for the index, not for correctness.
+     */
+    @Query(value = """
+            SELECT COUNT(*)                                                    AS "deliveries",
+                   COUNT(*) FILTER (WHERE o.payment_method = 'COD')            AS "codOrders",
+                   COALESCE(SUM(o.total) FILTER (WHERE o.payment_method = 'COD'), 0) AS "codAmount"
+            FROM orders.orders o
+            JOIN LATERAL (
+                SELECT MIN(e.at) AS delivered_at
+                FROM orders.order_events e
+                WHERE e.order_id = o.id
+                  AND e.to_status = 'DELIVERED'
+            ) d ON TRUE
+            WHERE o.assigned_agent_id = :agentId
+              AND o.status = 'DELIVERED'
+              AND d.delivered_at >= :from
+              AND d.delivered_at <  :to
+            """, nativeQuery = true)
+    AgentDayRow summarizeAgentDeliveries(@Param("agentId") Long agentId,
+                                         @Param("from") Instant from,
+                                         @Param("to") Instant to);
+
     Optional<OrderEntity> findByIdempotencyKey(String idempotencyKey);
 
     Optional<OrderEntity> findByPublicToken(UUID publicToken);

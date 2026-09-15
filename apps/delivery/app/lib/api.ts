@@ -1,5 +1,5 @@
 import { clearAuth, getAccessToken, getRefreshToken, updateTokens } from './auth';
-import type { AuthResponse, Order, Page, TokenPair } from './types';
+import type { AuthResponse, DaySummary, Order, Page, TokenPair } from './types';
 
 const PUBLIC_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
@@ -167,6 +167,15 @@ export function getDeliveryOrders(
   size = 50,
 ): Promise<Page<Order>> {
   return apiFetch<Page<Order>>('/delivery/orders', { status, page, size });
+}
+
+/**
+ * GET /delivery/summary — today's tally for the signed-in rider: deliveries
+ * completed and Pay-on-Delivery cash collected. Always the caller's own
+ * figures; "today" is the store's day (IST), decided by the server.
+ */
+export function getDeliverySummary(): Promise<DaySummary> {
+  return apiFetch<DaySummary>('/delivery/summary');
 }
 
 /** POST /delivery/orders/{id}/deliver — submit OTP to mark the order delivered. */

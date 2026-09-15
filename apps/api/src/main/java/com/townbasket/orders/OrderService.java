@@ -153,6 +153,15 @@ public interface OrderService {
     PagedResponse<OrderDto> listAgentOrders(Long agentId, String status, Pageable pageable);
 
     /**
+     * Delivery: the rider's own tally for one store day — orders they
+     * delivered and the Pay-on-Delivery cash they collected doing it. Zeros,
+     * never null, for a day with nothing. {@code day} is a calendar date in the
+     * store's zone (the application {@link java.time.Clock}); the caller
+     * normally passes today.
+     */
+    AgentDaySummary agentDaySummary(Long agentId, java.time.LocalDate day);
+
+    /**
      * Delivery: confirm delivery by OTP, verifying the order is assigned to this
      * agent first.
      *

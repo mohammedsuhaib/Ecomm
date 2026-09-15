@@ -17,6 +17,13 @@ export interface OrderItem {
   lineTotal: number;
 }
 
+/** One step of an order's status history; `at` is an ISO instant. */
+export interface OrderTimelineEntry {
+  toStatus: OrderStatus;
+  at: string;
+  note: string | null;
+}
+
 export interface Order {
   /** Internal numeric id — keys the confirm/fail endpoints. */
   id: string;
@@ -32,6 +39,21 @@ export interface Order {
   subtotal: number;
   total: number;
   placedAt: string;
+  /** Status history, oldest first. The DELIVERED entry is when the rider handed it over. */
+  timeline: OrderTimelineEntry[];
+}
+
+/**
+ * GET /delivery/summary — the signed-in rider's own day (store day, IST).
+ * `codCollected` is the cash taken at the door on Pay-on-Delivery orders; a UPI
+ * order is in `deliveredCount` but never in the money.
+ */
+export interface DaySummary {
+  /** ISO date, e.g. "2026-09-15". */
+  date: string;
+  deliveredCount: number;
+  codOrders: number;
+  codCollected: number;
 }
 
 export interface Page<T> {

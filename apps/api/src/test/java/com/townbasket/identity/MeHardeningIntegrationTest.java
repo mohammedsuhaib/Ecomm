@@ -3,8 +3,10 @@ package com.townbasket.identity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.townbasket.shared.ApiError;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -47,6 +49,10 @@ class MeHardeningIntegrationTest {
     TestRestTemplate rest;
     @Autowired
     AuthService authService;
+
+    /** The per-IP budget under test (pinned for tests; 60 in production). */
+    @Value("${townbasket.security.ratelimit.capacity}")
+    int rateLimitCapacity;
 
     // --- Change 2: PUT /me (update display name) --------------------------
 
@@ -146,9 +152,13 @@ class MeHardeningIntegrationTest {
 
     @Test
     void authEndpointReturns429AfterThreshold() {
-        // Default capacity is 10 / 60s per IP per endpoint group. The TestRestTemplate
-        // calls share one client IP, so the 11th call to the same auth endpoint is
-        // rejected with 429. We drive the limiter with a VALID dev phone token so the
+        // The limit is `capacity` requests / 60s per IP per endpoint group (pinned
+        // low for tests in src/test/resources/application.yml; production defaults
+        // to 60, sized for a crowd behind one NAT). The capacity is read from the
+        // property rather than hard-coded, so retuning it cannot silently turn this
+        // into a test of nothing. The TestRestTemplate calls share one client IP, so
+        // call number capacity+1 to the same auth endpoint is rejected with 429.
+        // We drive the limiter with a VALID dev phone token so the
         // under-limit calls return 200, NOT 401: TestRestTemplate's HttpURLConnection
         // client throws HttpRetryException ("cannot retry due to server authentication,
         // in streaming mode") on a 401 response to a streamed POST body. A 429 is
@@ -157,7 +167,7 @@ class MeHardeningIntegrationTest {
         // (and pollution could only make the 429 arrive sooner, never not at all).
         HttpStatus last = null;
         boolean saw429 = false;
-        for (int i = 0; i < 11; i++) {
+        for (int i = 0; i < rateLimitCapacity + 1; i++) {
             ResponseEntity<String> res = rest.exchange(
                     "/api/v1/auth/phone/verify", HttpMethod.POST,
                     json(new PhoneVerifyRequest("dev:9777709999")), String.class);
@@ -170,7 +180,29 @@ class MeHardeningIntegrationTest {
             // Under the limit, a valid dev token returns 200 (OK).
             assertThat(last).isEqualTo(HttpStatus.OK);
         }
-        assertThat(saw429).as("expected a 429 within the first 11 requests").isTrue();
+        assertThat(saw429)
+                .as("expected a 429 within the first %d requests", rateLimitCapacity + 1)
+                .isTrue();
+    }
+
+    @Test
+    void deactivatedAccountWithTheRightPasswordGets403NotWrongPassword() {
+        // The login screens key their copy on the status code: 401 says "wrong
+        // password", 403 says "your account is deactivated". A rider whose admin
+        // switched them off must get the second, or they go and reset a password
+        // that was never the problem.
+        String email = "off-http-" + UUID.randomUUID().toString().substring(0, 8) + "@townbasket.local";
+        Long rider = authService.createDeliveryAgent(
+                new CreateDeliveryAgentRequest("Off Over HTTP", email, "Rider@12345")).id();
+        authService.setDeliveryAgentActive(rider, false);
+
+        ResponseEntity<ApiError> res = rest.exchange(
+                "/api/v1/auth/staff/login", HttpMethod.POST,
+                json(new StaffLoginRequest(email, "Rider@12345")), ApiError.class);
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(res.getBody()).isNotNull();
+        assertThat(res.getBody().message()).contains("deactivated");
     }
 
     @Test

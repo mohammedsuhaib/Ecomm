@@ -157,8 +157,18 @@ townbasket:
       refresh-ttl: P30D   # refresh token lifetime (30 days)
     ratelimit:
       # Per-client-IP rate limit on the auth endpoints (phone/verify, staff/login,
-      # refresh; logout exempt) — in-memory fixed window, no Redis. Defaults below.
-      capacity: 10        # max requests per IP per endpoint group per window
+      # refresh; logout exempt) — in-memory fixed window, no Redis.
+      #
+      # Sized for a CROWD BEHIND ONE IP, which is the normal case and not an
+      # attack: a shop's WiFi, a shared office line, or a mobile carrier's CGNAT
+      # pool all present many customers as one address. 15-20 of them signing in
+      # together is 15-20 requests in a minute, which the old budget of 10/min
+      # answered with a 429 to real customers; /auth/refresh is lighter in the
+      # steady state (a 15-minute access token is ~4 rotations per client per
+      # hour) but arrives in bursts when everyone opens the app at once.
+      # Password guessing is bounded per ACCOUNT instead, by login-throttle
+      # below, so this number no longer has to do that job.
+      capacity: ${TOWNBASKET_RATELIMIT_CAPACITY:60}   # requests per IP per endpoint group per window
       window: PT60S       # the fixed window length (60 seconds)
       # Derive the client IP from X-Forwarded-For. SECURE DEFAULT: false (use the
       # socket peer, which can't be forged). Set to true ONLY in production, where
@@ -166,6 +176,17 @@ townbasket:
       # header with the real peer; trusting it when directly reachable lets a
       # client spoof the header to bypass the per-IP limit.
       trust-forwarded-for: ${TOWNBASKET_RATELIMIT_TRUST_FORWARDED_FOR:false}
+    login-throttle:
+      # Per-ACCOUNT cap on FAILED staff password attempts (the per-credential
+      # companion to the per-IP limit above, which cannot tell a crowd on one NAT
+      # from an attacker). Only failures count and a correct password clears the
+      # counter, so staff signing in normally never consume budget — and an
+      # attacker is held to ~120 guesses/hour against a given account however
+      # many IPs they rotate through. Customer login has no equivalent because
+      # Firebase verifies the OTP; /auth/phone/verify only consumes the resulting
+      # signed token.
+      max-failures: ${TOWNBASKET_LOGIN_THROTTLE_MAX_FAILURES:10}
+      window: ${TOWNBASKET_LOGIN_THROTTLE_WINDOW:PT5M}
   identity:
     firebase:
       # project-id is intentionally LEFT UNSET here. While unset, the FAKE phone

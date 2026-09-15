@@ -4,13 +4,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthRequiredError, getDeliveryOrders, getDutyStatus, setDutyStatus } from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
+import CompletedDeliveries from './CompletedDeliveries';
 import DeliveryCard from './DeliveryCard';
 import PushOptIn from './PushOptIn';
 
 const POLL_MS = 30_000;
 
+type View = 'queue' | 'completed';
+
 export default function DeliveryQueue() {
   const { user, logout, refresh } = useAuth();
+  // Which half of the app is showing. The pending queue keeps polling in the
+  // background either way, so switching back never shows a stale list.
+  const [view, setView] = useState<View>('queue');
   const [orders, setOrders] = useState<Order[]>([]);
   // The rider's own availability. null until loaded so the toggle never
   // flashes a wrong state; a failed load leaves it null and the toggle hidden.
@@ -117,65 +123,93 @@ export default function DeliveryQueue() {
 
       {/* Main */}
       <main className="queue-main">
-        {/* Status bar */}
-        <div className="queue-status">
-          {orders.length > 0 ? (
-            <span className="badge-pending">{orders.length} pending</span>
-          ) : (
-            <span className="badge-clear">All clear</span>
-          )}
-          <span className="queue-updated">
-            {lastUpdated
-              ? `Updated ${lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`
-              : 'Loading…'}
-          </span>
+        <div className="view-tabs" role="tablist" aria-label="Deliveries">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => { setLoading(true); void load(); }}
-            disabled={loading}
-            aria-label="Refresh deliveries"
-            aria-busy={loading}
+            role="tab"
+            className={`view-tab ${view === 'queue' ? 'active' : ''}`}
+            aria-selected={view === 'queue'}
+            onClick={() => setView('queue')}
           >
-            <span aria-hidden>↻</span> {loading ? 'Refreshing…' : 'Refresh'}
+            Deliveries
+            {orders.length > 0 && <span className="tab-count">{orders.length}</span>}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`view-tab ${view === 'completed' ? 'active' : ''}`}
+            aria-selected={view === 'completed'}
+            onClick={() => setView('completed')}
+          >
+            Completed
           </button>
         </div>
 
-        <PushOptIn />
-
-        {onDuty === false && (
-          <p className="duty-banner" role="status">
-            You&apos;re off duty — finish what&apos;s in your queue; nothing new will be assigned
-            until you go back on duty.
-          </p>
-        )}
-
-        {offline && (
-          <p className="offline-banner" role="status">
-            You&apos;re offline — the queue may be out of date. It will refresh
-            automatically when you&apos;re back online.
-          </p>
-        )}
-        {error && <p className="field-error queue-error">{error}</p>}
-
-        {loading && orders.length === 0 ? (
-          <div className="dcard-list" aria-busy="true" aria-label="Loading your deliveries">
-            <div className="skeleton-card" />
-            <div className="skeleton-card" />
-            <div className="skeleton-card" />
-          </div>
-        ) : orders.length === 0 ? (
-          <div className="queue-empty-state">
-            <div className="queue-empty-icon">✅</div>
-            <p>No pending deliveries right now.</p>
-            <p className="queue-empty-sub">New orders will appear here automatically.</p>
-          </div>
+        {view === 'completed' ? (
+          <CompletedDeliveries />
         ) : (
-          <div className="dcard-list">
-            {orders.map((order) => (
-              <DeliveryCard key={order.id} order={order} onDelivered={onDelivered} />
-            ))}
-          </div>
+          <>
+            {/* Status bar */}
+            <div className="queue-status">
+              {orders.length > 0 ? (
+                <span className="badge-pending">{orders.length} pending</span>
+              ) : (
+                <span className="badge-clear">All clear</span>
+              )}
+              <span className="queue-updated">
+                {lastUpdated
+                  ? `Updated ${lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`
+                  : 'Loading…'}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => { setLoading(true); void load(); }}
+                disabled={loading}
+                aria-label="Refresh deliveries"
+                aria-busy={loading}
+              >
+                <span aria-hidden>↻</span> {loading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+
+            <PushOptIn />
+
+            {onDuty === false && (
+              <p className="duty-banner" role="status">
+                You&apos;re off duty — finish what&apos;s in your queue; nothing new will be assigned
+                until you go back on duty.
+              </p>
+            )}
+
+            {offline && (
+              <p className="offline-banner" role="status">
+                You&apos;re offline — the queue may be out of date. It will refresh
+                automatically when you&apos;re back online.
+              </p>
+            )}
+            {error && <p className="field-error queue-error">{error}</p>}
+
+            {loading && orders.length === 0 ? (
+              <div className="dcard-list" aria-busy="true" aria-label="Loading your deliveries">
+                <div className="skeleton-card" />
+                <div className="skeleton-card" />
+                <div className="skeleton-card" />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="queue-empty-state">
+                <div className="queue-empty-icon">✅</div>
+                <p>No pending deliveries right now.</p>
+                <p className="queue-empty-sub">New orders will appear here automatically.</p>
+              </div>
+            ) : (
+              <div className="dcard-list">
+                {orders.map((order) => (
+                  <DeliveryCard key={order.id} order={order} onDelivered={onDelivered} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

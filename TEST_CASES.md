@@ -357,6 +357,10 @@ testing possible without real money or SMS.
 | TC-RID-008 | Edge | Rider with no deliveries | Expand a brand-new rider's stats | Empty state, not an error; Order value column shows "—" | P3 |
 | TC-RID-009 | Positive | Order value column | Deliver 2 orders of known totals with one rider, check the Order value column | Shows the ₹ sum of the delivered orders' totals (tax-inclusive), matching the two order totals exactly; per-date breakdown amounts add up to it | P2 |
 | TC-RID-010 | Edge | Order value counts each order once | Deliver one order, then re-check stats after any repeated/duplicate confirm attempts | The order's value appears exactly once — deliveries and ₹ never double | P2 |
+| TC-RID-011 | Negative | Deactivated rider cannot log in | Deactivate a rider, then sign in to the delivery app with their CORRECT password | Refused with "Your account has been deactivated. Please contact the store manager." — not "Incorrect email or password" | P1 |
+| TC-RID-012 | Security | Deactivation reveals nothing to a guesser | With the rider deactivated, sign in with a WRONG password | Plain "Incorrect email or password" (401) — the deactivated message appears only for the right password | P1 |
+| TC-RID-013 | Positive | Deactivation ends the live session | Have the rider signed in on a phone, deactivate them in Admin, wait for the access token to expire (≤ 15 min) or trigger a refresh | The app returns to the login screen; signing in again shows the deactivated message | P1 |
+| TC-RID-014 | Positive | Reactivation restores login | Reactivate the rider | They can sign in again and the queue loads | P2 |
 
 ---
 
@@ -381,6 +385,12 @@ testing possible without real money or SMS.
 | TC-DLV-013 | Positive | Rider goes off duty | Tap **On duty** in the delivery-app header → it flips to Off duty; an amber banner explains | Orders already in the queue stay and can still be delivered/reported; admin cannot assign new ones (TC-ADM-022) | P1 |
 | TC-DLV-014 | Positive | Rider goes back on duty | Tap **Off duty** → On duty | Admin can assign again immediately; the toggle survives a reload (read from the server, not the device) | P1 |
 | TC-DLV-015 | Negative | Only riders have a duty switch | Call `PUT /api/v1/me/duty` with a customer or admin token | 403; nothing changes | P2 |
+| TC-DLV-016 | Positive | Completed tab lists my deliveries | Deliver two orders, tap **Completed** | Both orders listed newest first, each showing "Delivered HH:MM", customer, address, items and total; the Deliveries tab still shows only pending work | P1 |
+| TC-DLV-017 | Positive | Today's cash tally | Deliver one COD order of ₹X and one UPI order, open Completed | "Today" shows 2 delivered and ₹X cash collected · 1 order — the UPI order is counted as a delivery but not as cash | P1 |
+| TC-DLV-018 | Negative | Only my completed orders | Have ANOTHER rider deliver an order the same day | It appears in neither this rider's Completed list nor their tally | P1 |
+| TC-DLV-019 | Edge | Store day, not phone day | Deliver an order after 18:30 IST (already tomorrow in UTC) | It counts in TODAY's tally; at midnight IST the tally resets to zero while the list keeps every order | P2 |
+| TC-DLV-020 | Edge | Nothing delivered yet | Open Completed as a brand-new rider | "0 delivered", "₹0 cash collected" and an empty state — no error | P3 |
+| TC-DLV-021 | Positive | Older deliveries | With more than 50 completed orders, open Completed | First 50 shown with a "Show more (N older)" button that appends the rest without duplicates | P3 |
 
 ---
 
