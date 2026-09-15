@@ -16,7 +16,7 @@ import { formatDateTime, formatRupees } from '@/app/lib/format';
 import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
-import { rememberLastOrder } from '@/app/lib/lastOrder';
+import { loadLastOrder } from '@/app/lib/lastOrder';
 import PushOptIn from '@/app/components/PushOptIn';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
@@ -130,11 +130,17 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       setLastUpdated(Date.now());
       if (!cartCleared.current) {
         cartCleared.current = true;
-        // Clearing the cart is what makes Back show "Your cart is empty", so
-        // leave a note in the same breath: the cart/checkout empty states read
-        // it and say the order was placed instead (see lib/lastOrder.ts).
-        rememberLastOrder(next);
-        reset();
+        // Only the order the customer has *just* placed clears the local cart.
+        // Checkout leaves the note naming the order it created (see
+        // lib/lastOrder.ts), so matching it against this page's order is what
+        // tells "you arrived here from checkout" apart from "you opened your
+        // order history" or "you tapped a push notification hours later".
+        //
+        // Resetting unconditionally, as this used to, meant that merely
+        // looking at an old order silently emptied the basket the customer was
+        // building — and re-stamped the note, so the cart then greeted them
+        // with "Your order is placed" instead of their shopping.
+        if (loadLastOrder()?.token === next.trackingToken) reset();
       }
     },
     [reset],

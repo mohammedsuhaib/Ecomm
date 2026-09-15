@@ -1,5 +1,9 @@
 // A short-lived note that the customer has just placed an order.
 //
+// Checkout writes it the moment the order comes back, and it is also how the
+// order page knows it was reached from checkout rather than from order history
+// — only the order named here clears the local cart.
+//
 // Why this exists: placing an order clears the local cart id (the order page
 // calls CartProvider's reset(), so the next shop starts a fresh basket). Press
 // the browser Back button from the confirmation screen and the cart and

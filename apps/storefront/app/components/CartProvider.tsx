@@ -194,20 +194,82 @@ export default function CartProvider({
     return next;
   }, []);
 
+  /**
+   * Ordering for everything the server sends back.
+   *
+   * <p>Writes are serialised below (see `writes`) so they cannot land out of
+   * order. Reads were not, and a read is just as capable of putting an old
+   * cart back: the cart page refreshes on mount, so tapping Add and opening
+   * the cart in the same breath sends a GET that was answered before the item
+   * existed. If it arrives after the add's reply — a moment's mobile latency
+   * is enough — it overwrites the cart with the version that has no item in
+   * it. The customer sees "Your cart is empty" (or, freshly after ordering,
+   * the order note in its place) while the server has exactly what they
+   * added, and it looks like Add simply does nothing.
+   *
+   * <p>So every response is stamped with the moment its request was SENT, and
+   * one older than what is already on screen is dropped as old news.
+   */
+  const issuedSeq = useRef(0);
+  const appliedSeq = useRef(0);
+  /** Stamp a request as it goes out. Call immediately before sending. */
+  const stamp = useCallback(() => ++issuedSeq.current, []);
+  const commitFetched = useCallback(
+    (seq: number, next: Cart | null) => {
+      if (seq < appliedSeq.current) return;
+      appliedSeq.current = seq;
+      commit(next);
+    },
+    [commit],
+  );
+
+  /**
+   * Take a cart as the server just gave it to us.
+   *
+   * <p>A cart that has become an order is finished — the server keeps it for
+   * the order's sake but refuses every write — so keeping its id would show
+   * the customer the items they already bought as if they were still shopping.
+   * Clearing it starts the next basket instead. The order page normally does
+   * this the moment checkout lands; this catches the checkout whose order page
+   * never loaded (tab closed, connection dropped).
+   */
+  const commitServerCart = useCallback(
+    (seq: number, next: Cart) => {
+      if (next.checkedOut) {
+        // Only if this is still the cart we are holding. A slow read started
+        // before a reorder saved its new cart id would otherwise clear that
+        // id — throwing away the basket the reorder just built, because a cart
+        // abandoned two screens ago came back checked out.
+        if (loadCartId() === next.cartId) {
+          clearCartId();
+          clearCartPrices();
+          commitFetched(seq, null);
+        }
+        return;
+      }
+      commitFetched(seq, next);
+    },
+    [commitFetched],
+  );
+
   // Hydrate from a persisted cartId on mount.
   useEffect(() => {
     const id = loadCartId();
     if (!id) return;
     setLoading(true);
+    const seq = stamp();
     getCart(id)
-      .then(commit)
+      .then((cart) => commitServerCart(seq, cart))
       .catch(() => {
-        // Stale/expired cartId — forget it and start fresh on next add.
+        // Stale/expired cartId — forget it and start fresh on next add. Only
+        // if it is still the id we read, though: a reorder may have saved its
+        // own since, and that one is not the one that just failed.
+        if (loadCartId() !== id) return;
         clearCartId();
-        commit(null);
+        commitFetched(seq, null);
       })
       .finally(() => setLoading(false));
-  }, [commit]);
+  }, [commitFetched, commitServerCart, stamp]);
 
   // Forget the cart when the session ends (logout, or a failed token refresh
   // clearing it). Now that carts follow the ACCOUNT — owned at creation and
@@ -243,19 +305,22 @@ export default function CartProvider({
   const refresh = useCallback(async (): Promise<void> => {
     const id = loadCartId();
     if (!id) {
-      commit(null);
+      commitFetched(stamp(), null);
       return;
     }
     setLoading(true);
+    const seq = stamp();
     try {
-      commit(await getCart(id));
+      commitServerCart(seq, await getCart(id));
     } catch {
-      clearCartId();
-      commit(null);
+      if (loadCartId() === id) {
+        clearCartId();
+        commitFetched(seq, null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [commit]);
+  }, [commitFetched, commitServerCart, stamp]);
 
   /**
    * Send one variant's coalesced quantity. Reads the target at the moment of
@@ -267,6 +332,7 @@ export default function CartProvider({
       return enqueue(async () => {
         const target = targetsRef.current.get(variantId);
         if (target === undefined) return;
+        const seq = stamp();
         try {
           const id = await ensureCartId();
           const line = cartRef.current?.items.find((i) => i.variantId === variantId);
@@ -282,7 +348,7 @@ export default function CartProvider({
             targetsRef.current.delete(variantId);
             publishTargets();
           }
-          commit(updated);
+          commitFetched(seq, updated);
           // The price the customer was looking at when they chose the quantity
           // is the baseline a later admin edit is measured against.
           acceptVariantPrice(updated, variantId);
@@ -298,7 +364,7 @@ export default function CartProvider({
         }
       });
     },
-    [commit, enqueue, ensureCartId, publishErrors, publishTargets, refresh],
+    [commitFetched, enqueue, ensureCartId, publishErrors, publishTargets, refresh, stamp],
   );
 
   const nudgeVariant = useCallback(
@@ -373,27 +439,29 @@ export default function CartProvider({
       const prev = cartRef.current;
       const line = prev?.items.find((i) => i.itemId === itemId);
       if (prev && line) commit(withVariantQty(prev, line.variantId, qty));
+      const seq = stamp();
       try {
         const updated = await updateCartItem(id, itemId, qty);
-        commit(updated);
+        commitFetched(seq, updated);
         return updated;
       } catch (err) {
         if (prev) commit(prev);
         throw err;
       }
     },
-    [commit],
+    [commit, commitFetched, stamp],
   );
 
   const removeItem = useCallback(
     async (itemId: string): Promise<Cart> => {
       const id = loadCartId();
       if (!id) throw new Error('No cart');
+      const seq = stamp();
       const updated = await removeCartItem(id, itemId);
-      commit(updated);
+      commitFetched(seq, updated);
       return updated;
     },
-    [commit],
+    [commitFetched, stamp],
   );
 
   const reset = useCallback(() => {

@@ -13,6 +13,7 @@ import {
   placeOrder,
 } from '@/app/lib/api';
 import { formatRupees, subtractRupees } from '@/app/lib/format';
+import { rememberLastOrder } from '@/app/lib/lastOrder';
 import { loadServiceability, saveServiceability } from '@/app/lib/serviceability';
 import { useCart } from '@/app/components/CartProvider';
 import { useAuth } from '@/app/components/AuthProvider';
@@ -312,8 +313,14 @@ export default function CheckoutPage() {
         idempotencyKey.current,
       );
 
-      // Track by the unguessable token (never the sequential id). The order page
-      // clears the local cart once it loads successfully.
+      // This cart is now an order: the server refuses every further write to
+      // it. Leave the note here, where we know which cart became which order —
+      // the order page clears the local cart when it recognises this token,
+      // and the cart/checkout empty states read the note so a Back press finds
+      // "Your order is placed" rather than "Your cart is empty".
+      rememberLastOrder(order);
+
+      // Track by the unguessable token (never the sequential id).
       router.push(`/order/${order.trackingToken}`);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -367,6 +374,13 @@ export default function CheckoutPage() {
         <nav className="breadcrumb">
           <Link href="/cart">{tc('cart')}</Link> / <span>{tc('checkout')}</span>
         </nav>
+        {/* A refusal can be what emptied the cart: order a cart that has
+            already been ordered (a second device, a stale tab) and the 422
+            handler above refreshes into a checked-out cart, which is dropped.
+            Without this line the reason would vanish with the form and the
+            customer would be left reading "Your cart is empty" as the answer
+            to "why was my order refused?". */}
+        {error && <p className="notice error">{error}</p>}
         <CartEmptyState />
       </>
     );
