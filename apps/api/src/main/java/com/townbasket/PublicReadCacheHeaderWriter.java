@@ -56,14 +56,22 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
             // Categories: the storefront nav. Edited a few times a year.
             publicFor(Duration.ofMinutes(5), Duration.ofHours(1), "/api/v1/categories"),
 
-            // Products (listing, search, detail). A short window because these
-            // carry live stock counts — though a stale count is harmless, since
-            // the cart and checkout both re-check stock against the database.
+            // Products (listing, search, detail). A SHORT window because these
+            // carry live stock counts. It used to be 60s + 5 minutes of
+            // stale-while-revalidate on the reasoning that a stale count is
+            // harmless — the cart and checkout both re-check stock against the
+            // database. That holds for overselling, but not for the opposite
+            // direction, which is the one staff hit: after restocking a
+            // sold-out product they searched for it and were served up to six
+            // minutes of "unavailable", with no way to tell whether the restock
+            // had worked. 15s still absorbs a burst of traffic on the same
+            // listing; the stale window is now shorter than the time it takes
+            // to walk back to the shop floor.
             // One path segment, not "/**": the listing, /products/search and
             // /products/{idOrSlug} are all that exist, and a wildcard over the
             // whole subtree would silently mark a future nested endpoint
             // (/products/{id}/something-personal) publicly cacheable.
-            publicFor(Duration.ofSeconds(60), Duration.ofMinutes(5),
+            publicFor(Duration.ofSeconds(15), Duration.ofSeconds(60),
                     "/api/v1/products", "/api/v1/products/*"),
 
             // Store details: the payload's `open` flag flips at the opening and

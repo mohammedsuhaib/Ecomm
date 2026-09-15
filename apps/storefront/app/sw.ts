@@ -4,7 +4,9 @@
 //
 // Strategy (ARCHITECTURE.md §4.1):
 //  - precache the built app shell (Serwist injects the manifest below),
-//  - stale-while-revalidate for catalogue GET requests (categories/products),
+//  - stale-while-revalidate for the category nav (static, on every page),
+//  - network-first (3s, cache fallback) for products and the store row, which
+//    carry live stock and the open/closed flag,
 //  - navigation fallback to /offline when offline and uncached.
 //
 // `self.__SW_MANIFEST` is replaced at build time by the Serwist webpack plugin
@@ -15,6 +17,7 @@ import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from 'serwist
 import {
   CacheableResponsePlugin,
   ExpirationPlugin,
+  NetworkFirst,
   Serwist,
   StaleWhileRevalidate,
 } from 'serwist';
@@ -32,20 +35,41 @@ declare const self: ServiceWorkerGlobalScope & {
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080/api/v1';
 
-// Catalogue reads: stale-while-revalidate so browse/search feel instant and
-// refresh in the background. Matches GET requests to the API's catalogue
-// endpoints (categories, products, store).
-const catalogueCaching: RuntimeCaching = {
-  matcher: ({ url, request }) => {
-    if (request.method !== 'GET') return false;
-    const isApi = url.href.startsWith(API_BASE);
-    const isCatalogue = /\/(categories|products|store)(\/|\?|$)/.test(
-      url.pathname,
-    );
-    return isApi && isCatalogue;
-  },
+const isApiGet = (url: URL, request: Request, pathPattern: RegExp) =>
+  request.method === 'GET' &&
+  url.href.startsWith(API_BASE) &&
+  pathPattern.test(url.pathname);
+
+// The category nav: edited a few times a year, carries nothing live, and is on
+// every page — stale-while-revalidate is exactly right, so browse feels instant.
+const categoryCaching: RuntimeCaching = {
+  matcher: ({ url, request }) => isApiGet(url, request, /\/categories(\/|\?|$)/),
   handler: new StaleWhileRevalidate({
     cacheName: 'tb-catalogue',
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+    ],
+  }),
+};
+
+// Products and the store row: NETWORK FIRST, because these carry live state —
+// stock counts and the open/closed flag.
+//
+// Stale-while-revalidate hands back the cached copy IMMEDIATELY and refreshes
+// behind it, so the fresh answer only ever appears on the NEXT look. After
+// staff restocked a sold-out product, a customer (or the staff member checking
+// their own work) saw it as unavailable, reloaded, and saw it as unavailable
+// again — the refresh had landed in the cache but nothing re-read it. Going to
+// the network first costs one round trip on a good connection and tells the
+// truth; the 3-second timeout and the cache fallback keep the PWA usable on a
+// bad one and offline, which is what the cache was really for.
+const liveCatalogueCaching: RuntimeCaching = {
+  matcher: ({ url, request }) =>
+    isApiGet(url, request, /\/(products|store)(\/|\?|$)/),
+  handler: new NetworkFirst({
+    cacheName: 'tb-catalogue-live',
+    networkTimeoutSeconds: 3,
     plugins: [
       new ExpirationPlugin({ maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
@@ -58,9 +82,9 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  // Catalogue rule first so it wins over the Next defaults for API calls;
+  // Catalogue rules first so they win over the Next defaults for API calls;
   // everything else (Next assets, pages) uses Serwist's sensible defaults.
-  runtimeCaching: [catalogueCaching, ...defaultCache],
+  runtimeCaching: [categoryCaching, liveCatalogueCaching, ...defaultCache],
   // Offline fallback for navigations that can't be served.
   fallbacks: {
     entries: [
