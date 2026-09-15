@@ -11,6 +11,10 @@ import {
 } from 'react';
 import { getMe, logout as logoutApi, phoneVerify } from '@/app/lib/api';
 import {
+  subscribeIfAlreadyPermitted,
+  unsubscribeCurrentBrowser,
+} from '@/app/lib/push';
+import {
   clearAuth,
   loadAuth,
   loadRefreshToken,
@@ -140,6 +144,15 @@ export default function AuthProvider({
         user: res.user,
       });
       setUser(res.user);
+      // There is finally an account to attach a push subscription to. If the
+      // customer already allowed notifications — usually beside the location
+      // prompt, before they had signed in — the grant is redeemed here without
+      // another prompt. If they never allowed it, this does nothing and the
+      // opt-in button on the order page stays the deliberate way in.
+      //
+      // Not awaited: signing in must not wait on, or fail because of, a push
+      // service.
+      void subscribeIfAlreadyPermitted();
       return res.user;
     },
     [firebaseEnabled],
@@ -154,6 +167,12 @@ export default function AuthProvider({
     } finally {
       clearAuth();
       setUser(null);
+      // Stop notifications for the account that just left. Subscriptions are
+      // stored per device, and since login now subscribes automatically, a
+      // handed-back or shared phone would otherwise keep buzzing with someone
+      // else's order updates. The DELETE is authorised by the endpoint URL
+      // itself (SecurityConfig), so it still works after the session is gone.
+      void unsubscribeCurrentBrowser().catch(() => undefined);
     }
   }, []);
 

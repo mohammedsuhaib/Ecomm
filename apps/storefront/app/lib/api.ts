@@ -405,7 +405,7 @@ export function getOrder(token: string): Promise<Order> {
 /**
  * Customer self-service cancel (AUTHENTICATED, owner only — same access model
  * as getOrder). Server enforces the policy window: within 1 minute of placing,
- * before packing starts. 422 = window passed / already being prepared.
+ * before packing starts. 422 = window passed / already being packed.
  */
 export function cancelOrder(token: string): Promise<Order> {
   return authMutate<Order>('POST', `/orders/track/${encodeURIComponent(token)}/cancel`);

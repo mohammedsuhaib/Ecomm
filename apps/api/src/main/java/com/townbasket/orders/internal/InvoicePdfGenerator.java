@@ -131,7 +131,11 @@ class InvoicePdfGenerator implements InvoiceService {
         right.addElement(right(text("Date: " + DATE.format(order.invoicedAt()), font(10, Font.NORMAL, MUTED))));
         right.addElement(right(text("Order: " + order.publicCode(), font(10, Font.NORMAL, MUTED))));
         right.addElement(right(text("Placed: " + DATE.format(order.placedAt()), font(10, Font.NORMAL, MUTED))));
-        right.addElement(right(text("Status: " + order.status(), font(10, Font.NORMAL, MUTED))));
+        // No status line. It printed the raw OrderStatus enum, so a tax invoice
+        // the customer keeps read "Status: DELIVERED" — the same leak the
+        // payment line below was already written to avoid. It also said
+        // nothing: requireDelivered() gates invoicing, so it was always
+        // DELIVERED.
         table.addCell(right);
         return table;
     }

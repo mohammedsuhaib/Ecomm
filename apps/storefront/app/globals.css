@@ -657,6 +657,16 @@ a:hover {
 .site-footer .copyright {
   color: #94a79c;
 }
+/* The published policy pages, set below the main links: legally required
+   reading rather than places a shopper is being sent, so quieter and smaller
+   than the navigation above them. */
+.site-footer .footer-policies {
+  font-size: 0.82rem;
+  gap: 0.3rem 0.9rem;
+}
+.site-footer .footer-policies a {
+  color: #a9bdb2;
+}
 
 /* ---- Cart indicator (header) ---- */
 .cart-pill {

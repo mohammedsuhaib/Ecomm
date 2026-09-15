@@ -2,32 +2,14 @@
 
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  getPushConfig,
-  subscribeToPush,
-  unsubscribeFromPush,
-  type PushSubscriptionPayload,
-} from '@/app/lib/api';
+import { getPushConfig } from '@/app/lib/api';
 import { useAuth } from '@/app/components/AuthProvider';
-
-// VAPID keys travel as base64url; PushManager wants raw bytes.
-function urlBase64ToUint8Array(base64Url: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64Url.length % 4)) % 4);
-  const base64 = (base64Url + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = window.atob(base64);
-  const output = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-  return output;
-}
-
-function pushSupported(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
-  );
-}
+import {
+  pushSupported,
+  rememberPushOptOut,
+  subscribeCurrentBrowser,
+  unsubscribeCurrentBrowser,
+} from '@/app/lib/push';
 
 /**
  * Opt-in for browser notifications about this order ("your order is on the
@@ -87,17 +69,7 @@ export default function PushOptIn() {
         setDenied(permission === 'denied');
         return;
       }
-      const registration = await navigator.serviceWorker.ready;
-      const subscription =
-        (await registration.pushManager.getSubscription()) ??
-        (await registration.pushManager.subscribe({
-          // Chrome requires every push to be user-visible.
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        }));
-      await subscribeToPush(
-        subscription.toJSON() as unknown as PushSubscriptionPayload,
-      );
+      await subscribeCurrentBrowser(publicKey);
       setSubscribed(true);
     } catch {
       setError(t('notifyFailed'));
@@ -110,14 +82,12 @@ export default function PushOptIn() {
     setBusy(true);
     setError(null);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        // Tell the server first: if unsubscribing locally succeeded but the
-        // server kept the row, it would keep pushing to a dead endpoint.
-        await unsubscribeFromPush(subscription.endpoint).catch(() => undefined);
-        await subscription.unsubscribe();
-      }
+      await unsubscribeCurrentBrowser();
+      // Remember that this was a choice, not an accident. The browser
+      // permission stays granted after an unsubscribe, so without this the
+      // next sign-in would cheerfully switch notifications back on for someone
+      // who just turned them off.
+      rememberPushOptOut();
       setSubscribed(false);
     } catch {
       setError(t('notifyFailed'));

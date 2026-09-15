@@ -340,7 +340,7 @@ class OrderServiceImpl implements OrderService {
         // customer to support instead of self-service.
         if (status != OrderStatus.PLACED && status != OrderStatus.CONFIRMED) {
             throw new BusinessRuleException(
-                    "This order is already being prepared and can no longer be cancelled online. "
+                    "This order is already being packed and can no longer be cancelled online. "
                             + "Please contact support.");
         }
         Instant deadline = order.getPlacedAt().plus(CUSTOMER_CANCEL_WINDOW);

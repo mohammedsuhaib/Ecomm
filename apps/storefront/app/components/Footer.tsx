@@ -3,6 +3,17 @@ import { getTranslations } from 'next-intl/server';
 import { getStore } from '@/app/lib/api';
 import type { Store } from '@/app/lib/types';
 
+/** Where the published policy pages are served (see holding-site/). */
+const POLICY_BASE = 'https://town-basket.com';
+
+const POLICY_PAGES = [
+  { key: 'terms', file: 'terms.html' },
+  { key: 'privacy', file: 'privacy.html' },
+  { key: 'refund', file: 'refund.html' },
+  { key: 'shipping', file: 'shipping.html' },
+  { key: 'contact', file: 'contact.html' },
+] as const;
+
 /**
  * Site footer with brand line, a few navigation links, and the store's phone
  * number when one is published.
@@ -33,6 +44,23 @@ export default async function Footer() {
               {t('callStore', { phone })}
             </a>
           )}
+        </nav>
+        {/* The shop's published policies. They have always existed on
+            town-basket.com but nothing in the app linked them, while the
+            cancellation copy cited the refund policy by name — so a customer
+            was pointed at a document they had no way to open. Absolute URLs
+            because these live on the marketing site, not this app. */}
+        <nav aria-label={t('policies')} className="footer-policies">
+          {POLICY_PAGES.map(({ key, file }) => (
+            <a
+              key={key}
+              href={`${POLICY_BASE}/${file}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t(key)}
+            </a>
+          ))}
         </nav>
         <div className="copyright">
           {t('copyright', { year })}
