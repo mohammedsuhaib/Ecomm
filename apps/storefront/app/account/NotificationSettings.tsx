@@ -157,42 +157,54 @@ export default function NotificationSettings() {
     }
   }, [t]);
 
-  if (state === 'loading') {
-    return (
-      <section className="account-section">
-        <h2 className="section-title">{t('title')}</h2>
-        <div className="skeleton-row" aria-busy="true" aria-label={t('title')} />
-      </section>
-    );
-  }
-
+  // Laid out like the rest of the account page: a bordered card with the
+  // copy on the left and the control on the right of it, everything
+  // left-aligned. It deliberately does NOT reuse the order page's
+  // `.push-optin-hint`, which is centred and width-capped for a narrow column
+  // and reads as misaligned in a stack of left-aligned cards.
   return (
     <section className="account-section">
-      <h2 className="section-title">{t('title')}</h2>
+      <div className="account-section-head">
+        <h2 className="section-title" style={{ margin: 0 }}>
+          {t('title')}
+        </h2>
+      </div>
 
-      {state === 'unsupported' && <p className="muted">{t('unsupported')}</p>}
-      {state === 'unavailable' && <p className="muted">{t('unavailable')}</p>}
-      {state === 'blocked' && <p className="muted">{t('blocked')}</p>}
-
-      {(state === 'on' || state === 'off') && (
-        <>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={state === 'on' ? turnOff : turnOn}
-            disabled={busy}
-            aria-pressed={state === 'on'}
-          >
-            {busy ? t('working') : state === 'on' ? t('on') : t('enable')}
-          </button>
-          <p className="muted push-optin-hint">
-            {state === 'on' ? t('onHint') : t('enableHint')}
+      <div className="profile-card">
+        {state === 'loading' ? (
+          <div className="skeleton-row" aria-busy="true" aria-label={t('title')} />
+        ) : state === 'on' || state === 'off' ? (
+          <div className="notify-row">
+            <div className="notify-copy">
+              <p className="notify-lead">
+                {state === 'on' ? t('onHint') : t('enableHint')}
+              </p>
+              <p className="notify-sub muted">{t('perDevice')}</p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline notify-toggle"
+              onClick={state === 'on' ? turnOff : turnOn}
+              disabled={busy}
+              aria-pressed={state === 'on'}
+            >
+              {busy ? t('working') : state === 'on' ? t('on') : t('enable')}
+            </button>
+          </div>
+        ) : (
+          // unsupported / unavailable / blocked: no control to offer, so the
+          // card carries only the reason — which is the point of these states.
+          <p className="notify-state muted">
+            {state === 'unsupported'
+              ? t('unsupported')
+              : state === 'blocked'
+                ? t('blocked')
+                : t('unavailable')}
           </p>
-          <p className="muted push-optin-hint">{t('perDevice')}</p>
-        </>
-      )}
+        )}
 
-      {error && <p className="field-error">{error}</p>}
+        {error && <p className="field-error notify-error">{error}</p>}
+      </div>
     </section>
   );
 }
