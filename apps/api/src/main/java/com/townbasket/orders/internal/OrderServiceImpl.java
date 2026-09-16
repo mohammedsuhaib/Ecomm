@@ -547,7 +547,18 @@ class OrderServiceImpl implements OrderService {
         }
         // Off duty is the rider's own switch: they keep what they hold, but a
         // NEW job must not land on someone who has gone home.
-        if (agentId != null && !authService.isAvailableDeliveryAgent(agentId)) {
+        //
+        // An order that is ALREADY out is not a new job. Assigning there is
+        // recording who has the goods — and it has to stay possible, because
+        // DELIVERED now requires an assignment: an order that went out
+        // unassigned, or whose rider went off duty at the end of the shift
+        // before anyone marked it delivered, would otherwise have no way to be
+        // completed at all. Cancelling a delivery that physically happened is
+        // not an acceptable only-option, so the on-duty rule is relaxed once
+        // the goods have left the shop.
+        boolean alreadyOut = status == OrderStatus.OUT_FOR_DELIVERY
+                || status == OrderStatus.DELIVERY_FAILED;
+        if (agentId != null && !alreadyOut && !authService.isAvailableDeliveryAgent(agentId)) {
             throw new BusinessRuleException(
                     "That rider is off duty right now — pick another, or ask them to go on duty.");
         }
