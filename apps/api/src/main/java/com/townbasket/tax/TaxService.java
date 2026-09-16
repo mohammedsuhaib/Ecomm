@@ -42,9 +42,20 @@ public interface TaxService {
     /**
      * Extract GST from a tax-inclusive gross amount.
      *
-     * <p>Guarantees {@code taxableValue + cgst + sgst == grossAmount} exactly
-     * (rounding differences are absorbed by SGST), so line breakdowns always
-     * re-add to the price the customer actually paid.
+     * <p>Two guarantees, both of which hold line by line and therefore on any
+     * invoice built by summing lines:
+     * <ul>
+     *   <li>{@code cgst == sgst} exactly — each is the half-rate levy on the
+     *       same value, which is how an intra-state supply is charged (18% is
+     *       9% central tax plus 9% State tax), so an invoice can never show one
+     *       half larger than the other;</li>
+     *   <li>{@code taxableValue + cgst + sgst == grossAmount} exactly, so a
+     *       breakdown always re-adds to the price the customer actually paid —
+     *       which matters here because prices are MRP-inclusive.</li>
+     * </ul>
+     *
+     * <p>Rounding lands on the taxable value, which may sit a paisa off the
+     * textbook {@code grossAmount × 100 / (100 + rate)}.
      *
      * @param grossAmount tax-inclusive amount, ≥ 0
      * @param ratePercent GST rate — must be a valid slab

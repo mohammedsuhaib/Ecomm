@@ -42,11 +42,11 @@ class PublicReadCacheHeaderWriterTest {
         assertThat(cacheControl("GET", "/api/v1/categories", 200))
                 .isEqualTo("max-age=300, public, stale-while-revalidate=3600");
         assertThat(cacheControl("GET", "/api/v1/products", 200))
-                .isEqualTo("max-age=60, public, stale-while-revalidate=300");
+                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
         assertThat(cacheControl("GET", "/api/v1/products/search", 200))
-                .isEqualTo("max-age=60, public, stale-while-revalidate=300");
+                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
         assertThat(cacheControl("GET", "/api/v1/products/amul-butter", 200))
-                .isEqualTo("max-age=60, public, stale-while-revalidate=300");
+                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
         assertThat(cacheControl("GET", "/api/v1/store", 200))
                 .isEqualTo("max-age=30, public, stale-while-revalidate=120");
         // private, not public: the URL carries the customer's coordinates, so a
@@ -129,7 +129,7 @@ class PublicReadCacheHeaderWriterTest {
         // no-store on it would tell the client to discard the entry it just
         // revalidated, turning every 304 into a guaranteed miss next time.
         assertThat(cacheControl("GET", "/api/v1/products", 304))
-                .isEqualTo("max-age=60, public, stale-while-revalidate=300");
+                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
     }
 
     @Test

@@ -197,8 +197,8 @@ export interface AnalyticsSummary {
   todayOrders: number;
   todayDelivered: number;
   pendingOrders: number;
-  weekRevenue: number;
-  weekOrders: number;
+  // NOTE: no range fields here on purpose — everything spanning the dashboard's
+  // 7/30/90-day filter is summed from the daily series, which the filter drives.
 }
 
 /** Revenue, order count, and gross profit for a single calendar day. */

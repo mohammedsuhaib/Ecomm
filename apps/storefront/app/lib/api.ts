@@ -270,6 +270,22 @@ export async function getProduct(
 }
 
 /** GET /products/search?q=&page=&size=&sort= — full-text search results. */
+/**
+ * Product search. **Never cached by default**, unlike the browse listings.
+ *
+ * <p>A search is someone asking a question right now, and the answer carries
+ * live stock. With the shared 60-second ISR window, staff who restocked an
+ * out-of-stock product and immediately searched for it in the storefront were
+ * served the pre-restock answer for up to a minute — the page is
+ * `force-dynamic`, but the *fetch* underneath it was not, which is the part
+ * that holds the stock counts. The browse pages keep their ISR window on
+ * purpose (fast first paint, SEO), and a stale count there is recoverable
+ * because the cart and checkout both re-check stock against the database.
+ *
+ * <p>A caller that genuinely wants caching has to pass `noStore: false`
+ * alongside its `revalidate` — `apiFetch` reads `noStore` first, so
+ * `revalidate` on its own is ignored here.
+ */
 export function searchProducts(
   q: string,
   page = 0,
@@ -280,7 +296,7 @@ export function searchProducts(
   return apiFetch<Page<Product>>(
     '/products/search',
     { q, page, size, sort: listOpts.sort },
-    opts,
+    { noStore: true, ...opts },
   );
 }
 

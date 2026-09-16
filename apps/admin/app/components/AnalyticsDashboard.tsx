@@ -71,7 +71,11 @@ export default function AnalyticsDashboard() {
 
   const maxRevenue = daily.length ? Math.max(...daily.map((d) => d.revenue), 1) : 1;
   // Period totals derived from the daily series (already carries per-day COGS).
+  // Every tile that names a range reads from HERE, because `daily` is the one
+  // thing the 7/30/90 filter actually refetches — the summary endpoint is
+  // today-and-now only. A range tile fed from `summary` looks live and isn't.
   const periodRevenue = daily.reduce((sum, d) => sum + d.revenue, 0);
+  const periodOrders = daily.reduce((sum, d) => sum + d.orders, 0);
   const periodGrossProfit = daily.reduce((sum, d) => sum + d.grossProfit, 0);
 
   return (
@@ -113,9 +117,9 @@ export default function AnalyticsDashboard() {
             <div className="kpi-sub">active orders</div>
           </div>
           <div className="kpi-card">
-            <div className="kpi-label">Week Revenue</div>
-            <div className="kpi-value">{fmt(summary.weekRevenue)}</div>
-            <div className="kpi-sub">{summary.weekOrders} orders (7 days)</div>
+            <div className="kpi-label">Revenue ({period}d)</div>
+            <div className="kpi-value">{fmt(periodRevenue)}</div>
+            <div className="kpi-sub">{periodOrders} orders</div>
           </div>
           <div className="kpi-card kpi-card-profit">
             <div className="kpi-label">Gross Profit ({period}d)</div>

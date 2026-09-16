@@ -40,19 +40,89 @@ class GstCalculatorTest {
     }
 
     @Test
+    void mixedRateInvoiceShowsEqualCgstAndSgst() {
+        // The exact order QA failed TC-TAX-005 on: a ₹600.00 line at 18% and a
+        // ₹300.99 line at 5%. Halving each line's tax gave the odd paisa to
+        // CGST twice over, so the summary showed CGST ₹52.94 against SGST
+        // ₹52.92. Computing each half directly from the gross makes them equal
+        // per line, so the invoice is balanced by construction.
+        TaxBreakdown eighteen = taxService.fromInclusiveAmount(
+                new BigDecimal("600.00"), new BigDecimal("18"));
+        TaxBreakdown five = taxService.fromInclusiveAmount(
+                new BigDecimal("300.99"), new BigDecimal("5"));
+
+        assertThat(eighteen.cgst()).isEqualByComparingTo("45.76");
+        assertThat(eighteen.sgst()).isEqualByComparingTo("45.76");
+        assertThat(five.cgst()).isEqualByComparingTo("7.17");
+        assertThat(five.sgst()).isEqualByComparingTo("7.17");
+
+        BigDecimal cgst = eighteen.cgst().add(five.cgst());
+        BigDecimal sgst = eighteen.sgst().add(five.sgst());
+        BigDecimal taxable = eighteen.taxableValue().add(five.taxableValue());
+
+        // The figures QA said the invoice should show.
+        assertThat(cgst).as("invoice CGST").isEqualByComparingTo("52.93");
+        assertThat(sgst).as("invoice SGST").isEqualByComparingTo("52.93");
+        assertThat(cgst.add(sgst)).as("total GST").isEqualByComparingTo("105.86");
+        assertThat(taxable).as("total taxable value").isEqualByComparingTo("795.13");
+        assertThat(taxable.add(cgst).add(sgst)).as("invoice foots to what was paid")
+                .isEqualByComparingTo("900.99");
+    }
+
+    @Test
+    void theTwoHalvesAreAlwaysEqual() {
+        // The invariant that replaced "within one paisa": with both halves
+        // derived from the same expression there is no odd paisa to award, so
+        // no basket of any size can drift them apart. The taxable value carries
+        // the rounding instead, within a paisa of the textbook figure.
+        for (BigDecimal rate : taxService.gstSlabs()) {
+            for (String gross : new String[] {
+                    "0.01", "0.07", "0.99", "1.00", "33.33", "99.99",
+                    "101.01", "300.99", "600.00", "2499.55"}) {
+                TaxBreakdown b = taxService.fromInclusiveAmount(new BigDecimal(gross), rate);
+                assertThat(b.cgst())
+                        .as("CGST == SGST for %s at %s%%", gross, rate)
+                        .isEqualByComparingTo(b.sgst());
+                if (rate.signum() != 0) {
+                    BigDecimal textbook = new BigDecimal(gross)
+                            .multiply(new BigDecimal("100"))
+                            .divide(new BigDecimal("100").add(rate), 2, java.math.RoundingMode.HALF_UP);
+                    assertThat(b.taxableValue().subtract(textbook).abs())
+                            .as("taxable value for %s at %s%% stays within a paisa of G×100/(100+r)",
+                                    gross, rate)
+                            .isLessThanOrEqualTo(new BigDecimal("0.01"));
+                }
+            }
+        }
+    }
+
+    @Test
+    void manyOddLinesNeverDriftTheInvoiceApart() {
+        // Twenty of the line that used to bias CGST: the old code was 20 paise
+        // out here, and nothing about a longer invoice can move these now.
+        BigDecimal cgst = BigDecimal.ZERO;
+        BigDecimal sgst = BigDecimal.ZERO;
+        for (int i = 0; i < 20; i++) {
+            TaxBreakdown b = taxService.fromInclusiveAmount(
+                    new BigDecimal("600.00"), new BigDecimal("18"));
+            cgst = cgst.add(b.cgst());
+            sgst = sgst.add(b.sgst());
+        }
+        assertThat(cgst).as("invoice CGST over 20 lines").isEqualByComparingTo(sgst);
+    }
+
+    @Test
     void partsAlwaysReAddToGross() {
         // Sweep awkward gross amounts across every slab: the breakdown must
-        // re-add to the gross exactly, and SGST may differ from CGST by at
-        // most one paisa (it absorbs the rounding remainder).
+        // re-add to the gross exactly, so an invoice always foots to what the
+        // customer paid. (The two halves being EQUAL is asserted over a wider
+        // sweep by theTwoHalvesAreAlwaysEqual.)
         for (BigDecimal rate : taxService.gstSlabs()) {
             for (String gross : new String[] {"0.01", "0.99", "1.00", "33.33", "99.99", "101.01", "2499.55"}) {
                 TaxBreakdown b = taxService.fromInclusiveAmount(new BigDecimal(gross), rate);
                 assertThat(b.taxableValue().add(b.cgst()).add(b.sgst()))
                         .as("gross %s at %s%%", gross, rate)
                         .isEqualByComparingTo(gross);
-                assertThat(b.cgst().subtract(b.sgst()).abs())
-                        .as("CGST/SGST skew for %s at %s%%", gross, rate)
-                        .isLessThanOrEqualTo(new BigDecimal("0.01"));
             }
         }
     }

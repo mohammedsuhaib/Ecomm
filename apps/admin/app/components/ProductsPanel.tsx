@@ -361,11 +361,18 @@ export default function ProductsPanel({
                   <td>
                     <div className="prod-name-cell">
                       <span className="prod-name">
-                        {p.vegMarker && (
-                          <span className="veg-dot veg" title="Veg" aria-hidden>
-                            ●
-                          </span>
-                        )}
+                        {/* Both states, always: rendering the dot only for veg
+                            made non-veg products indistinguishable from ones
+                            whose marker had never been set, which is exactly
+                            what staff use this column to check. */}
+                        <span
+                          className={`veg-dot ${p.vegMarker ? 'veg' : 'nonveg'}`}
+                          role="img"
+                          aria-label={p.vegMarker ? 'Vegetarian' : 'Non-vegetarian'}
+                          title={p.vegMarker ? 'Veg' : 'Non-veg'}
+                        >
+                          ●
+                        </span>
                         {p.name}
                       </span>
                       {p.nameKn && (

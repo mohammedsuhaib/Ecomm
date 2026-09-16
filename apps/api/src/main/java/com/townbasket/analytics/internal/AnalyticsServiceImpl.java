@@ -51,15 +51,7 @@ class AnalyticsServiceImpl implements AnalyticsService {
                   ) AS today_delivered,
                   COUNT(*) FILTER (
                     WHERE status IN ('PLACED','CONFIRMED','PACKING','OUT_FOR_DELIVERY','DELIVERY_FAILED')
-                  ) AS pending_orders,
-                  COUNT(*) FILTER (
-                    WHERE status != 'CANCELLED'
-                    AND placed_at >= NOW() - INTERVAL '7 days'
-                  ) AS week_orders,
-                  COALESCE(SUM(total) FILTER (
-                    WHERE status != 'CANCELLED'
-                    AND placed_at >= NOW() - INTERVAL '7 days'
-                  ), 0) AS week_revenue
+                  ) AS pending_orders
                 FROM orders.orders
                 WHERE store_id = :storeId
                 """;
@@ -70,9 +62,7 @@ class AnalyticsServiceImpl implements AnalyticsService {
                         rs.getBigDecimal("today_revenue"),
                         rs.getInt("today_orders"),
                         rs.getInt("today_delivered"),
-                        rs.getInt("pending_orders"),
-                        rs.getBigDecimal("week_revenue"),
-                        rs.getInt("week_orders")));
+                        rs.getInt("pending_orders")));
     }
 
     @Override

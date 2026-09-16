@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/components/AuthProvider';
 import AddressManager from './AddressManager';
+import NotificationSettings from './NotificationSettings';
 import OrderHistory from './OrderHistory';
 import ProfileEditor from './ProfileEditor';
 
@@ -82,6 +83,11 @@ export default function AccountPage() {
       </section>
 
       <AddressManager />
+
+      {/* The one notification control a customer can always reach — the order
+          page's only appears while an order is in flight, so there was nowhere
+          to switch this on from a device that had none. */}
+      <NotificationSettings />
     </>
   );
 }

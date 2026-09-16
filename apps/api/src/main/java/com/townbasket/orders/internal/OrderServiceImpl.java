@@ -214,6 +214,9 @@ class OrderServiceImpl implements OrderService {
             BigDecimal costPrice = catalogService.costPrice(item.variantId()).orElse(BigDecimal.ZERO);
             VariantTaxView tax = catalogService.taxInfo(item.variantId())
                     .orElse(new VariantTaxView(null, BigDecimal.ZERO));
+            // CGST and SGST come back equal per line (each the half-rate levy),
+            // so the invoice summary this sums into is balanced by construction
+            // — no per-order state needed to keep it that way.
             TaxBreakdown breakdown = taxService.fromInclusiveAmount(item.lineTotal(), tax.gstRatePercent());
             totalTax = totalTax.add(breakdown.totalTax());
             order.addItem(new OrderItemEntity(
