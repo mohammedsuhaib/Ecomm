@@ -43,8 +43,6 @@ class PublicReadCacheHeaderWriterTest {
                 .isEqualTo("max-age=300, public, stale-while-revalidate=3600");
         assertThat(cacheControl("GET", "/api/v1/products", 200))
                 .isEqualTo("max-age=15, public, stale-while-revalidate=60");
-        assertThat(cacheControl("GET", "/api/v1/products/search", 200))
-                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
         assertThat(cacheControl("GET", "/api/v1/products/amul-butter", 200))
                 .isEqualTo("max-age=15, public, stale-while-revalidate=60");
         assertThat(cacheControl("GET", "/api/v1/store", 200))
@@ -53,6 +51,39 @@ class PublicReadCacheHeaderWriterTest {
         // shared cache must not key an entry on where someone lives.
         assertThat(cacheControl("GET", "/api/v1/serviceability/check", 200))
                 .isEqualTo("max-age=300, private, stale-while-revalidate=1800");
+    }
+
+    @Test
+    void searchIsNeverPubliclyCacheableDespiteMatchingTheProductsWindow() {
+        // A search is someone asking whether something is in stock RIGHT NOW,
+        // and the storefront sends it no-store for exactly that reason. The
+        // server used to contradict its own client here — /api/v1/products/*
+        // matched, so the browser cache was told it could hold the answer for
+        // 15s and serve it stale for 60 more, which is how a just-restocked
+        // product still came back unavailable.
+        MockHttpServletResponse response = write("GET", "/api/v1/products/search", 200);
+        assertThat(response.getHeader("Cache-Control"))
+                .isEqualTo("no-cache, no-store, max-age=0, must-revalidate");
+        assertThat(response.getHeader("Pragma")).isEqualTo("no-cache");
+        assertThat(response.getHeader("Expires")).isEqualTo("0");
+
+        // The query string must not let it back into the window either. Built
+        // by hand because the helper above puts the whole string in the servlet
+        // path, and a real request carries the query separately — matchers
+        // never see it.
+        MockHttpServletRequest withQuery =
+                new MockHttpServletRequest("GET", "/api/v1/products/search");
+        withQuery.setServletPath("/api/v1/products/search");
+        withQuery.setQueryString("q=atta");
+        MockHttpServletResponse queried = new MockHttpServletResponse();
+        queried.setStatus(200);
+        writer.writeHeaders(withQuery, queried);
+        assertThat(queried.getHeader("Cache-Control"))
+                .isEqualTo("no-cache, no-store, max-age=0, must-revalidate");
+
+        // The browse listing keeps its window — it is browsed, not asked.
+        assertThat(cacheControl("GET", "/api/v1/products", 200))
+                .isEqualTo("max-age=15, public, stale-while-revalidate=60");
     }
 
     @Test

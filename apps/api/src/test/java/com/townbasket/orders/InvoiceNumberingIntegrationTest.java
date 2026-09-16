@@ -10,6 +10,7 @@ import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.ProductDto;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.identity.AuthService;
+import com.townbasket.identity.CreateDeliveryAgentRequest;
 import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.shared.BusinessRuleException;
@@ -45,6 +46,20 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
     @Autowired CartService cartService;
     @Autowired CatalogService catalogService;
     @Autowired AuthService authService;
+
+    /**
+     * A rider to pin a delivery on. DELIVERED requires an assigned agent — the
+     * delivery and any cash collected are booked against them — so even a test
+     * about invoice numbers has to walk the real flow. The email is unique per
+     * call because the Testcontainers database is a shared singleton and
+     * {@code deliver()} runs more than once per test run.
+     */
+    private Long newRider() {
+        return authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
+                "Invoice Rider",
+                "invoice-rider-" + System.nanoTime() + "@townbasket.local",
+                "password123")).id();
+    }
 
     // ---- order code --------------------------------------------------------
 
@@ -155,6 +170,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         assertRefusedBeforeDelivery(token, customer);
 
+        orderService.assignAgent(id, newRider());
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         assertRefusedBeforeDelivery(token, customer);
 
@@ -231,6 +247,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.assignAgent(id, newRider());
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         // The OTP reaches the customer only at OUT_FOR_DELIVERY, and only the owner.
         String otp = orderService.getOrderByToken(UUID.fromString(order.trackingToken()), ownerId)

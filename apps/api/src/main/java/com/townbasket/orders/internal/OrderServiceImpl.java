@@ -461,6 +461,18 @@ class OrderServiceImpl implements OrderService {
             throw new BusinessRuleException("Illegal transition " + from + " -> " + to);
         }
         if (to == OrderStatus.DELIVERED) {
+            // A delivery has to belong to a rider. Not a formality: the COD
+            // branch below marks the order PAID, i.e. records that cash was
+            // taken, and the rider's day summary sums that cash with
+            // `WHERE assigned_agent_id = ?`. An order delivered with nobody
+            // assigned is therefore money booked as collected that appears in
+            // no rider's total and nobody has to hand over — invisible in
+            // exactly the report built to reconcile it.
+            if (order.getAssignedAgentId() == null) {
+                throw new BusinessRuleException(
+                        "Assign a rider before marking this order delivered — the delivery, "
+                                + "and any cash collected for it, are recorded against them.");
+            }
             if (request.deliveryOtp() == null || !request.deliveryOtp().equals(order.getDeliveryOtp())) {
                 throw new BusinessRuleException("Delivery OTP does not match");
             }
