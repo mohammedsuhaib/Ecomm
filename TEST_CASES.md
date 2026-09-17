@@ -214,7 +214,11 @@ testing possible without real money or SMS.
 | TC-ORD-002 | Positive | Live status updates | Keep the tracking page open; move the order to PACKING in Admin | Status updates within seconds without a manual refresh (no connection badge is shown — judge it by the status and the "updated HH:MM" time) | P1 |
 | TC-ORD-003 | Edge | Live falls back to polling | Block SSE (throttle/offline briefly) then restore | Page keeps updating via polling — the status and the "updated HH:MM" time keep moving; no connection badge is shown either way | P2 |
 | TC-ORD-004 | Positive | Delivery code appears at the right time | Watch the page as the order goes to OUT_FOR_DELIVERY | OTP is hidden at PLACED/CONFIRMED/PACKING and appears ONLY at OUT_FOR_DELIVERY | P1 |
-| TC-ORD-005 | Positive | Order history | Account → Orders | Past orders newest-first with their statuses | P2 |
+| TC-ORD-005 | Positive | Order history | Account → Orders | The FIVE most recent orders, newest first, each with its live status stamp, View and Reorder; the address book below stays one short scroll away | P2 |
+| TC-ORD-021 | Positive | Show more orders | As a customer with more than 5 orders, open Account | Exactly 5 rows plus a full-width "Show more (N older)" button naming the exact remainder; each tap appends the next 5 (no duplicates, no page jump) and the count falls; when everything is shown the button is replaced by "That's all N orders." (en + kn) | P2 |
+| TC-ORD-022 | Edge | Five or fewer orders | As a customer with 1–5 orders, open Account | All of them, no Show more button and no "That's all" line — nothing to expand, nothing to say | P3 |
+| TC-ORD-023 | Edge | Show more fails | Go offline after the first 5 load, tap Show more | The five rows stay; an error notice says older orders could not load; tapping again once online works | P3 |
+| TC-ORD-024 | Edge | New order between taps | With 7 orders showing 5, place a new order in another tab, then tap Show more | The 2 older orders appear once each — no row duplicated by the shifted paging | P3 |
 | TC-ORD-006 | Positive | Reorder / buy again | Account → an old order → Reorder | New cart populated with the still-available lines | P2 |
 | TC-ORD-007 | Edge | Reorder skips dead items | Make one line's product unavailable, then reorder | Available lines added, unavailable ones silently skipped | P2 |
 | TC-ORD-008 | Positive | Self-cancel inside the window | Place an order and cancel within 1 minute | Order CANCELLED; countdown was visible on the button; reserved stock released (check Inventory) | P1 |

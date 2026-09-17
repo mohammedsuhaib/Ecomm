@@ -296,7 +296,10 @@
     "itemsCount": "{count, plural, one {# ವಸ್ತು} other {# ವಸ್ತುಗಳು}} · {total}",
     "view": "ವೀಕ್ಷಿಸಿ",
     "reorder": "ಮರು-ಆರ್ಡರ್",
-    "reordering": "ಮರು-ಆರ್ಡರ್ ಆಗುತ್ತಿದೆ…"
+    "reordering": "ಮರು-ಆರ್ಡರ್ ಆಗುತ್ತಿದೆ…",
+    "showMore": "ಇನ್ನಷ್ಟು ತೋರಿಸಿ ({count} ಹಳೆಯವು)",
+    "couldNotLoadMore": "ಹಳೆಯ ಆರ್ಡರ್‌ಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+    "allShown": "ಅಷ್ಟೇ — ಒಟ್ಟು {count, plural, one {# ಆರ್ಡರ್} other {# ಆರ್ಡರ್‌ಗಳು}}."
   },
   "orderStatus": {
     "PLACED": "ಆರ್ಡರ್ ಮಾಡಲಾಗಿದೆ",
