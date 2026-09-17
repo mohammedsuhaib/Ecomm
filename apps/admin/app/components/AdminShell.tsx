@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useAuth } from './AuthProvider';
 import ChangePassword from './ChangePassword';
+import InstallPrompt from './InstallPrompt';
 import LoginGate from './LoginGate';
 
 /**
@@ -54,6 +55,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           )}
         </div>
       </header>
+      {/* Below the header and outside <main>: it is chrome, not queue content.
+          Renders nothing unless a signed-in staffer's browser can actually
+          install the dashboard — see the component. */}
+      <InstallPrompt />
       <main className="admin-main">
         <LoginGate>
           {children}

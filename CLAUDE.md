@@ -150,14 +150,19 @@ images use `output: 'standalone'`.
   it deliberately matches **nothing** on the API, so the worker stays out of the
   order queue's SSE stream (`/admin/orders/stream`).
 
-- **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`.
-  Two mechanisms, not one: Chromium hands us a deferred `beforeinstallprompt` to
-  replay from our own button, while iOS Safari fires nothing and can only be
-  shown the Share-sheet steps. `lib/install.ts` registers its capture listener at
-  **module scope** — the event fires once and is never replayed, so a listener
-  added in an effect can miss it outright. The banner waits for a second visit,
-  stands down while the location gate is up (`useLocationGate().blocking`), and
-  remembers a dismissal for good.
+- **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`,
+  in **both** the storefront and admin. Two mechanisms, not one: Chromium hands
+  us a deferred `beforeinstallprompt` to replay from our own button, while iOS
+  Safari fires nothing and can only be shown the Share-sheet steps.
+  `lib/install.ts` registers its capture listener at **module scope** — the event
+  fires once and is never replayed, so a listener added in an effect can miss it
+  outright. Both remember a dismissal for good; they differ only in *when* they
+  ask. The storefront waits for a second visit and stands down while the location
+  gate is up (`useLocationGate().blocking`); admin asks any **signed-in** staffer
+  straight away, because getting through the login form is already a stronger
+  signal than any visit count, and it keeps the ask off the public login screen.
+  The two `lib/install.ts` files are near-copies on purpose — same reason the API
+  clients are per-app — so fix browser quirks in both.
 
 - The REST contract is served under **`/api/v1`**. The frontends resolve it via
   `NEXT_PUBLIC_API_BASE_URL` (browser) / `INTERNAL_API_BASE_URL` (SSR inside Docker).
