@@ -163,7 +163,12 @@ images use `output: 'standalone'`.
   the queue empties, on Stop (remembered per phone), and on sign-out — before
   the token is dropped, or the delete could not be authorised. Storage is one
   row per rider in `orders.agent_locations`, overwritten each ping: current
-  position only, never a track log.
+  position only, never a track log. The **"About N minutes away"** on the card
+  is a client-side estimate in `apps/storefront/app/lib/geo.ts`
+  (`estimateMinutesAway`: crow-flies × 1.3 road factor at 18 km/h, rounded up,
+  min 1) — deliberately not a directions API, which would be a billable
+  server call per poll per open page and would still need this fallback when
+  no Maps key is set. Tune the two constants there, not the copy.
 
 - **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`,
   in **both** the storefront and admin. Two mechanisms, not one: Chromium hands
