@@ -393,6 +393,17 @@
     "body": "Town Basket needs an internet connection to load fresh groceries. Please reconnect and try again — pages you’ve already visited may still be available.",
     "tryAgain": "Try again"
   },
+  "install": {
+    "title": "Install Town Basket.",
+    "body": "Add it to your home screen for one-tap shopping and order updates.",
+    "install": "Install",
+    "showHow": "How?",
+    "hideHow": "Hide",
+    "dismiss": "No thanks",
+    "iosStepShare": "Tap the Share button in Safari’s toolbar.",
+    "iosStepAdd": "Scroll down and choose “Add to Home Screen”.",
+    "iosStepConfirm": "Tap “Add” — Town Basket appears with your apps."
+  },
   "priceChange": {
     "title": "Prices changed.",
     "body": "The store updated the price of these items while they were in your cart. Please check the new total before you continue.",

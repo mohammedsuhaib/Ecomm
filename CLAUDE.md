@@ -47,6 +47,7 @@ pnpm --filter @town-basket/storefront dev  # storefront on :3000
 pnpm --filter @town-basket/admin dev       # admin on :3001
 pnpm --filter @town-basket/storefront build
 pnpm --filter @town-basket/storefront lint # next lint (per-app)
+pnpm pwa-gate                              # storefront still installable? (needs the build above)
 ```
 
 **Full local stack (Postgres + API + both frontends, with seed data):**
@@ -57,7 +58,12 @@ docker compose -f infra/docker-compose.yml up --build
 
 **CI** (`.github/workflows/ci.yml`) runs two jobs: `./mvnw verify` for the API
 (uploads Modulith docs + surefire reports) and pnpm type-check + build for both
-frontends.
+frontends, followed by the storefront's **PWA installability gate**
+(`scripts/pwa-gate.mjs`) — it serves the standalone build and has Chrome, via
+Lighthouse, confirm the app is still installable. Note the script pins
+**Lighthouse 11.7.1**: Lighthouse 12 deleted the PWA category and the
+`installable-manifest` audit, so a newer version would check nothing. See the
+header comment in the script before touching that pin.
 
 ## Backend architecture (the part that needs reading multiple files)
 
@@ -126,6 +132,15 @@ is on). E.g. an order state transition emits an event consumed by `inventory`,
 Both apps are **Next.js 14 App Router + TypeScript**. Storefront is an installable
 **PWA** via Serwist (`next.config.js` compiles `app/sw.ts` → `public/sw.js`;
 disabled in dev). Production images use `output: 'standalone'`.
+
+- **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`.
+  Two mechanisms, not one: Chromium hands us a deferred `beforeinstallprompt` to
+  replay from our own button, while iOS Safari fires nothing and can only be
+  shown the Share-sheet steps. `lib/install.ts` registers its capture listener at
+  **module scope** — the event fires once and is never replayed, so a listener
+  added in an effect can miss it outright. The banner waits for a second visit,
+  stands down while the location gate is up (`useLocationGate().blocking`), and
+  remembers a dismissal for good.
 
 - The REST contract is served under **`/api/v1`**. The frontends resolve it via
   `NEXT_PUBLIC_API_BASE_URL` (browser) / `INTERNAL_API_BASE_URL` (SSR inside Docker).

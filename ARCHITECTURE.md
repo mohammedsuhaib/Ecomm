@@ -224,8 +224,10 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 ### 4.1 Customer storefront — `apps/storefront` (Next.js, TypeScript)
 - **PWA:** Workbox (via Serwist) service worker — precached app shell,
   stale-while-revalidate for catalog, offline fallback page, install
-  prompt. Lighthouse PWA-installable is a CI gate. (Web-push
-  subscription wiring lands with the Web Push add-on.)
+  prompt. Lighthouse PWA-installable is a CI gate (`scripts/pwa-gate.mjs`,
+  pinned to Lighthouse 11.7.1 — 12 removed the PWA category and with it the
+  only installability audit). (Web-push subscription wiring lands with the
+  Web Push add-on.)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →

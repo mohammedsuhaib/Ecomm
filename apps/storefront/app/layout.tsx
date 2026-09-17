@@ -10,6 +10,7 @@ import StoreClosedBanner from './components/StoreClosedBanner';
 import CartProvider from './components/CartProvider';
 import AuthProvider from './components/AuthProvider';
 import ChunkErrorRecovery from './components/ChunkErrorRecovery';
+import InstallPrompt from './components/InstallPrompt';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
@@ -93,6 +94,11 @@ export default async function RootLayout({
                 {/* Sitewide: while the shop is shut, say so on every page
                     rather than letting the customer discover it at checkout. */}
                 <StoreClosedBanner />
+                {/* Offers the home-screen install where the browser can do
+                    one. Renders nothing on a first visit, once dismissed, or
+                    when already installed — see the component. Below the
+                    closed banner on purpose: trading hours outrank it. */}
+                <InstallPrompt />
                 <main id="main" className="wrap">
                   {/* SearchBar/useSearchParams need a Suspense boundary. */}
                   <Suspense fallback={null}>{children}</Suspense>
