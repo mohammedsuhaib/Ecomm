@@ -1,11 +1,18 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AuthRequiredError, getDeliveryOrders, getDutyStatus, setDutyStatus } from '@/app/lib/api';
+import {
+  AuthRequiredError,
+  getDeliveryOrders,
+  getDutyStatus,
+  setDutyStatus,
+  stopSharingLocation,
+} from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 import CompletedDeliveries from './CompletedDeliveries';
 import DeliveryCard from './DeliveryCard';
+import LocationSharing from './LocationSharing';
 import PushOptIn from './PushOptIn';
 
 const POLL_MS = 30_000;
@@ -83,8 +90,17 @@ export default function DeliveryQueue() {
     setOrders((prev) => prev.filter((o) => o.id !== id));
   }, []);
 
+  // A rider, as opposed to an admin in the dispatcher view. Only riders have a
+  // position worth sharing (an admin is never assigned an order).
+  const isRider = user?.role === 'DELIVERY_AGENT';
+
   const handleLogout = async () => {
     if (pollRef.current) clearInterval(pollRef.current);
+    // Forget the server-side position WHILE we still hold a token: after
+    // logout the DELETE could not be authorised, and the last fix would sit
+    // there until it aged out. Best-effort — signing out must never be blocked
+    // by a dead zone.
+    if (isRider) await stopSharingLocation().catch(() => undefined);
     await logout();
   };
 
@@ -174,6 +190,10 @@ export default function DeliveryQueue() {
             </div>
 
             <PushOptIn />
+
+            {/* Live position for the customers being delivered to — only while
+                there is something in the queue, and only for a rider. */}
+            {isRider && <LocationSharing active={orders.length > 0} />}
 
             {onDuty === false && (
               <p className="duty-banner" role="status">

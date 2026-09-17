@@ -138,6 +138,17 @@ export interface OrderTimelineEntry {
   note?: string | null; // reason recorded with the step (e.g. why a delivery failed)
 }
 
+/**
+ * Where the rider is right now. `recordedAt` is when the server accepted the
+ * fix (store clock), so the page can say how old it is; the server already
+ * hides fixes older than a few minutes, so a value here is recent.
+ */
+export interface RiderLocation {
+  lat: number;
+  lng: number;
+  recordedAt: string; // ISO timestamp
+}
+
 export interface Order {
   /** Internal numeric id — keys the SSE stream and reorder. Never shown to customers. */
   id: string;
@@ -160,6 +171,14 @@ export interface Order {
   /** GST already contained in `total` (prices are tax-inclusive); informational. */
   totalTax: number;
   deliveryOtp: string | null; // present only while OUT_FOR_DELIVERY
+  /**
+   * The assigned rider's live position. Set ONLY on the single-order tracking
+   * read (getOrder), only while OUT_FOR_DELIVERY, and only while the rider's
+   * last fix is fresh — null otherwise, and always null on the order history
+   * list. Same gate as deliveryOtp, for the same reason: it is this customer's
+   * to see only while the rider is driving to them.
+   */
+  riderLocation: RiderLocation | null;
   placedAt: string; // ISO timestamp
   timeline: OrderTimelineEntry[];
   /**

@@ -18,6 +18,7 @@ import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
 import { clearLastOrder, loadLastOrder } from '@/app/lib/lastOrder';
 import PushOptIn from '@/app/components/PushOptIn';
+import RiderLocation from '@/app/components/RiderLocation';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
 // Display order + labels for the live status timeline (CANCELLED handled apart).
@@ -434,6 +435,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           <span className="muted otp-hint">{t('deliveryCodeHintOnTheWay')}</span>
         </div>
       )}
+
+      {/* Where the rider is, while they are on the way. Renders nothing unless
+          the order carries a fresh position (the API gates that — see the
+          component); the poll above keeps it moving. */}
+      <RiderLocation order={order} />
 
       <section>
         <h2 className="section-title">

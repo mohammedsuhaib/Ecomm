@@ -228,6 +228,21 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   which covers all three frontends and is pinned to Lighthouse 11.7.1 — 12
   removed the PWA category and with it the only installability audit).
   (Web-push subscription wiring lands with the Web Push add-on.)
+- **Live rider location:** while an order is OUT_FOR_DELIVERY the tracking
+  page shows where the rider is — distance to the address and how old the
+  fix is, plus a map with rider and home pins when a Maps key is configured.
+  The rider app reports `PUT /delivery/location` every ~8 s while it has
+  deliveries in the queue and `DELETE`s it when the queue empties, on Stop,
+  or on sign-out. The API keeps ONE current position per rider
+  (`orders.agent_locations` — no history, by design) and includes it on the
+  customer's single-order tracking read **only** while OUT_FOR_DELIVERY,
+  only for the assigned rider, and only while the fix is under 3 minutes
+  old — the same gate, in the same place, as the delivery OTP. It rides the
+  page's existing status poll rather than the SSE stream: domain events go
+  through the persisted outbox, and a GPS ping every few seconds per rider
+  is not an event worth persisting, while a ~6 s poll is honest for a 5 km
+  delivery. It is never on the admin or delivery surfaces, nor on the
+  customer's order history list.
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
@@ -431,11 +446,13 @@ multi-store, POS/ERP sync, native app. Each maps to an existing module or
 provider port, so it is additive — no rebuild of delivered functionality.
 
 **Engaged add-ons (Phase 2):**
-- *Delivery management (role-based, no GPS):* add a `DELIVERY` role in
+- *Delivery management (role-based):* add a `DELIVERY` role in
   `identity` and a small `delivery` context (assignment, delivery status,
   proof of delivery) with mobile-friendly pages in the existing PWA. The
   `OUT_FOR_DELIVERY → DELIVERED` transitions move from staff to the
-  assigned delivery person. No separate app, no live location tracking.
+  assigned delivery person. Originally scoped with no GPS; live rider
+  location was added later at the client's request — see §4.1 for the
+  design and the gate on who may see it.
 - *Sales & analytics dashboard incl. gross-profit %:* a read-model over
   order data. Uses the manually-maintained **cost price** on each product
   (`catalog`) and the per-line **COGS snapshot** in `orders` (above).

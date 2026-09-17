@@ -10,15 +10,20 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Clock;
 import java.time.LocalDate;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -124,6 +129,40 @@ class DeliveryController {
             return orderService.transition(id, new TransitionRequest("DELIVERY_FAILED", null, request.reason()));
         }
         return orderService.failDelivery(id, userId, request.reason());
+    }
+
+    /**
+     * PUT /api/v1/delivery/location — the rider's phone reports where they are.
+     * Fire-and-forget from the app every few seconds while they have deliveries
+     * in hand; the customer's tracking page reads it back through their order.
+     *
+     * <p>RIDERS ONLY, unlike the rest of this controller. An ADMIN in the
+     * dispatcher view is never assigned an order, so a position from their
+     * laptop could never reach a customer — and if it somehow did, it would put
+     * the shop's back office on someone's map as "your rider". Refused outright
+     * rather than stored and ignored.
+     */
+    @PutMapping("/location")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Report my current position (riders only; ADMIN is refused).")
+    void reportLocation(@RequestBody LocationRequest request, @AuthenticationPrincipal Long userId) {
+        if (isAdmin()) {
+            throw new AccessDeniedException("Only a delivery agent has a position to report.");
+        }
+        orderService.recordAgentLocation(userId, request.lat(), request.lng(), request.accuracyMeters());
+    }
+
+    /**
+     * DELETE /api/v1/delivery/location — the rider has stopped sharing (queue
+     * empty, switched off, signing out). Forgets their position rather than
+     * leaving a last fix lying in the table. Idempotent; an ADMIN has nothing
+     * stored, so for them it is simply a no-op.
+     */
+    @DeleteMapping("/location")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Stop sharing my position and forget the last one.")
+    void clearLocation(@AuthenticationPrincipal Long userId) {
+        orderService.clearAgentLocation(userId);
     }
 
     private static boolean isAdmin() {

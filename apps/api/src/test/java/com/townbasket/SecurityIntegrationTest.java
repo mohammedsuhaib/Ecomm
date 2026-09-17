@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.townbasket.identity.AuthResponse;
 import com.townbasket.identity.AuthService;
+import com.townbasket.identity.CreateDeliveryAgentRequest;
 import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.identity.StaffLoginRequest;
 import org.junit.jupiter.api.Test;
@@ -142,6 +143,73 @@ class SecurityIntegrationTest {
         try {
             return HttpStatus.valueOf(
                     http.postForEntity(url, new HttpEntity<>("{}", headers), String.class)
+                            .getStatusCode().value());
+        } catch (HttpClientErrorException e) {
+            return HttpStatus.valueOf(e.getStatusCode().value());
+        }
+    }
+
+    /**
+     * A rider's position report is the one delivery route that is riders-ONLY:
+     * the {@code /delivery/**} matcher admits ADMIN as a dispatcher, but the
+     * controller refuses an admin here, since an admin is never assigned an
+     * order and their laptop must never appear on a customer's map as "your
+     * rider".
+     */
+    @Test
+    void deliveryLocationIsRidersOnly() {
+        // Streaming off, as in placingAnOrderRequiresAuthentication: a streamed
+        // PUT that meets a 401 cannot be replayed by HttpURLConnection and throws
+        // instead of reporting the status.
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setOutputStreaming(false);
+        RestTemplate http = new RestTemplate(factory);
+        String url = "http://localhost:" + port + "/api/v1/delivery/location";
+        String fix = "{\"lat\":12.2170,\"lng\":76.8930,\"accuracyMeters\":15.0}";
+
+        // No token -> 401.
+        assertThat(status(http, url, HttpMethod.PUT, null, fix)).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+        // CUSTOMER token -> 403 (not on the delivery surface at all).
+        AuthResponse customer = authService.phoneVerify(new PhoneVerifyRequest("dev:9888800007"));
+        assertThat(status(http, url, HttpMethod.PUT, customer.accessToken(), fix))
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        // ADMIN token -> 403 too: allowed onto /delivery/** as a dispatcher, refused here.
+        AuthResponse admin = authService.staffLogin(new StaffLoginRequest("admin@townbasket.local", "Admin@12345"));
+        assertThat(status(http, url, HttpMethod.PUT, admin.accessToken(), fix))
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        // DELIVERY_AGENT token -> 204, and stopping is 204 as well.
+        authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
+                "Rider Sec", "sec-rider@townbasket.local", "password123"));
+        AuthResponse rider = authService.staffLogin(new StaffLoginRequest("sec-rider@townbasket.local", "password123"));
+        assertThat(status(http, url, HttpMethod.PUT, rider.accessToken(), fix))
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(status(http, url, HttpMethod.DELETE, rider.accessToken(), null))
+                .isEqualTo(HttpStatus.NO_CONTENT);
+
+        // A fix off the globe is a client bug: 400, not stored.
+        assertThat(status(http, url, HttpMethod.PUT, rider.accessToken(), "{\"lat\":91,\"lng\":0}"))
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Send a request with an optional JSON body and Bearer token, returning the
+     * HTTP status — including the 4xx that a plain RestTemplate throws.
+     */
+    private static HttpStatus status(RestTemplate http, String url, HttpMethod method,
+                                     String bearerToken, String jsonBody) {
+        HttpHeaders headers = new HttpHeaders();
+        if (jsonBody != null) {
+            headers.setContentType(MediaType.APPLICATION_JSON);
+        }
+        if (bearerToken != null) {
+            headers.setBearerAuth(bearerToken);
+        }
+        try {
+            return HttpStatus.valueOf(
+                    http.exchange(url, method, new HttpEntity<>(jsonBody, headers), String.class)
                             .getStatusCode().value());
         } catch (HttpClientErrorException e) {
             return HttpStatus.valueOf(e.getStatusCode().value());

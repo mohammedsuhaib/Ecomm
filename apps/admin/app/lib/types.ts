@@ -60,6 +60,9 @@ export interface Order {
   timeline: OrderTimelineEntry[];
   // identity.users id of the assigned delivery agent; null = unassigned (pool).
   assignedAgentId: number | null;
+  // The rider's live position is a CUSTOMER field: it is set only on the
+  // customer's own tracking read, never on the admin surface. Always null here.
+  riderLocation: { lat: number; lng: number; recordedAt: string } | null;
 }
 
 /** A delivery agent that an order can be dispatched to. */

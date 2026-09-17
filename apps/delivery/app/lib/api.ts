@@ -133,6 +133,21 @@ async function apiPut<T>(path: string, body?: unknown): Promise<T> {
   return (text ? JSON.parse(text) : null) as T;
 }
 
+async function apiDelete(path: string): Promise<void> {
+  const u = url(path);
+  const run = () =>
+    fetch(u, { method: 'DELETE', headers: authHeader({ Accept: 'application/json' }), cache: 'no-store' });
+
+  let res = await run();
+  if (res.status === 401) {
+    const ok = await tryRefresh();
+    if (!ok) throw new AuthRequiredError();
+    res = await run();
+    if (res.status === 401) { clearAuth(); throw new AuthRequiredError(); }
+  }
+  if (!res.ok) throw await toError(res, u);
+}
+
 async function authPost<T>(path: string, body: unknown): Promise<T> {
   const u = url(path);
   const res = await fetch(u, {
@@ -191,6 +206,29 @@ export function confirmDelivery(orderId: string, otp: string): Promise<Order> {
  */
 export function reportDeliveryFailure(orderId: string, reason: string): Promise<Order> {
   return apiPost<Order>(`/delivery/orders/${encodeURIComponent(orderId)}/fail`, { reason });
+}
+
+/**
+ * PUT /delivery/location — where I am right now, for the customers whose
+ * orders I'm carrying. Fire-and-forget every few seconds while there are
+ * deliveries in the queue (see components/LocationSharing.tsx). Riders only:
+ * an ADMIN in the dispatcher view gets 403, since they are never on the road.
+ */
+export function shareLocation(
+  lat: number,
+  lng: number,
+  accuracyMeters: number | null,
+): Promise<void> {
+  return apiPut<void>('/delivery/location', { lat, lng, accuracyMeters });
+}
+
+/**
+ * DELETE /delivery/location — stop sharing and have the server forget the
+ * last fix, so nothing lingers once the queue is empty or I've signed out.
+ * Idempotent.
+ */
+export function stopSharingLocation(): Promise<void> {
+  return apiDelete('/delivery/location');
 }
 
 // ---- push notifications -----------------------------------------------------
