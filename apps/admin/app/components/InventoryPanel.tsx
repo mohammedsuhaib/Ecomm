@@ -304,8 +304,24 @@ export default function InventoryPanel() {
               >
                 Previous
               </button>
-              <span>
-                Page {page + 1} of {totalPages}
+              <span className="prod-pager-status">
+                Page{' '}
+                {/* Same selector as the catalogue pager — jumping beats
+                    stepping when you are hunting one variant's stock. */}
+                <select
+                  className="prod-pager-select"
+                  value={page}
+                  disabled={loading}
+                  onChange={(e) => setPage(Number(e.target.value))}
+                  aria-label="Go to page"
+                >
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>{' '}
+                of {totalPages}
               </span>
               <button
                 type="button"
