@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { distanceMeters } from '@/app/lib/geo';
+import { distanceMeters, estimateMinutesAway } from '@/app/lib/geo';
 import { formatDistance } from '@/app/lib/format';
 import type { Order, RiderLocation as RiderFix } from '@/app/lib/types';
 
@@ -64,10 +64,17 @@ export default function RiderLocation({ order }: { order: Order }) {
             : t('riderUpdatedMinutes', { minutes: Math.floor(ageSeconds / 60) })}
         </span>
       </div>
+      {/* Minutes lead, distance follows: "how long until the doorbell" is the
+          question being asked; metres are the supporting evidence. Both come
+          from the same straight-line figure — see lib/geo.ts for the estimate
+          and what it assumes. */}
       <p className="rider-card-distance">
         {metres < NEARBY_M
           ? t('riderNearby')
-          : t('riderDistance', { distance: formatDistance(metres) })}
+          : t('riderEta', {
+              minutes: estimateMinutesAway(metres),
+              distance: formatDistance(metres),
+            })}
       </p>
       {mounted && MAPS_API_KEY && <RiderMap rider={fix} home={home} />}
     </section>

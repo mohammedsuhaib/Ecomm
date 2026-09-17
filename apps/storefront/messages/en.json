@@ -353,7 +353,7 @@
     "loadingOrder": "Loading your order…",
     "deliveryCodeHintOnTheWay": "Your order is on the way. Give this code to the delivery person when it arrives.",
     "riderTitle": "Your rider is on the way",
-    "riderDistance": "About {distance} from you.",
+    "riderEta": "About {minutes, plural, one {# minute} other {# minutes}} away · {distance}",
     "riderNearby": "Almost at your door.",
     "riderUpdatedSeconds": "Updated {seconds} s ago",
     "riderUpdatedMinutes": "Updated {minutes} min ago",

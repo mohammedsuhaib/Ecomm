@@ -353,7 +353,7 @@
     "loadingOrder": "ನಿಮ್ಮ ಆರ್ಡರ್ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
     "deliveryCodeHintOnTheWay": "ನಿಮ್ಮ ಆರ್ಡರ್ ದಾರಿಯಲ್ಲಿದೆ. ಬಂದಾಗ ಈ ಕೋಡ್ ಅನ್ನು ಡೆಲಿವರಿ ವ್ಯಕ್ತಿಗೆ ನೀಡಿ.",
     "riderTitle": "ನಿಮ್ಮ ರೈಡರ್ ದಾರಿಯಲ್ಲಿದ್ದಾರೆ",
-    "riderDistance": "ನಿಮ್ಮಿಂದ ಸುಮಾರು {distance} ದೂರದಲ್ಲಿ.",
+    "riderEta": "ಸುಮಾರು {minutes} ನಿಮಿಷ ದೂರ · {distance}",
     "riderNearby": "ಬಹುತೇಕ ನಿಮ್ಮ ಬಾಗಿಲಿಗೆ ಬಂದಿದ್ದಾರೆ.",
     "riderUpdatedSeconds": "{seconds} ಸೆಕೆಂಡ್ ಹಿಂದೆ ನವೀಕರಿಸಲಾಗಿದೆ",
     "riderUpdatedMinutes": "{minutes} ನಿಮಿಷ ಹಿಂದೆ ನವೀಕರಿಸಲಾಗಿದೆ",

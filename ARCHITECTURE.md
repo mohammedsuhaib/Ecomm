@@ -229,8 +229,13 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   removed the PWA category and with it the only installability audit).
   (Web-push subscription wiring lands with the Web Push add-on.)
 - **Live rider location:** while an order is OUT_FOR_DELIVERY the tracking
-  page shows where the rider is — distance to the address and how old the
-  fix is, plus a map with rider and home pins when a Maps key is configured.
+  page shows where the rider is — an ETA in minutes with the distance to the
+  address, how old the fix is, plus a map with rider and home pins when a
+  Maps key is configured. The ETA is a client-side estimate (straight-line
+  distance × 1.3 urban road factor at 18 km/h, rounded up; `lib/geo.ts`),
+  not a routed answer: a directions API would put a billable server call
+  behind every poll of every open tracking page and still need this fallback
+  wherever there is no key.
   The rider app reports `PUT /delivery/location` every ~8 s while it has
   deliveries in the queue and `DELETE`s it when the queue empties, on Stop,
   or on sign-out. The API keeps ONE current position per rider
