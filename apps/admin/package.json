@@ -2,7 +2,7 @@
   "name": "@town-basket/admin",
   "version": "0.0.1",
   "private": true,
-  "description": "Town Basket store admin dashboard \u2014 Next.js.",
+  "description": "Town Basket store admin dashboard \u2014 installable Next.js PWA.",
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
@@ -16,11 +16,13 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@serwist/next": "9.0.11",
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.15",
+    "serwist": "9.0.11",
     "typescript": "5.5.4"
   }
 }

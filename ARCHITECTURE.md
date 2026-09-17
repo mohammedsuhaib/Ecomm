@@ -224,8 +224,10 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 ### 4.1 Customer storefront — `apps/storefront` (Next.js, TypeScript)
 - **PWA:** Workbox (via Serwist) service worker — precached app shell,
   stale-while-revalidate for catalog, offline fallback page, install
-  prompt. Lighthouse PWA-installable is a CI gate. (Web-push
-  subscription wiring lands with the Web Push add-on.)
+  prompt. Lighthouse PWA-installable is a CI gate (`scripts/pwa-gate.mjs`,
+  which covers all three frontends and is pinned to Lighthouse 11.7.1 — 12
+  removed the PWA category and with it the only installability audit).
+  (Web-push subscription wiring lands with the Web Push add-on.)
 - **SSR** for catalog/product pages: fast first paint on mid-range
   Android over 4G, and indexable for SEO.
 - Flows: location gate (5 km check) → browse/search → cart → address →
@@ -241,6 +243,18 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   hours); basic daily sales/orders dashboard.
 - Separate app from the storefront: different audience, auth, and
   release cadence — independently deployable.
+- **PWA:** installable so staff run it from the taskbar or home screen
+  without browser chrome, which is dead space on a screen showing a live
+  queue all day. Serwist worker, but the **opposite caching posture to
+  the storefront's: the app shell only, never an API response.** Staff act
+  on what the dashboard shows, so a cached order queue could mean picking
+  a cancelled order or handing a parcel to the wrong rider; offline it
+  says so instead. Safe to cache the shell because the HTML carries no
+  live data — it is client-rendered. Nothing matches the API, which also
+  keeps the worker out of the order queue's SSE stream, and leaves no
+  customer data in Cache Storage on a shared shop machine. Icon is the
+  brand shopfront tile, kept distinct from the storefront's basket and
+  the rider app's blue pin. Installability is a CI gate (§4.1).
 
 ---
 

@@ -23,9 +23,20 @@ import LocationPicker from './LocationPickerLazy';
 
 interface LocationGateContextValue {
   reopen: () => void;
+  /**
+   * True while a gate overlay is covering the shell.
+   *
+   * <p>The overlay is only 55% opaque and traps no focus, so anything the shell
+   * renders underneath stays visible through it and reachable by keyboard.
+   * That is fine for the catalogue, which is the backdrop by design, but not
+   * for something that asks the customer a second question — see InstallPrompt,
+   * which stands down while this is true.
+   */
+  blocking: boolean;
 }
 const LocationGateContext = createContext<LocationGateContextValue>({
   reopen: () => {},
+  blocking: false,
 });
 
 export function useLocationGate(): LocationGateContextValue {
@@ -127,7 +138,16 @@ export default function LocationGate({
     setPhase('prompt');
   }, []);
 
-  const ctx = useMemo<LocationGateContextValue>(() => ({ reopen }), [reopen]);
+  // 'idle' counts as blocking: it is the pre-decision phase, and it resolves in
+  // the mount effect above to 'prompt' more often than not (the stored
+  // serviceable result expires after 30 minutes). Treating it as clear would
+  // flash anything underneath onto the screen just before the overlay covers it.
+  const blocking = phase !== 'serviceable';
+
+  const ctx = useMemo<LocationGateContextValue>(
+    () => ({ reopen, blocking }),
+    [reopen, blocking],
+  );
 
   return (
     <LocationGateContext.Provider value={ctx}>

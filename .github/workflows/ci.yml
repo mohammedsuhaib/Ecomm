@@ -87,4 +87,12 @@ jobs:
       - name: Build delivery
         run: pnpm --filter @town-basket/delivery build
 
-      # TODO (M2): Lighthouse PWA-installable gate on the storefront.
+      # Runs each app's standalone build and asks Chrome, through Lighthouse,
+      # whether it is still installable. Guards the manifest and the icons —
+      # neither of which the type-check or the build can check, because an app
+      # that has quietly stopped being a PWA still compiles perfectly. Needs
+      # all three builds above.
+      #
+      # ubuntu-latest ships Chrome, which is what Lighthouse drives.
+      - name: PWA installability gate (storefront, admin, delivery)
+        run: node scripts/pwa-gate.mjs

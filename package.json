@@ -7,7 +7,8 @@
   "scripts": {
     "typecheck": "pnpm -r --if-present run typecheck",
     "lint": "pnpm -r --if-present run lint",
-    "build": "pnpm -r --if-present run build"
+    "build": "pnpm -r --if-present run build",
+    "pwa-gate": "node scripts/pwa-gate.mjs"
   },
   "engines": {
     "node": ">=20"

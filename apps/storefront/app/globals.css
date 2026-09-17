@@ -1590,6 +1590,85 @@ a:hover {
   }
 }
 
+/* ---- Install ("add to home screen") banner ----
+   Sitewide, dismissible, shown only where an install can actually happen
+   (see components/InstallPrompt.tsx). A direct flex child of body like the
+   header and the closed banner, so it sizes to its content and leaves the
+   sticky footer alone.
+   Built from the brand tokens rather than literal colours so it follows the
+   palette — including into a dark theme, if one is ever added at :root. */
+.install-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  background: var(--green-light);
+  border-bottom: 1px solid var(--border);
+  color: var(--green-dark);
+}
+.install-prompt-icon {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.install-prompt-body {
+  flex: 1;
+  min-width: 0;
+}
+.install-prompt-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+/* The iOS Share-sheet steps, revealed by "How?". */
+.install-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.install-steps li + li {
+  margin-top: 0.2rem;
+}
+.install-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+/* Shorter than a full .btn: this is an aside next to the groceries, not a
+   call to action competing with "Add to cart". */
+.install-prompt-cta {
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+}
+.install-prompt-dismiss {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  /* 44px touch target without 44px of visual weight. */
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+.install-prompt-dismiss:hover {
+  color: var(--text);
+}
+/* Narrow phones: the CTA and the copy stop fitting on one row. */
+@media (max-width: 30rem) {
+  .install-prompt {
+    flex-wrap: wrap;
+  }
+  .install-prompt-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
 /* Stands in for the UPI radio while online payment is off, so the payment
    section never looks like a single stray option. */
 .upi-soon {

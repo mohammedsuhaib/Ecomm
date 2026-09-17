@@ -1465,3 +1465,81 @@ a {
   gap: 0.55rem;
   padding: 0.25rem 0;
 }
+
+/* ---- Install ("add to home screen") bar ----
+   Shown to a signed-in staffer whose browser can actually install the
+   dashboard; see components/InstallPrompt.tsx. Sits between the header and the
+   main content, full width like the header so it reads as part of the chrome
+   rather than as a card floating in the queue. */
+.install-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--green-light);
+  border-bottom: 1px solid var(--border);
+  color: var(--green-dark);
+}
+.install-bar-icon {
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.install-bar-body {
+  flex: 1;
+  min-width: 0;
+}
+.install-bar-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  max-width: 68ch;
+}
+/* The iPad Share-sheet steps, revealed by "How?". */
+.install-steps {
+  margin: 0.45rem 0 0;
+  padding-left: 1.3rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.install-steps li + li {
+  margin-top: 0.2rem;
+}
+.install-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+/* Shorter than a full .btn: this is an aside, not a control competing with
+   the queue's own status buttons. */
+.install-bar-cta {
+  min-height: 36px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+}
+.install-bar-dismiss {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  /* 44px touch target without 44px of visual weight — this is used on a
+     tablet as well as a laptop. */
+  min-width: 44px;
+  min-height: 44px;
+  touch-action: manipulation;
+}
+.install-bar-dismiss:hover {
+  color: var(--text);
+}
+/* Narrow tablets in portrait: the copy and the button stop sharing a row. */
+@media (max-width: 34rem) {
+  .install-bar {
+    flex-wrap: wrap;
+  }
+  .install-bar-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
