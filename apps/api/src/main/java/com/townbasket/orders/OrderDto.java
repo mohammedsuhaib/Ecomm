@@ -25,6 +25,12 @@ import java.util.List;
  * surface) — staff must collect it from the customer at handover, so seeing it
  * earlier would defeat the control. Per-line {@code cost_price} (COGS) is NEVER
  * exposed — see {@link OrderItemDto}.
+ *
+ * <p>{@code riderLocation} is gated the same way and then some: it is set only
+ * on the customer's tracking read, only while OUT_FOR_DELIVERY, only with a
+ * rider assigned, and only while their last fix is recent (see
+ * {@link RiderLocationDto}). Null everywhere else, including every list and
+ * the whole admin and delivery surface.
  */
 public record OrderDto(
         Long id,
@@ -45,5 +51,6 @@ public record OrderDto(
         List<OrderTimelineEntryDto> timeline,
         Long assignedAgentId,
         String invoiceNumber,
-        Instant invoicedAt) {
+        Instant invoicedAt,
+        RiderLocationDto riderLocation) {
 }

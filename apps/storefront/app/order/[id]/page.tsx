@@ -16,8 +16,9 @@ import { formatDateTime, formatRupees } from '@/app/lib/format';
 import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
-import { loadLastOrder } from '@/app/lib/lastOrder';
+import { clearLastOrder, loadLastOrder } from '@/app/lib/lastOrder';
 import PushOptIn from '@/app/components/PushOptIn';
+import RiderLocation from '@/app/components/RiderLocation';
 import type { Order, OrderStatus } from '@/app/lib/types';
 
 // Display order + labels for the live status timeline (CANCELLED handled apart).
@@ -138,6 +139,16 @@ export default function OrderPage({ params }: { params: { id: string } }) {
         // building — and re-stamped the note, so the cart then greeted them
         // with "Your order is placed" instead of their shopping.
         if (loadLastOrder()?.token === next.trackingToken) reset();
+      }
+      // On EVERY update, not just the first: a cancellation can arrive later
+      // over the live stream (the shop cancelled while this page was open) as
+      // well as from the customer's own cancel button. Either way the note
+      // that greets them in the cart as "Your order is placed — track it" is
+      // now wrong, so drop it here, where the cancellation is first known.
+      // CartEmptyState re-checks the server too, for the case where this page
+      // was never open to see it.
+      if (next.status === 'CANCELLED' && loadLastOrder()?.token === next.trackingToken) {
+        clearLastOrder();
       }
     },
     [reset],
@@ -424,6 +435,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
           <span className="muted otp-hint">{t('deliveryCodeHintOnTheWay')}</span>
         </div>
       )}
+
+      {/* Where the rider is, while they are on the way. Renders nothing unless
+          the order carries a fresh position (the API gates that — see the
+          component); the poll above keeps it moving. */}
+      <RiderLocation order={order} />
 
       <section>
         <h2 className="section-title">

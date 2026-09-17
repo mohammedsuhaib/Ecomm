@@ -225,6 +225,11 @@ testing possible without real money or SMS.
 | TC-ORD-013 | Security | Tracking token is the only key | Open a tracking link, then alter the token in the URL | No other customer's order is reachable; 404 | P1 |
 | TC-ORD-014 | Security | Order ids are not enumerable | Try `/order/1`, `/order/2` | Sequential ids do not expose orders — only the UUID token works | P1 |
 | TC-ORD-015 | Positive | Customer sees the failed attempt | Track an order after the rider reports Can't deliver | Headline "We couldn't deliver your order", amber notice with the rider's reason and "the store will call you"; timeline stays lit to Out for delivery; the push/in-app update says the same (en + kn) | P1 |
+| TC-ORD-016 | Positive | Live rider location **[auto]** | Rider app is sharing (TC-DLV-022); move the order to OUT_FOR_DELIVERY; open the tracking page | "Your rider is on the way" card under the delivery code: distance to your address ("About 1.2 km from you" / "Almost at your door" under 100 m) and "Updated N s ago" counting up between polls; with a Maps key, a map with 🛵 and 🏠 pins that re-frames as the rider moves (en + kn) | P1 |
+| TC-ORD-017 | Negative | Rider hidden outside Out for delivery **[auto]** | Same order while PACKING, then again after DELIVERED | No rider card before dispatch or after handover, even though the rider app is still sharing | P1 |
+| TC-ORD-018 | Edge | Stale fix is hidden **[auto]** | Rider locks their phone or closes the app mid-delivery | Within ~3 minutes the card disappears rather than showing a frozen dot; it returns on the next report | P2 |
+| TC-ORD-019 | Security | Position never leaves the tracking read **[auto]** | Inspect the admin queue, the rider's queue and the customer's order HISTORY responses while sharing | `riderLocation` is null on every one of them; only `GET /orders/track/{token}` carries it | P1 |
+| TC-ORD-020 | Negative | Cancelled order is not offered in the cart | Place an order, cancel it (self-cancel, or have staff cancel it while the tracking page is closed), then open the cart | Plain "Your cart is empty" — NOT "Your order is placed — track this order"; a brief "Loading…" is acceptable while the status is checked, "empty" must not flash first | P1 |
 
 ---
 
@@ -391,6 +396,13 @@ testing possible without real money or SMS.
 | TC-DLV-019 | Edge | Store day, not phone day | Deliver an order after 18:30 IST (already tomorrow in UTC) | It counts in TODAY's tally; at midnight IST the tally resets to zero while the list keeps every order | P2 |
 | TC-DLV-020 | Edge | Nothing delivered yet | Open Completed as a brand-new rider | "0 delivered", "₹0 cash collected" and an empty state — no error | P3 |
 | TC-DLV-021 | Positive | Older deliveries | With more than 50 completed orders, open Completed | First 50 shown with a "Show more (N older)" button that appends the rest without duplicates | P3 |
+| TC-DLV-022 | Positive | Sharing starts with the queue | Sign in as a rider who has an OUT_FOR_DELIVERY order | Browser asks for location once; a green "Sharing your location with customers · Stop" pill appears; the customer's tracking page shows the rider within ~10 s (TC-ORD-016) | P1 |
+| TC-DLV-023 | Positive | Stop is remembered | Tap **Stop**, then reload the app | Pill reads "Location off — customers can't see you on the way · Turn on"; no reports are sent; the customer's card disappears within ~3 min; **Turn on** resumes and survives a reload too | P1 |
+| TC-DLV-024 | Edge | Empty queue stops sharing | Deliver (or report) the last order in the queue | Pill disappears; `DELETE /delivery/location` is sent so nothing lingers; sharing resumes on its own when the next order is assigned | P2 |
+| TC-DLV-025 | Negative | Admin cannot report a position **[auto]** | Call `PUT /delivery/location` with an ADMIN token (dispatcher view) | 403 — an admin is never assigned an order, so their laptop must not appear on a customer's map | P2 |
+| TC-DLV-026 | Negative | Location permission refused | Block location for the site, reload with an order in the queue | Amber banner explaining how to allow it in browser settings; nothing is sent; the rest of the app works normally | P2 |
+| TC-DLV-027 | Edge | Sign-out forgets the fix | Tap Logout while sharing | `DELETE /delivery/location` is sent BEFORE the token is dropped; the customer's card disappears | P2 |
+| TC-DLV-028 | Edge | Phone in pocket (platform limit) | On iOS Safari, lock the screen mid-delivery for 5 minutes | Reports pause while locked (a web-app constraint); the customer's card hides after ~3 min and returns once the phone is unlocked — no stale position is ever shown | P3 |
 
 ---
 

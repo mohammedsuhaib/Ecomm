@@ -1689,3 +1689,49 @@ a:hover {
 .price-change-list li + li {
   margin-top: 0.25rem;
 }
+
+/* ---- "Your rider is on the way" (order tracking) ----
+   Rendered by components/RiderLocation.tsx while the order is out for
+   delivery and the API is including the rider's position. The map is
+   optional (no Maps key → text only), so the card must read complete without
+   it: title, freshness, distance. */
+.rider-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  margin: 1rem 0;
+}
+.rider-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.rider-card-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--green-dark);
+}
+.rider-card-age {
+  font-size: 0.8rem;
+  /* Tabular digits so the ticking seconds don't make the line jitter. */
+  font-variant-numeric: tabular-nums;
+}
+.rider-card-distance {
+  margin: 0.3rem 0 0;
+}
+.rider-map {
+  width: 100%;
+  height: 240px;
+  border-radius: 8px;
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+.rider-map-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+}

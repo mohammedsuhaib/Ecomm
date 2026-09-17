@@ -190,4 +190,28 @@ public interface OrderService {
      * or cancel. Rejects orders not assigned to {@code agentId}.
      */
     OrderDto failDelivery(Long orderId, Long agentId, String reason);
+
+    /**
+     * Delivery: the rider's phone reports where they are. Overwrites their
+     * previous position — only the current one is kept, there is no track log.
+     * Stamped with the store clock, not the phone's.
+     *
+     * <p>Not tied to any order: a rider carries several at once, and each
+     * customer's tracking page reads the position back through their own
+     * order ({@link #getOrderByToken}), which is what gates who may see it.
+     *
+     * @param accuracyMeters the phone's radius estimate, or null if it gave none
+     * @throws IllegalArgumentException for a coordinate off the globe or a
+     *     negative accuracy (mapped to 400)
+     */
+    void recordAgentLocation(Long agentId, double lat, double lng, Double accuracyMeters);
+
+    /**
+     * Delivery: the rider has stopped sharing (queue empty, switched it off,
+     * signed out). Forgets their position outright rather than leaving a last
+     * known fix in the table — nothing reads it while they hold no
+     * OUT_FOR_DELIVERY order, so keeping it would be storage without purpose.
+     * A no-op if nothing is stored.
+     */
+    void clearAgentLocation(Long agentId);
 }

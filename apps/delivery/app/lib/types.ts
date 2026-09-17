@@ -41,6 +41,12 @@ export interface Order {
   placedAt: string;
   /** Status history, oldest first. The DELIVERED entry is when the rider handed it over. */
   timeline: OrderTimelineEntry[];
+  /**
+   * The rider's own live position, as the CUSTOMER sees it on their tracking
+   * page. Never set on the delivery surface (the rider knows where they are);
+   * always null here. Reported via PUT /delivery/location — see lib/api.ts.
+   */
+  riderLocation: { lat: number; lng: number; recordedAt: string } | null;
 }
 
 /**

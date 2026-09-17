@@ -150,6 +150,21 @@ images use `output: 'standalone'`.
   it deliberately matches **nothing** on the API, so the worker stays out of the
   order queue's SSE stream (`/admin/orders/stream`).
 
+- **Live rider location** is a *customer* field, `OrderDto.riderLocation`, and
+  its gate lives in exactly one place: `OrderServiceImpl#riderLocationFor`. It is
+  set only by `getOrderByToken` (the single-order tracking read), only while
+  OUT_FOR_DELIVERY, only for the assigned rider, only while the fix is under
+  3 minutes old; every list read passes null, so order history stays one query.
+  It rides the order page's existing ~6 s poll **on purpose, not the SSE
+  stream**: domain events go through the persisted outbox, and a GPS ping every
+  ~8 s per rider is not an event worth persisting. The rider app
+  (`apps/delivery/app/components/LocationSharing.tsx`) reports
+  `PUT /delivery/location` while its queue is non-empty and `DELETE`s it when
+  the queue empties, on Stop (remembered per phone), and on sign-out — before
+  the token is dropped, or the delete could not be authorised. Storage is one
+  row per rider in `orders.agent_locations`, overwritten each ping: current
+  position only, never a track log.
+
 - **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`,
   in **both** the storefront and admin. Two mechanisms, not one: Chromium hands
   us a deferred `beforeinstallprompt` to replay from our own button, while iOS

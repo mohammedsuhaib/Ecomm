@@ -16,6 +16,7 @@ import com.townbasket.orders.OrderItemDto;
 import com.townbasket.orders.OrderService;
 import com.townbasket.orders.OrderTimelineEntryDto;
 import com.townbasket.orders.PlaceOrderRequest;
+import com.townbasket.orders.RiderLocationDto;
 import com.townbasket.orders.TransitionRequest;
 import com.townbasket.payments.PaymentMethod;
 import com.townbasket.payments.PaymentResult;
@@ -82,8 +83,22 @@ class OrderServiceImpl implements OrderService {
      */
     private static final Duration CUSTOMER_CANCEL_WINDOW = Duration.ofMinutes(1);
 
+    /**
+     * How old a rider's last fix may be and still be shown to the customer.
+     *
+     * <p>A phone in a pocket, a dead battery or a dropped signal all stop the
+     * pings without any "stopped" message ever arriving, and the last position
+     * would otherwise sit on the customer's map indefinitely, looking live. The
+     * app reports every ~8 s, so three minutes is a generous allowance for a
+     * bad patch of coverage and still short enough that a frozen dot reads as
+     * "no location right now" rather than "the rider has stopped outside my
+     * neighbour's house".
+     */
+    private static final Duration RIDER_LOCATION_TTL = Duration.ofMinutes(3);
+
     private final OrderRepository orders;
     private final InvoiceSeriesRepository invoiceSeries;
+    private final AgentLocationRepository agentLocations;
     private final CartService cartService;
     private final CatalogService catalogService;
     private final ServiceabilityService serviceabilityService;
@@ -98,6 +113,7 @@ class OrderServiceImpl implements OrderService {
 
     OrderServiceImpl(OrderRepository orders,
                      InvoiceSeriesRepository invoiceSeries,
+                     AgentLocationRepository agentLocations,
                      CartService cartService,
                      CatalogService catalogService,
                      ServiceabilityService serviceabilityService,
@@ -110,6 +126,7 @@ class OrderServiceImpl implements OrderService {
                      @Value("${townbasket.invoice.series-prefix:TB}") String invoicePrefix) {
         this.orders = orders;
         this.invoiceSeries = invoiceSeries;
+        this.agentLocations = agentLocations;
         this.cartService = cartService;
         this.catalogService = catalogService;
         this.serviceabilityService = serviceabilityService;
@@ -265,9 +282,14 @@ class OrderServiceImpl implements OrderService {
     public Optional<OrderDto> getOrderByToken(UUID trackingToken, Long userId) {
         // Owner-scoped: a non-owner (or a legacy ownerless order) reads as "no
         // such order" — never as a 403 that would confirm the token is real.
+        //
+        // This is the ONE read that carries the rider's position: it is the
+        // tracking page, it is owner-scoped, and it is one order — so the
+        // lookup is one row and there is no N+1 as there would be on the
+        // history list (which passes no location, see listUserOrders).
         return orders.findByPublicToken(trackingToken)
                 .filter(o -> userId != null && userId.equals(o.getUserId()))
-                .map(o -> toDto(o, true));
+                .map(o -> toDto(o, true, riderLocationFor(o)));
     }
 
     @Override
@@ -640,6 +662,52 @@ class OrderServiceImpl implements OrderService {
         }
     }
 
+    @Override
+    public void recordAgentLocation(Long agentId, double lat, double lng, Double accuracyMeters) {
+        // The phone's Geolocation API hands over doubles; anything outside the
+        // globe, or NaN from a failed parse, is a client bug and is refused
+        // rather than stored where the customer's map would try to draw it.
+        if (!Double.isFinite(lat) || lat < -90 || lat > 90) {
+            throw new IllegalArgumentException("lat must be between -90 and 90");
+        }
+        if (!Double.isFinite(lng) || lng < -180 || lng > 180) {
+            throw new IllegalArgumentException("lng must be between -180 and 180");
+        }
+        if (accuracyMeters != null && (!Double.isFinite(accuracyMeters) || accuracyMeters < 0)) {
+            throw new IllegalArgumentException("accuracyMeters must be zero or more");
+        }
+        // Store clock, deliberately: the freshness check in riderLocationFor
+        // compares against the same clock, so a phone with its time wrong can
+        // neither age a live fix out nor keep a dead one alive.
+        agentLocations.upsert(agentId, lat, lng, accuracyMeters, Instant.now(clock));
+    }
+
+    @Override
+    public void clearAgentLocation(Long agentId) {
+        agentLocations.findById(agentId).ifPresent(agentLocations::delete);
+    }
+
+    /**
+     * The assigned rider's position for the customer's tracking view, or null.
+     *
+     * <p>Every one of these conditions is a deliberate gate, not a null check:
+     * the order must be OUT_FOR_DELIVERY (before that the rider is not driving
+     * to this customer, even if already assigned; after it there is nothing to
+     * watch), a rider must be assigned, they must have reported at all, and the
+     * report must be fresh (see {@link #RIDER_LOCATION_TTL}). Only the tracking
+     * read calls this — see {@link #getOrderByToken}.
+     */
+    private RiderLocationDto riderLocationFor(OrderEntity o) {
+        if (o.getStatus() != OrderStatus.OUT_FOR_DELIVERY || o.getAssignedAgentId() == null) {
+            return null;
+        }
+        Instant freshAfter = Instant.now(clock).minus(RIDER_LOCATION_TTL);
+        return agentLocations.findById(o.getAssignedAgentId())
+                .filter(l -> !l.getRecordedAt().isBefore(freshAfter))
+                .map(l -> new RiderLocationDto(l.getLat(), l.getLng(), l.getRecordedAt()))
+                .orElse(null);
+    }
+
     private void validateRequest(PlaceOrderRequest request) {
         if (request.cartId() == null) {
             throw new IllegalArgumentException("cartId is required");
@@ -721,14 +789,23 @@ class OrderServiceImpl implements OrderService {
         return s == null || s.isBlank();
     }
 
+    /** Map an order to its public DTO with no rider position — every read but the tracking page. */
+    private OrderDto toDto(OrderEntity o, boolean customerFacing) {
+        return toDto(o, customerFacing, null);
+    }
+
     /**
      * Map an order to its public DTO.
      *
      * @param customerFacing when {@code true} (the tracking endpoint) the delivery
      *     OTP is included <em>only</em> while the order is OUT_FOR_DELIVERY;
      *     when {@code false} (admin surface) the OTP is never included.
+     * @param riderLocation the assigned rider's fresh position, or null. The
+     *     caller decides — only {@link #getOrderByToken} ever passes one, having
+     *     applied the gates in {@link #riderLocationFor}; this method does not
+     *     look it up itself so that the list reads stay one query.
      */
-    private OrderDto toDto(OrderEntity o, boolean customerFacing) {
+    private OrderDto toDto(OrderEntity o, boolean customerFacing, RiderLocationDto riderLocation) {
         List<OrderItemDto> items = o.getItems().stream()
                 // NOTE: cost price (COGS) is intentionally NOT mapped — internal only.
                 .map(i -> new OrderItemDto(i.getProductName(), i.getProductNameKn(), i.getLabel(),
@@ -766,6 +843,7 @@ class OrderServiceImpl implements OrderService {
                 timeline,
                 o.getAssignedAgentId(),
                 o.getInvoiceNumber(),
-                o.getInvoicedAt());
+                o.getInvoicedAt(),
+                riderLocation);
     }
 }
