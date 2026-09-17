@@ -296,7 +296,10 @@
     "itemsCount": "{count, plural, one {# item} other {# items}} · {total}",
     "view": "View",
     "reorder": "Reorder",
-    "reordering": "Reordering…"
+    "reordering": "Reordering…",
+    "showMore": "Show more ({count} older)",
+    "couldNotLoadMore": "Could not load older orders. Please try again.",
+    "allShown": "That’s all {count, plural, one {# order} other {# orders}}."
   },
   "orderStatus": {
     "PLACED": "Order placed",

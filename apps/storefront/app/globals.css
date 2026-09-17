@@ -1261,6 +1261,24 @@ a:hover {
   padding: 0.4rem 0.8rem;
   font-size: 0.9rem;
 }
+/* "Show more (N older)" under the first five orders — centred and full-width
+   on a phone so it is a thumb target, not a link hiding in a corner. */
+.order-history-more {
+  display: flex;
+  justify-content: center;
+  margin: 0.25rem 0 0.5rem;
+}
+.order-history-more .btn {
+  width: 100%;
+  max-width: 320px;
+}
+/* "That's all N orders." — the list's end, so a customer who expanded it
+   knows there is nothing left rather than wondering where the button went. */
+.order-history-end {
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0.5rem;
+}
 
 /* Live order status stamps (F6) */
 .order-stamp {
