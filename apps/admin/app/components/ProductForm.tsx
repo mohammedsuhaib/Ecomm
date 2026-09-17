@@ -77,6 +77,28 @@ function variantRowValid(r: VariantRow): boolean {
   );
 }
 
+/**
+ * The pricing rule the server enforces, checked here so it can be reported at
+ * the row it is about.
+ *
+ * <p>The API refuses MRP below the selling price with a clear sentence, and the
+ * form used to show it — but in the banner at the foot of the form, which on a
+ * product with several variants does not say WHICH one is wrong. The server
+ * cannot say either: its message names the rule, not the variant, and on create
+ * every variant is sent in one POST. Checking it here is what makes the message
+ * placeable, and it saves a round trip that was always going to be refused.
+ *
+ * <p>Returns null when the rule does not apply (either field blank or
+ * unparseable) — being incomplete is not the same as being wrong, and
+ * {@link variantRowValid} already covers that.
+ */
+function mrpBelowSellingPrice(r: VariantRow): boolean {
+  const sell = toNumber(r.sellingPrice);
+  const mrp = toNumber(r.mrp);
+  if (r.mrp.trim() === '' || sell === null || mrp === null) return false;
+  return mrp < sell;
+}
+
 function rowToWrite(r: VariantRow): VariantWriteRequest {
   return {
     label: r.label.trim(),
@@ -277,7 +299,10 @@ export default function ProductForm({
         (r.label.trim() === '' &&
           r.sellingPrice.trim() === '' &&
           r.costPrice.trim() === ''),
-    );
+    ) &&
+    // …and none may price MRP under the selling price. The reason is rendered
+    // under the offending row, so a disabled Save is never unexplained.
+    !variants.some(mrpBelowSellingPrice);
 
   function mapError(err: unknown): string {
     if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
@@ -626,10 +651,11 @@ export default function ProductForm({
                   (row.label.trim() !== '' ||
                     row.sellingPrice.trim() !== '' ||
                     row.costPrice.trim() !== '');
+                const badPricing = mrpBelowSellingPrice(row);
                 return (
                   <div
                     key={idx}
-                    className={`pf-variant-row ${invalid ? 'invalid' : ''}`}
+                    className={`pf-variant-row ${invalid || badPricing ? 'invalid' : ''}`}
                   >
                     <label className="login-field pf-v-label">
                       Label
@@ -708,6 +734,11 @@ export default function ProductForm({
                     >
                       Remove
                     </button>
+                    {badPricing && (
+                      <p className="pf-v-error" role="alert">
+                        MRP must be greater than or equal to the selling price.
+                      </p>
+                    )}
                   </div>
                 );
               })}

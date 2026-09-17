@@ -107,6 +107,42 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
                                          @Param("from") Instant from,
                                          @Param("to") Instant to);
 
+    /**
+     * The same tally for the WHOLE STORE in the window — every delivery in it,
+     * whichever rider made it, and all the Pay-on-Delivery cash together. This
+     * is the dispatcher's number: what the store took at the door today across
+     * everyone, which is what an ADMIN signing into the delivery app is asking
+     * for. It is not any one rider's reconciliation figure.
+     *
+     * <p>Deliberately not filtered on {@code assigned_agent_id} at all, so an
+     * order delivered with nobody assigned still counts in the store total.
+     * Those can only be historical now — DELIVERED requires an assignment — but
+     * cash that was taken belongs in the takings either way, and silently
+     * dropping it would make the total disagree with the till.
+     *
+     * <p>Without the agent predicate the outer scan is by status rather than
+     * {@code idx_orders_agent_status}; at one store's volume that is a small
+     * scan of DELIVERED orders, and the LATERAL still resolves each order's
+     * first DELIVERED event index-only. MIN(at) for the same double-tap reason.
+     */
+    @Query(value = """
+            SELECT COUNT(*)                                                    AS "deliveries",
+                   COUNT(*) FILTER (WHERE o.payment_method = 'COD')            AS "codOrders",
+                   COALESCE(SUM(o.total) FILTER (WHERE o.payment_method = 'COD'), 0) AS "codAmount"
+            FROM orders.orders o
+            JOIN LATERAL (
+                SELECT MIN(e.at) AS delivered_at
+                FROM orders.order_events e
+                WHERE e.order_id = o.id
+                  AND e.to_status = 'DELIVERED'
+            ) d ON TRUE
+            WHERE o.status = 'DELIVERED'
+              AND d.delivered_at >= :from
+              AND d.delivered_at <  :to
+            """, nativeQuery = true)
+    AgentDayRow summarizeAllDeliveries(@Param("from") Instant from,
+                                       @Param("to") Instant to);
+
     Optional<OrderEntity> findByIdempotencyKey(String idempotencyKey);
 
     Optional<OrderEntity> findByPublicToken(UUID publicToken);

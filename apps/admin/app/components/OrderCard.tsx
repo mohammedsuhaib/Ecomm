@@ -17,6 +17,16 @@ function agentLabel(a: DeliveryAgent): string {
 }
 
 /**
+ * Why a delivery cannot be recorded without a rider, phrased as the next
+ * action. The delivery and any cash collected are booked against the rider, so
+ * an unassigned delivery is money the store thinks it has with nobody holding
+ * it — which is why the API refuses rather than accepting it quietly.
+ */
+const NO_RIDER_FOR_DELIVERY =
+  'Assign a rider before marking this delivered — the delivery and any cash '
+  + 'collected are recorded against them. Pick one from Rider above.';
+
+/**
  * One order in the admin queue: customer/contact/address/items/total, plus
  * one-tap status advance. A new order arrives PLACED and the first advance is
  * the staff confirmation (ARCHITECTURE §3.5) — nothing confirms it before a
@@ -44,6 +54,14 @@ export default function OrderCard({
 
   const next = nextStatus(order.status);
   const terminal = order.status === 'DELIVERED' || order.status === 'CANCELLED';
+  // The goods have left the shop. Assigning a rider here is recording who is
+  // holding them, not handing out a new job — so an off-duty rider stays
+  // selectable, which the API allows for exactly this state. Without it an
+  // order whose rider went off duty before anyone marked it delivered could
+  // not be assigned, and DELIVERED requires an assignment: the only remaining
+  // transition would be cancelling a delivery that actually happened.
+  const goodsAreOut =
+    order.status === 'OUT_FOR_DELIVERY' || order.status === 'DELIVERY_FAILED';
   // Why the bag came back — the rider's reason from the latest failed attempt.
   // It is the one input staff need to choose between re-dispatch and cancel.
   const failureReason =
@@ -110,9 +128,17 @@ export default function OrderCard({
         // terms ("Illegal transition PACKING -> CONFIRMED"), and the way staff
         // reach it is a card that went stale behind them — which "refresh and
         // try again" answers and the server's own wording does not.
+        //
+        // DELIVERED now has TWO ways to be refused, and the card can tell them
+        // apart from what it already knows rather than by reading the server's
+        // sentence: with no rider assigned the server refuses before it ever
+        // compares the code, so blaming the delivery code would send staff back
+        // to the customer to re-read a number that was right all along.
         setError(
           next === 'DELIVERED'
-            ? 'Incorrect delivery code. Please re-check with the customer.'
+            ? order.assignedAgentId == null
+              ? NO_RIDER_FOR_DELIVERY
+              : 'Incorrect delivery code. Please re-check with the customer.'
             : 'That transition was rejected. Refresh and try again.',
         );
       } else {
@@ -125,6 +151,13 @@ export default function OrderCard({
 
   function onAdvanceClick() {
     if (next === 'DELIVERED') {
+      // Say it before asking for the code, not after: the server refuses an
+      // unassigned order regardless of the code, so prompting first would have
+      // staff read six digits off a customer's phone for nothing.
+      if (order.assignedAgentId == null) {
+        setError(NO_RIDER_FOR_DELIVERY);
+        return;
+      }
       setOtpPrompt(true);
       return;
     }
@@ -216,8 +249,14 @@ export default function OrderCard({
             )}
             {agents.map((a) => {
               // Off duty = the rider's own switch. Keep them visible (so staff
-              // see who exists) but not selectable; the server refuses anyway.
-              const offDuty = a.onDuty === false && a.id !== order.assignedAgentId;
+              // see who exists) but not selectable while a new job could land
+              // on someone who has gone home — the server refuses that too.
+              // Once the goods are out it is a record, not a job, so it is
+              // allowed on both sides (see goodsAreOut).
+              const offDuty =
+                a.onDuty === false
+                && a.id !== order.assignedAgentId
+                && !goodsAreOut;
               return (
                 <option key={a.id} value={a.id} disabled={offDuty}>
                   {agentLabel(a)}{offDuty ? ' (off duty)' : ''}

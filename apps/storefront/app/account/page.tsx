@@ -77,17 +77,20 @@ export default function AccountPage() {
         <ProfileEditor user={user} />
       </section>
 
+      {/* The one notification control a customer can always reach — the order
+          page's only appears while an order is in flight, so there was nowhere
+          to switch this on from a device that had none. It sits directly under
+          the profile because it is an account setting: below the order history
+          and the address book it was the longest scroll on the page, which is
+          no place for the switch someone came here to find. */}
+      <NotificationSettings />
+
       <section className="account-section">
         <h2 className="section-title">{t('recentOrders')}</h2>
         <OrderHistory />
       </section>
 
       <AddressManager />
-
-      {/* The one notification control a customer can always reach — the order
-          page's only appears while an order is in flight, so there was nowhere
-          to switch this on from a device that had none. */}
-      <NotificationSettings />
     </>
   );
 }

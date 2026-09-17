@@ -19,12 +19,13 @@ import { ListSkeleton } from './Skeleton';
  * clear "move or remove its products first" message rather than a generic error.
  * Mirrors ChangePassword's busy / error / success pattern.
  *
- * <p>A failed DELETE reports AT THE ROW, not only in the panel's banner. The
- * banner sits above the list, so staff who scrolled down to a category, hit
- * Delete and got a 422 saw the row simply stay put with the explanation off
- * screen — indistinguishable from nothing having happened. The message now
- * appears under the category it is about (and still in the banner, for anyone
- * looking there).
+ * <p>A failed DELETE reports AT THE ROW, and ONLY there. The banner sits above
+ * the list, so staff who scrolled down to a category, hit Delete and got a 422
+ * saw the row stay put with the explanation off screen — indistinguishable
+ * from nothing having happened. Reporting in both places was the first attempt
+ * at that and was worse: the identical sentence appeared twice on one screen,
+ * which reads as two separate failures. The banner is now for the add/edit
+ * forms, which have no row to point at.
  */
 export default function CategoriesPanel({
   categories,
@@ -95,9 +96,9 @@ export default function CategoriesPanel({
       await deleteCategory(cat.id);
       await onChanged();
     } catch (err) {
-      const message = mapError(err, 'delete');
-      setError(message);
-      setRowError({ id: cat.id, message });
+      // At the row only — never also in the banner, or staff read one refusal
+      // as two.
+      setRowError({ id: cat.id, message: mapError(err, 'delete') });
       await handleAuth(err);
     } finally {
       setBusy(false);

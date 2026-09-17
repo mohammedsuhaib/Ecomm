@@ -52,6 +52,23 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
     /** A public-read endpoint and the {@code Cache-Control} it should carry. */
     private record Rule(RequestMatcher matcher, String cacheControl) {}
 
+    /**
+     * Paths that must fall through to {@code no-store} even though a broader
+     * rule below matches them.
+     *
+     * <p>Product search is the only one. It is a live question — someone asking
+     * "is this in stock right now" — and the storefront already sends it with
+     * {@code no-store} for that reason. Leaving it inside the
+     * {@code /api/v1/products/*} window meant the server contradicted the
+     * client: the browser's own HTTP cache was still told it could keep the
+     * answer for 15s and serve it stale for 60 more, so staff who restocked a
+     * sold-out product and searched for it could still be handed the
+     * pre-restock result. The listing keeps its window (it is browsed, not
+     * asked, and a first paint matters there).
+     */
+    private static final RequestMatcher NEVER_PUBLIC =
+            new AntPathRequestMatcher("/api/v1/products/search", "GET");
+
     private final List<Rule> rules = List.of(
             // Categories: the storefront nav. Edited a few times a year.
             publicFor(Duration.ofMinutes(5), Duration.ofHours(1), "/api/v1/categories"),
@@ -67,9 +84,10 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
             // had worked. 15s still absorbs a burst of traffic on the same
             // listing; the stale window is now shorter than the time it takes
             // to walk back to the shop floor.
-            // One path segment, not "/**": the listing, /products/search and
-            // /products/{idOrSlug} are all that exist, and a wildcard over the
-            // whole subtree would silently mark a future nested endpoint
+            // One path segment, not "/**": the listing and
+            // /products/{idOrSlug} are all that this covers (search is excluded
+            // by NEVER_PUBLIC below), and a wildcard over the whole subtree
+            // would silently mark a future nested endpoint
             // (/products/{id}/something-personal) publicly cacheable.
             publicFor(Duration.ofSeconds(15), Duration.ofSeconds(60),
                     "/api/v1/products", "/api/v1/products/*"),
@@ -120,6 +138,9 @@ class PublicReadCacheHeaderWriter implements HeaderWriter {
     private String publicCacheControlFor(HttpServletRequest request, HttpServletResponse response) {
         int status = response.getStatus();
         if (status != HttpStatus.OK.value() && status != HttpStatus.NOT_MODIFIED.value()) {
+            return null;
+        }
+        if (NEVER_PUBLIC.matches(request)) {
             return null;
         }
         for (Rule rule : rules) {

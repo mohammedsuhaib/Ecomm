@@ -162,6 +162,19 @@ public interface OrderService {
     AgentDaySummary agentDaySummary(Long agentId, java.time.LocalDate day);
 
     /**
+     * Delivery, dispatcher view: the same tally for the WHOLE STORE on one
+     * store day — every delivery made, whoever made it, and all the
+     * Pay-on-Delivery cash together. What an ADMIN signing into the delivery
+     * app is asking for; a rider must never be given this, since it is not
+     * theirs to reconcile.
+     *
+     * <p>Shares {@link AgentDaySummary}'s shape so the app renders one strip
+     * either way — the numbers differ in scope, not in meaning. Zeros, never
+     * null, for a day with nothing.
+     */
+    AgentDaySummary storeDaySummary(java.time.LocalDate day);
+
+    /**
      * Delivery: confirm delivery by OTP, verifying the order is assigned to this
      * agent first.
      *

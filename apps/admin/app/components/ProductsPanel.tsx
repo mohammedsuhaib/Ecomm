@@ -439,8 +439,26 @@ export default function ProductsPanel({
           >
             Previous
           </button>
-          <span className="muted">
-            Page {page + 1} of {totalPages} · {total} products
+          <span className="muted prod-pager-status">
+            Page{' '}
+            {/* A selector, not just a counter: stepping through a long
+                catalogue one Next at a time was the complaint. A plain select
+                is right at this scale — one supermarket's catalogue is tens of
+                pages at most, and it works with a thumb on a tablet. */}
+            <select
+              className="prod-pager-select"
+              value={page}
+              disabled={loading}
+              onChange={(e) => setPage(Number(e.target.value))}
+              aria-label="Go to page"
+            >
+              {Array.from({ length: totalPages }, (_, i) => (
+                <option key={i} value={i}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>{' '}
+            of {totalPages} · {total} products
           </span>
           <button
             type="button"

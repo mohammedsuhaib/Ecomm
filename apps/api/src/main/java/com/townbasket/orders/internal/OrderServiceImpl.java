@@ -461,6 +461,18 @@ class OrderServiceImpl implements OrderService {
             throw new BusinessRuleException("Illegal transition " + from + " -> " + to);
         }
         if (to == OrderStatus.DELIVERED) {
+            // A delivery has to belong to a rider. Not a formality: the COD
+            // branch below marks the order PAID, i.e. records that cash was
+            // taken, and the rider's day summary sums that cash with
+            // `WHERE assigned_agent_id = ?`. An order delivered with nobody
+            // assigned is therefore money booked as collected that appears in
+            // no rider's total and nobody has to hand over — invisible in
+            // exactly the report built to reconcile it.
+            if (order.getAssignedAgentId() == null) {
+                throw new BusinessRuleException(
+                        "Assign a rider before marking this order delivered — the delivery, "
+                                + "and any cash collected for it, are recorded against them.");
+            }
             if (request.deliveryOtp() == null || !request.deliveryOtp().equals(order.getDeliveryOtp())) {
                 throw new BusinessRuleException("Delivery OTP does not match");
             }
@@ -535,7 +547,18 @@ class OrderServiceImpl implements OrderService {
         }
         // Off duty is the rider's own switch: they keep what they hold, but a
         // NEW job must not land on someone who has gone home.
-        if (agentId != null && !authService.isAvailableDeliveryAgent(agentId)) {
+        //
+        // An order that is ALREADY out is not a new job. Assigning there is
+        // recording who has the goods — and it has to stay possible, because
+        // DELIVERED now requires an assignment: an order that went out
+        // unassigned, or whose rider went off duty at the end of the shift
+        // before anyone marked it delivered, would otherwise have no way to be
+        // completed at all. Cancelling a delivery that physically happened is
+        // not an acceptable only-option, so the on-duty rule is relaxed once
+        // the goods have left the shop.
+        boolean alreadyOut = status == OrderStatus.OUT_FOR_DELIVERY
+                || status == OrderStatus.DELIVERY_FAILED;
+        if (agentId != null && !alreadyOut && !authService.isAvailableDeliveryAgent(agentId)) {
             throw new BusinessRuleException(
                     "That rider is off duty right now — pick another, or ask them to go on duty.");
         }
@@ -566,13 +589,31 @@ class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public AgentDaySummary agentDaySummary(Long agentId, LocalDate day) {
-        // The store day, not the UTC day: a rider settling up at 21:30 IST is
-        // still on the same shift, and 21:30 IST is already tomorrow in UTC.
-        ZoneId zone = clock.getZone();
-        Instant from = day.atStartOfDay(zone).toInstant();
-        Instant to = day.plusDays(1).atStartOfDay(zone).toInstant();
-        OrderRepository.AgentDayRow row = orders.summarizeAgentDeliveries(agentId, from, to);
+        OrderRepository.AgentDayRow row =
+                orders.summarizeAgentDeliveries(agentId, startOfStoreDay(day), startOfStoreDay(day.plusDays(1)));
         return new AgentDaySummary(day, row.getDeliveries(), row.getCodOrders(), row.getCodAmount());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AgentDaySummary storeDaySummary(LocalDate day) {
+        OrderRepository.AgentDayRow row =
+                orders.summarizeAllDeliveries(startOfStoreDay(day), startOfStoreDay(day.plusDays(1)));
+        return new AgentDaySummary(day, row.getDeliveries(), row.getCodOrders(), row.getCodAmount());
+    }
+
+    /**
+     * Midnight on {@code day} in the STORE's zone, not UTC.
+     *
+     * <p>The window has to be the day people lived: a shift that ends at 21:30
+     * IST is one day's takings, and bucketing by the UTC date would split it —
+     * IST is UTC+5:30, so every delivery between 00:00 and 05:29 IST falls on
+     * the previous UTC date. Settling up would then be reconciling against a
+     * figure that starts halfway through the morning.
+     */
+    private Instant startOfStoreDay(LocalDate day) {
+        ZoneId zone = clock.getZone();
+        return day.atStartOfDay(zone).toInstant();
     }
 
     @Override

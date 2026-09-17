@@ -9,6 +9,7 @@ import LocationGate from './components/LocationGate';
 import StoreClosedBanner from './components/StoreClosedBanner';
 import CartProvider from './components/CartProvider';
 import AuthProvider from './components/AuthProvider';
+import ChunkErrorRecovery from './components/ChunkErrorRecovery';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
@@ -70,6 +71,11 @@ export default async function RootLayout({
             />
           </>
         )}
+        {/* Outside every provider and boundary: a chunk that goes missing
+            because a deploy landed under an open session fails in the router,
+            not in a render, so no error boundary sees it. Listens from here and
+            renders nothing. */}
+        <ChunkErrorRecovery />
         <NextIntlClientProvider locale={locale} messages={messages}>
           {/* LocationGate is the provider for the whole shell so the header's
               location pill can re-open it. It prompts for location on first

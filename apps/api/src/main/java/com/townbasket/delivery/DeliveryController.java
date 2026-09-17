@@ -69,16 +69,29 @@ class DeliveryController {
     }
 
     /**
-     * GET /api/v1/delivery/summary — the caller's own tally for today (store
-     * day, IST): orders delivered and Pay-on-Delivery cash collected. Always the
-     * CALLER's figures, even for an ADMIN — the dispatcher view of the queue
-     * does not apply here because the money in question is in one rider's
-     * pocket, and an admin who delivered nothing sees zeros.
+     * GET /api/v1/delivery/summary — today's tally (store day, IST): orders
+     * delivered and Pay-on-Delivery cash collected.
+     *
+     * <p>Scoped like the queue above, and for the same reason. A RIDER gets
+     * their own figures, which is what they settle up against. An ADMIN gets
+     * the WHOLE STORE's — every delivery made today whoever made it, and all
+     * the cash together.
+     *
+     * <p>It used to return the caller's own figures even for an admin, on the
+     * reasoning that the money is in one rider's pocket. In practice that made
+     * the dispatcher view lie: an admin can never be assigned an order
+     * ({@code assignAgent} requires an active DELIVERY_AGENT), so the strip was
+     * structurally ₹0 while the list beside it showed the store's deliveries —
+     * reading as "the store collected nothing today". The store total is the
+     * number an admin opening this app actually wants.
      */
     @GetMapping("/summary")
-    @Operation(summary = "My day so far — deliveries completed and cash collected on delivery today.")
+    @Operation(summary = "Today's deliveries and cash collected — the caller's own, or the whole store for an ADMIN.")
     AgentDaySummary summary(@AuthenticationPrincipal Long userId) {
-        return orderService.agentDaySummary(userId, LocalDate.now(clock));
+        LocalDate today = LocalDate.now(clock);
+        return isAdmin()
+                ? orderService.storeDaySummary(today)
+                : orderService.agentDaySummary(userId, today);
     }
 
     /**

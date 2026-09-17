@@ -1106,6 +1106,49 @@ a:hover {
   cursor: not-allowed;
 }
 
+/* Order-notification setting (account page). Reads as a settings row: copy on
+   the left, control on the right, inside the same .profile-card frame the
+   profile and address blocks use. Deliberately separate from .push-optin-*,
+   which is the ORDER page's centred, width-capped variant — borrowing it here
+   left the block centred inside a column of left-aligned cards. */
+.notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.notify-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  /* Wraps the button underneath rather than squeezing it once the row is
+     narrower than this — the phone layout. */
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.notify-lead {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.notify-sub,
+.notify-state {
+  margin: 0;
+  font-size: 0.8rem;
+}
+.notify-row .btn {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+.notify-toggle[aria-pressed='true'] {
+  border-color: var(--green);
+  color: var(--green-dark);
+}
+.notify-error {
+  margin: 0.6rem 0 0;
+}
+
 /* Inline profile-name editor (M4: edit display name) */
 .profile-card .field {
   display: flex;

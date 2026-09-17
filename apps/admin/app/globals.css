@@ -788,6 +788,27 @@ a {
   margin-top: 1rem;
   font-size: 0.85rem;
 }
+/* "Page [n] of N" where [n] is a jump selector. Shared by the catalogue and
+   inventory pagers so the two read identically. */
+.prod-pager-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.prod-pager-select {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  /* Touch target on a tablet, where this panel is actually used. */
+  padding: 0.25rem 0.4rem;
+  min-height: 2rem;
+}
+.prod-pager-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 /* ---- Catalogue: product form ---- */
 .product-form {
@@ -942,6 +963,17 @@ a {
 .pf-variant-row.invalid {
   border-color: #f0c4c0;
   background: #fdecea;
+}
+/* A pricing refusal, under the variant it is about. The row is a grid, so this
+   spans every column to sit beneath the fields. It used to appear only in the
+   banner at the foot of the form, which on a product with several variants did
+   not say which one was wrong — and the server cannot say either, since its
+   message names the rule and a create sends every variant in one POST. */
+.pf-v-error {
+  grid-column: 1 / -1;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--danger);
 }
 .pf-variant-row .login-field {
   font-size: 0.75rem;
