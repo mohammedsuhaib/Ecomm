@@ -14,9 +14,6 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
-    environment:
-      # Consumed by the Caddyfile's {env.QA_BASIC_AUTH_HASH} placeholder.
-      QA_BASIC_AUTH_HASH: ${QA_BASIC_AUTH_HASH:?set QA_BASIC_AUTH_HASH in .env (caddy hash-password)}
     ports:
       - "80:80"
       - "443:443"

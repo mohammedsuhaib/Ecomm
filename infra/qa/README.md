@@ -1,24 +1,33 @@
 # QA environment — qa.town-basket.com
 
-A full, internet-reachable copy of the Town Basket stack for testing before
+A full, remotely reachable copy of the Town Basket stack for testing before
 production: storefront + admin + delivery + API + its own Postgres, built
 **from source** on the droplet (no container registry needed), fronted by
 Caddy with automatic HTTPS.
 
 | URL | App | Protected by |
 |---|---|---|
-| https://qa.town-basket.com | Storefront | basic auth + app login |
-| https://qa-admin.town-basket.com | Admin | basic auth + app login |
-| https://qa-delivery.town-basket.com | Delivery | basic auth + app login |
+| https://qa.town-basket.com | Storefront | network access + app login |
+| https://qa-admin.town-basket.com | Admin | network access + app login |
+| https://qa-delivery.town-basket.com | Delivery | network access + app login |
 | https://qa-api.town-basket.com | API | JWT roles (same as prod) |
 
 **QA deliberately keeps the dev conveniences** that production must not have:
 the offline fake phone verifier (log in with token `dev:<10-digit-phone>`),
 the fake UPI gateway, and the seeded `admin@` / `staff@` / `delivery@`
 accounts. That's what makes end-to-end testing possible without real money or
-SMS. The three app hosts sit behind HTTP **basic auth** and send
-`X-Robots-Tag: noindex` so the test site is neither browsable by strangers nor
+SMS. Every host sends `X-Robots-Tag: noindex` so the test site is never
 indexed.
+
+> ⚠️ **QA has no HTTP-layer gate.** It used to sit behind Caddy basic auth;
+> that gate was removed because it covers the whole origin and makes the
+> installable PWA untestable (see
+> [ACCESS-MIGRATION.md](ACCESS-MIGRATION.md)). Because the fake verifier
+> accepts **any** 10-digit phone number, **anyone who can reach these hosts
+> can log in as any customer.** Restricting who can reach them is now entirely
+> a network-layer job — put the droplet and the test devices on a tailnet
+> (step 1 of ACCESS-MIGRATION.md) and keep the qa-* hosts off the public
+> internet. Do not solve it by re-adding a proxy gate.
 
 ## One-time setup
 
@@ -33,6 +42,13 @@ indexed.
 2. **DNS** — four A records → the QA droplet IP:
    `qa`, `qa-admin`, `qa-api`, `qa-delivery` (all under town-basket.com).
 3. **Firewall**: `ufw allow 80 && ufw allow 443 && ufw allow OpenSSH && ufw --force enable`
+
+   Nothing above HTTP keeps strangers out any more, so this step is the
+   protection: put the droplet and every test device on a tailnet and keep the
+   qa-* hosts unreachable from the public internet — see step 1 of
+   [ACCESS-MIGRATION.md](ACCESS-MIGRATION.md). Leave 80/443 open only for as
+   long as Let's Encrypt's HTTP-01 challenge needs them; otherwise close both
+   and switch Caddy to a DNS-01 issuer.
 4. **Clone + secrets** — the repo is private, so give the droplet a
    **read-only deploy key** first (GitHub → Ecomm → Settings → Deploy keys →
    Add, "Allow write access" unchecked). The SSH remote means the deploy
@@ -43,17 +59,8 @@ indexed.
    ssh-keyscan github.com >> ~/.ssh/known_hosts
    git clone git@github.com:mohammedsuhaib/Ecomm.git && cd Ecomm/infra/qa
    cp .env.example .env && chmod 600 .env
-   # fill DB_PASSWORD and JWT_SECRET, then let this command append the
-   # basic-auth hash CORRECTLY QUOTED (delete the placeholder line first):
-   printf "QA_BASIC_AUTH_HASH='%s'\n" \
-     "$(docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-qa-password')" >> .env
+   # then fill in DB_PASSWORD and JWT_SECRET
    ```
-   The single quotes around the hash are load-bearing: unquoted, Compose's
-   env-file interpolation expands the hash's `$`-sequences as variables and
-   silently corrupts it — basic auth then rejects every password. Letting the
-   command above emit the line keeps the quoting out of human hands, and the
-   deploy workflow re-verifies the resolved hash before every `up`, failing
-   with a clear error if it has been corrupted.
 5. **Launch**:
    ```bash
    docker compose -f docker-compose.qa.yml up -d --build
@@ -67,11 +74,12 @@ indexed.
 `CI` workflow finishes **green** on a `main` commit that touches `apps/`,
 `packages/`, or `infra/qa/` (or on manual dispatch from the Actions tab) — a
 commit that fails tests or the Modulith boundary check never reaches QA. The
-workflow SSHes into the droplet, checks out the exact CI-validated commit,
-verifies the basic-auth hash survived `.env` interpolation, runs the compose
-build, recreates Caddy (so Caddyfile changes actually apply), and probes each
-app upstream from inside the compose network; afterwards it polls `qa-api`'s
-`/actuator/health` and confirms the storefront still demands basic auth. If
+workflow SSHes into the droplet, checks out the exact CI-validated commit, runs
+the compose build, recreates Caddy (so Caddyfile changes actually apply), and
+probes each app upstream from inside the compose network; afterwards it polls
+`qa-api`'s `/actuator/health` from outside. The three app hosts are checked
+only from inside the compose network, because a GitHub runner is not on the
+tailnet and should not be able to reach them. If
 the build fails, the previous containers keep running — QA stays on the old
 version and the workflow goes red. Deploys hard-reset the clone: **edits made
 directly on the droplet to tracked files are overwritten** by the next
@@ -98,10 +106,10 @@ ssh-keyscan github.com >> ~/.ssh/known_hosts
 cd ~/Ecomm && git remote set-url origin git@github.com:mohammedsuhaib/Ecomm.git
 ```
 
-Also re-quote `QA_BASIC_AUTH_HASH` in `infra/qa/.env` (see step 4): the
-pre-fix instructions said to paste the hash unquoted, which corrupts it —
-the deploy now detects a corrupted hash and refuses to proceed until it is
-fixed.
+`QA_BASIC_AUTH_HASH` in `infra/qa/.env` is now unused and can be deleted from
+the droplet's `.env` — nothing reads it. Removing the gate means the droplet's
+network restriction (step 3) is the only thing keeping strangers out; confirm
+it before the next deploy.
 
 **Manual (or to test a feature branch):**
 ```bash
@@ -208,15 +216,8 @@ absent variable is omitted from the container entirely, while a blank one is
 refused — blank is never treated as "use the fake", because that would silently
 downgrade a real deployment to a verifier accepting any phone number.
 
-QA's basic-auth gate does not interfere: phone auth runs in-page against Google's
-own endpoints and needs no same-origin callback handler.
-
-> **The gate DOES break the installable PWA**, though — it covers the whole
-> origin, including `/sw.js`, the manifest and the precached chunks, and an
-> installed PWA window gets no credential prompt to answer. Expect
-> `HTTP ERROR 401` in the installed app, especially right after a deploy. See
-> [ACCESS-MIGRATION.md](ACCESS-MIGRATION.md) for the workaround and for the
-> planned move to network-layer access control.
+Nothing in QA's request path interferes: phone auth runs in-page against
+Google's own endpoints and needs no same-origin callback handler.
 
 ### Viewing logs
 
@@ -258,8 +259,9 @@ storefront image was built without the Firebase args.
 
 ## Smoke test after deploy
 
-- https://qa.town-basket.com → basic auth (`qa` / your password) → storefront
-  loads, green theme
+- https://qa.town-basket.com → storefront loads directly, green theme
+- The storefront and admin still offer **Install** and work offline after
+  install — the thing the old basic-auth gate made impossible to test here
 - Storefront login: any 10-digit phone with OTP token `dev:<phone>`
 - Place a pay-on-delivery order → confirm it appears in qa-admin's queue →
   assign to the delivery agent → confirm in qa-delivery with the order's OTP
