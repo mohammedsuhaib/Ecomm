@@ -1422,6 +1422,26 @@ a {
   font-size: 0.9rem;
 }
 
+/* Packed and waiting for a rider to collect it. Teal, distinct from the blue of
+   the in-the-shop steps and from the green of an order that has actually left:
+   at a glance the queue has to separate "still ours" from "on the road", and
+   this row is the hand-over point between them. */
+.order-card.status-READY_FOR_DELIVERY {
+  border-left-color: #0d9488;
+}
+.status-badge.status-READY_FOR_DELIVERY {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+.order-awaiting-pickup {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #ccfbf1;
+  color: #115e59;
+  font-size: 0.9rem;
+}
+
 /* Store panel: the live status card staff read before/after flipping a switch. */
 .store-status {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;

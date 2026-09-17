@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-/** The state machine's rules, offline. The DELIVERY_FAILED branch is the new one. */
+/** The state machine's rules, offline. */
 class OrderStatusTest {
 
     @Test
@@ -12,7 +12,8 @@ class OrderStatusTest {
         assertThat(OrderStatus.OUT_FOR_DELIVERY.canTransitionTo(OrderStatus.DELIVERY_FAILED)).isTrue();
         for (OrderStatus s : new OrderStatus[] {
                 OrderStatus.PLACED, OrderStatus.CONFIRMED, OrderStatus.PACKING,
-                OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.DELIVERY_FAILED}) {
+                OrderStatus.READY_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED,
+                OrderStatus.DELIVERY_FAILED}) {
             assertThat(s.canTransitionTo(OrderStatus.DELIVERY_FAILED))
                     .as("%s -> DELIVERY_FAILED", s).isFalse();
         }
@@ -27,12 +28,34 @@ class OrderStatusTest {
     }
 
     @Test
-    void theHappyPathIsUnchanged() {
+    void theHappyPathRunsThroughReadyForDelivery() {
         assertThat(OrderStatus.PLACED.allowedNext()).containsExactlyInAnyOrder(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
         assertThat(OrderStatus.CONFIRMED.allowedNext()).containsExactlyInAnyOrder(OrderStatus.PACKING, OrderStatus.CANCELLED);
-        assertThat(OrderStatus.PACKING.allowedNext()).containsExactlyInAnyOrder(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED);
+        assertThat(OrderStatus.PACKING.allowedNext())
+                .containsExactlyInAnyOrder(OrderStatus.READY_FOR_DELIVERY, OrderStatus.CANCELLED);
+        assertThat(OrderStatus.READY_FOR_DELIVERY.allowedNext())
+                .containsExactlyInAnyOrder(OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED);
         assertThat(OrderStatus.OUT_FOR_DELIVERY.allowedNext())
                 .containsExactlyInAnyOrder(OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED, OrderStatus.CANCELLED);
+    }
+
+    @Test
+    void packingCannotSkipStraightOntoTheRoad() {
+        // The whole point of READY_FOR_DELIVERY: "packed" and "on a bike" are
+        // two different facts, and only the second one starts the customer's
+        // tracking map, their ETA and their delivery code. Letting the packer's
+        // last click do both is what used to conflate them.
+        assertThat(OrderStatus.PACKING.canTransitionTo(OrderStatus.OUT_FOR_DELIVERY)).isFalse();
+        assertThat(OrderStatus.PACKING.canTransitionTo(OrderStatus.DELIVERED)).isFalse();
+    }
+
+    @Test
+    void anOrderWaitingForARiderCanStillBeCancelled() {
+        // Nothing has left the shop, so a cancellation here is ordinary: the
+        // bag goes back on the shelves and the reservation is released.
+        assertThat(OrderStatus.READY_FOR_DELIVERY.canTransitionTo(OrderStatus.CANCELLED)).isTrue();
+        // But it cannot be delivered from the counter, with or without a code.
+        assertThat(OrderStatus.READY_FOR_DELIVERY.canTransitionTo(OrderStatus.DELIVERED)).isFalse();
     }
 
     @Test

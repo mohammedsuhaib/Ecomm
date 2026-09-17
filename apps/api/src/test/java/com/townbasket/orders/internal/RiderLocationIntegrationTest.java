@@ -71,6 +71,13 @@ class RiderLocationIntegrationTest extends AbstractIntegrationTest {
         assertThat(track(placed, customerId).riderLocation())
                 .as("PACKING: still in the shop").isNull();
 
+        // Packed and waiting for the rider to collect it. The bag is on the
+        // counter and the rider may be anywhere — showing their dot here would
+        // have the customer watch someone who is not coming to them yet.
+        orderService.transition(placed.id(), new TransitionRequest("READY_FOR_DELIVERY", null, null));
+        assertThat(track(placed, customerId).riderLocation())
+                .as("READY_FOR_DELIVERY: not collected yet").isNull();
+
         orderService.transition(placed.id(), new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         RiderLocationDto shown = track(placed, customerId).riderLocation();
         assertThat(shown).as("OUT_FOR_DELIVERY: the customer sees the rider").isNotNull();
@@ -190,6 +197,7 @@ class RiderLocationIntegrationTest extends AbstractIntegrationTest {
         orderService.assignAgent(placed.id(), agentId);
         orderService.transition(placed.id(), new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(placed.id(), new TransitionRequest("PACKING", null, null));
+        orderService.transition(placed.id(), new TransitionRequest("READY_FOR_DELIVERY", null, null));
         return orderService.transition(placed.id(), new TransitionRequest("OUT_FOR_DELIVERY", null, null));
     }
 

@@ -250,6 +250,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         orderService.assignAgent(id, agentId);
         orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("READY_FOR_DELIVERY", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
 
         // The OTP is exposed to the customer only now (OUT_FOR_DELIVERY) — and
@@ -292,6 +293,7 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("READY_FOR_DELIVERY", null, null));
         // DELIVERED needs an assigned rider — the cash is booked against them.
         orderService.assignAgent(id, authService.createDeliveryAgent(new CreateDeliveryAgentRequest(
                 "Race Rider", "race-rider@townbasket.local", "password123")).id());

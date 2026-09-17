@@ -169,6 +169,7 @@ class RiderDaySummaryIntegrationTest extends AbstractIntegrationTest {
         orderService.assignAgent(id, agentId);
         orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("READY_FOR_DELIVERY", null, null));
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         return id;
     }

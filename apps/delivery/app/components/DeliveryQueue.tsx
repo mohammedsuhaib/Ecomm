@@ -24,6 +24,11 @@ export default function DeliveryQueue() {
   // Which half of the app is showing. The pending queue keeps polling in the
   // background either way, so switching back never shows a stale list.
   const [view, setView] = useState<View>('queue');
+  // Two live lists, in the order a rider works them: bags waiting at the store
+  // to be collected, then the ones already on the bike. They are separate
+  // fetches (one status per request) and separate sections, because they ask
+  // different things of the rider — go and get it, versus go and deliver it.
+  const [ready, setReady] = useState<Order[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   // The rider's own availability. null until loaded so the toggle never
   // flashes a wrong state; a failed load leaves it null and the toggle hidden.
@@ -68,8 +73,14 @@ export default function DeliveryQueue() {
 
   const load = useCallback(async () => {
     try {
-      const data = await getDeliveryOrders('OUT_FOR_DELIVERY');
-      setOrders(data.content);
+      // Both at once: a rider standing at the counter needs to see the bag
+      // they are collecting and the ones they are already carrying together.
+      const [waiting, carrying] = await Promise.all([
+        getDeliveryOrders('READY_FOR_DELIVERY'),
+        getDeliveryOrders('OUT_FOR_DELIVERY'),
+      ]);
+      setReady(waiting.content);
+      setOrders(carrying.content);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
@@ -90,9 +101,21 @@ export default function DeliveryQueue() {
     setOrders((prev) => prev.filter((o) => o.id !== id));
   }, []);
 
+  // Collected: move the card from "ready" to "out for delivery" straight away,
+  // rather than waiting up to 30 s for the next poll to do it. The server has
+  // already made the change; this just stops the rider seeing a bag they are
+  // holding still listed as waiting for them.
+  const onPickedUp = useCallback((picked: Order) => {
+    setReady((prev) => prev.filter((o) => o.id !== picked.id));
+    setOrders((prev) => (prev.some((o) => o.id === picked.id) ? prev : [picked, ...prev]));
+  }, []);
+
   // A rider, as opposed to an admin in the dispatcher view. Only riders have a
   // position worth sharing (an admin is never assigned an order).
   const isRider = user?.role === 'DELIVERY_AGENT';
+
+  /** Everything still on this rider's plate — to collect plus to deliver. */
+  const pending = ready.length + orders.length;
 
   const handleLogout = async () => {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -148,7 +171,7 @@ export default function DeliveryQueue() {
             onClick={() => setView('queue')}
           >
             Deliveries
-            {orders.length > 0 && <span className="tab-count">{orders.length}</span>}
+            {pending > 0 && <span className="tab-count">{pending}</span>}
           </button>
           <button
             type="button"
@@ -167,8 +190,8 @@ export default function DeliveryQueue() {
           <>
             {/* Status bar */}
             <div className="queue-status">
-              {orders.length > 0 ? (
-                <span className="badge-pending">{orders.length} pending</span>
+              {pending > 0 ? (
+                <span className="badge-pending">{pending} pending</span>
               ) : (
                 <span className="badge-clear">All clear</span>
               )}
@@ -192,7 +215,11 @@ export default function DeliveryQueue() {
             <PushOptIn />
 
             {/* Live position for the customers being delivered to — only while
-                there is something in the queue, and only for a rider. */}
+                something is actually OUT for delivery, and only for a rider.
+                A bag still waiting on the counter has no customer watching a
+                map yet (the API hides the position until it is collected), so
+                sharing then would be reporting a rider's whereabouts that
+                nobody can see. */}
             {isRider && <LocationSharing active={orders.length > 0} />}
 
             {onDuty === false && (
@@ -210,24 +237,68 @@ export default function DeliveryQueue() {
             )}
             {error && <p className="field-error queue-error">{error}</p>}
 
-            {loading && orders.length === 0 ? (
+            {loading && pending === 0 ? (
               <div className="dcard-list" aria-busy="true" aria-label="Loading your deliveries">
                 <div className="skeleton-card" />
                 <div className="skeleton-card" />
                 <div className="skeleton-card" />
               </div>
-            ) : orders.length === 0 ? (
+            ) : pending === 0 ? (
               <div className="queue-empty-state">
                 <div className="queue-empty-icon">✅</div>
                 <p>No pending deliveries right now.</p>
                 <p className="queue-empty-sub">New orders will appear here automatically.</p>
               </div>
             ) : (
-              <div className="dcard-list">
-                {orders.map((order) => (
-                  <DeliveryCard key={order.id} order={order} onDelivered={onDelivered} />
-                ))}
-              </div>
+              <>
+                {/* To collect first: these are the ones holding the shop up. */}
+                {ready.length > 0 && (
+                  <section className="dcard-group" aria-label="Ready to collect">
+                    <h2 className="dcard-group-title">
+                      <span aria-hidden>📦</span> Ready to collect
+                      <span className="tab-count">{ready.length}</span>
+                    </h2>
+                    <p className="dcard-group-hint">
+                      Packed and waiting at the store. Tap <strong>Picked up</strong> when you
+                      take the bag — that&apos;s when the customer starts seeing you on their map.
+                    </p>
+                    <div className="dcard-list">
+                      {ready.map((order) => (
+                        <DeliveryCard
+                          key={order.id}
+                          order={order}
+                          onDelivered={onDelivered}
+                          onPickedUp={onPickedUp}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {orders.length > 0 && (
+                  <section className="dcard-group" aria-label="Out for delivery">
+                    {/* The heading only earns its space once there are two
+                        groups; with nothing to collect this is the whole
+                        screen and the tab above already says what it is. */}
+                    {ready.length > 0 && (
+                      <h2 className="dcard-group-title">
+                        <span aria-hidden>🛵</span> Out for delivery
+                        <span className="tab-count">{orders.length}</span>
+                      </h2>
+                    )}
+                    <div className="dcard-list">
+                      {orders.map((order) => (
+                        <DeliveryCard
+                          key={order.id}
+                          order={order}
+                          onDelivered={onDelivered}
+                          onPickedUp={onPickedUp}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
             )}
           </>
         )}

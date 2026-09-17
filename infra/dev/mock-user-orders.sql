@@ -38,7 +38,7 @@ DECLARE
     rec         record;
     statuses    text[] := ARRAY[
         'DELIVERED','DELIVERED','DELIVERED','DELIVERED','DELIVERED','DELIVERED',
-        'OUT_FOR_DELIVERY','PACKING','CONFIRMED','PLACED','CANCELLED'];
+        'OUT_FOR_DELIVERY','READY_FOR_DELIVERY','PACKING','CONFIRMED','PLACED','CANCELLED'];
 BEGIN
     SELECT id INTO v_user_id FROM identity.users WHERE phone = v_phone;
     IF v_user_id IS NULL THEN

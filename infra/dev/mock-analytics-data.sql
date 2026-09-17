@@ -48,7 +48,7 @@ DECLARE
     -- live pipeline statuses and a few cancellations.
     statuses    text[] := ARRAY[
         'DELIVERED','DELIVERED','DELIVERED','DELIVERED','DELIVERED',
-        'OUT_FOR_DELIVERY','PACKING','CONFIRMED','PLACED','CANCELLED'];
+        'OUT_FOR_DELIVERY','READY_FOR_DELIVERY','PACKING','CONFIRMED','PLACED','CANCELLED'];
     names       text[] := ARRAY[
         'Asha R','Ravi Kumar','Priya S','Kiran M','Vijay N',
         'Lakshmi B','Suresh P','Deepa V','Manoj K','Anita G'];

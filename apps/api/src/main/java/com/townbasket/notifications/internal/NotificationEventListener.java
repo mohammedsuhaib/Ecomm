@@ -32,7 +32,10 @@ class NotificationEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
 
-    /** The status at which an order becomes a rider's job to act on. */
+    /** Packed, bagged, and waiting on the counter for a rider to collect. */
+    private static final String READY_FOR_DELIVERY = "READY_FOR_DELIVERY";
+
+    /** In the rider's hands and on the road. */
     private static final String OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY";
 
     private final List<NotificationChannel> channels;
@@ -88,10 +91,16 @@ class NotificationEventListener {
             return;
         }
         // The rider's own copy of the two transitions that change what they do.
-        if (OUT_FOR_DELIVERY.equals(status)) {
+        //
+        // READY_FOR_DELIVERY, not OUT_FOR_DELIVERY: being ready is the moment a
+        // job becomes the rider's to start — there is a bag on the counter with
+        // their name on it. OUT_FOR_DELIVERY is now their OWN action (they tap
+        // "Picked up"), so buzzing them for it would be the app telling them
+        // what they just did.
+        if (READY_FOR_DELIVERY.equals(status)) {
             dispatch(NotificationMessage.forAgent(
                     event.orderId(), event.assignedAgentId(), "ORDER_ASSIGNED", status,
-                    "Delivery ready to collect",
+                    "Order ready to collect",
                     destination(event.addressLine())));
         } else if ("CANCELLED".equals(status)) {
             // Otherwise they drive to a delivery that is no longer happening.
@@ -105,19 +114,21 @@ class NotificationEventListener {
     /**
      * A rider gained or lost a job.
      *
-     * <p>The new rider is only buzzed when the order is already out for
-     * delivery — i.e. collectable right now. Orders are normally assigned while
-     * still being packed, and the rider's queue lists OUT_FOR_DELIVERY orders
-     * only, so notifying at assignment time would point them at a job they
-     * cannot see or start yet; the OUT_FOR_DELIVERY transition below notifies
-     * them at the moment it becomes real.
+     * <p>The new rider is only buzzed when the order is one they can act on
+     * right now: waiting on the counter for them, or already in their hands.
+     * Orders are normally assigned while still being packed, and a rider's
+     * working list is those two statuses, so notifying at assignment time would
+     * point them at a job they cannot see or start yet; the READY_FOR_DELIVERY
+     * transition above notifies them at the moment it becomes real.
      *
      * <p>Losing a job is always worth telling them, whatever the status — a
      * rider must not set off for a delivery that is no longer theirs.
      */
     @ApplicationModuleListener
     void on(OrderAssigned event) {
-        if (event.agentId() != null && OUT_FOR_DELIVERY.equals(event.status())) {
+        boolean actionable = READY_FOR_DELIVERY.equals(event.status())
+                || OUT_FOR_DELIVERY.equals(event.status());
+        if (event.agentId() != null && actionable) {
             dispatch(NotificationMessage.forAgent(
                     event.orderId(), event.agentId(), "ORDER_ASSIGNED", event.status(),
                     "New delivery assigned",
@@ -188,6 +199,7 @@ class NotificationEventListener {
         return switch (status) {
             case "CONFIRMED" -> "Order confirmed";
             case "PACKING" -> "We're packing your order";
+            case "READY_FOR_DELIVERY" -> "Your order is packed";
             case "OUT_FOR_DELIVERY" -> "Your order is on the way";
             case "DELIVERY_FAILED" -> "We couldn't deliver your order";
             case "DELIVERED" -> "Order delivered";
@@ -214,6 +226,7 @@ class NotificationEventListener {
         return switch (status) {
             case "CONFIRMED" -> "The store has accepted your order and will start packing it shortly.";
             case "PACKING" -> "Your items are being picked off the shelves and packed.";
+            case "READY_FOR_DELIVERY" -> "Your bag is ready at the store and waiting for a delivery person to collect it.";
             case "OUT_FOR_DELIVERY" -> "Your delivery code is in the app — have it ready for the delivery person.";
             case "DELIVERY_FAILED" -> "Our rider couldn't reach you. The store will call you to arrange another attempt.";
             case "DELIVERED" -> "Your groceries have been handed over. Thank you for shopping with Town Basket!";

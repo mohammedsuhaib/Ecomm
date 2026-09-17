@@ -37,12 +37,25 @@ class NotificationRoutingTest {
 
     @Test
     void assigningAWorkInProgressOrderDoesNotBuzzTheRider() {
-        // Orders are normally assigned while still being packed. The rider's
-        // queue only lists OUT_FOR_DELIVERY orders, so notifying now would point
-        // them at a job they cannot see or collect.
+        // Orders are normally assigned while still being packed. A rider's
+        // working list is the orders waiting for them to collect and the ones
+        // they are carrying, so notifying now would point them at a job they
+        // cannot see or collect.
         listener.on(new OrderAssigned(1L, CODE, 1L, AGENT, null, "PACKING", "12 MG Road"));
 
         assertThat(channel.messages).isEmpty();
+    }
+
+    @Test
+    void assigningAnOrderAlreadyWaitingToBeCollectedBuzzesTheRiderWithTheAddress() {
+        listener.on(new OrderAssigned(1L, CODE, 1L, AGENT, null, "READY_FOR_DELIVERY", "12 MG Road"));
+
+        assertThat(channel.messages).hasSize(1);
+        NotificationMessage message = channel.messages.get(0);
+        assertThat(message.audience()).isEqualTo(Audience.AGENT);
+        assertThat(message.recipientUserId()).isEqualTo(AGENT);
+        assertThat(message.type()).isEqualTo("ORDER_ASSIGNED");
+        assertThat(message.body()).contains("12 MG Road");
     }
 
     @Test
@@ -82,14 +95,27 @@ class NotificationRoutingTest {
     }
 
     @Test
-    void dispatchNotifiesTheCustomerAndTheAssignedRiderSeparately() {
-        listener.on(statusChange("OUT_FOR_DELIVERY", AGENT));
+    void readyToCollectNotifiesTheCustomerAndTheAssignedRiderSeparately() {
+        listener.on(statusChange("READY_FOR_DELIVERY", AGENT));
 
         assertThat(channel.messages).hasSize(2);
         assertThat(channel.messages).extracting(NotificationMessage::audience)
                 .containsExactly(Audience.CUSTOMER, Audience.AGENT);
         assertThat(channel.messages).extracting(NotificationMessage::recipientUserId)
                 .containsExactly(CUSTOMER, AGENT);
+        // What the rider needs at that moment is where they are taking it.
+        assertThat(channel.messages.get(1).body()).contains("12 MG Road");
+    }
+
+    @Test
+    void theRidersOwnPickupDoesNotBuzzThemBack() {
+        // OUT_FOR_DELIVERY is now the rider's own tap ("Picked up"), so a push
+        // for it would be the app telling them what they just did. The customer
+        // still gets theirs — for them this is the news that it is on the way.
+        listener.on(statusChange("OUT_FOR_DELIVERY", AGENT));
+
+        assertThat(channel.messages).hasSize(1);
+        assertThat(channel.messages.get(0).audience()).isEqualTo(Audience.CUSTOMER);
     }
 
     @Test
@@ -114,7 +140,7 @@ class NotificationRoutingTest {
 
     @Test
     void unassignedOrdersProduceNoRiderMessage() {
-        listener.on(statusChange("OUT_FOR_DELIVERY", null));
+        listener.on(statusChange("READY_FOR_DELIVERY", null));
 
         assertThat(channel.messages).hasSize(1);
         assertThat(channel.messages.get(0).audience()).isEqualTo(Audience.CUSTOMER);

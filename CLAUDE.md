@@ -96,6 +96,19 @@ APIs or domain events.
 is on). E.g. an order state transition emits an event consumed by `inventory`,
 `payments`, and `notifications`. Prefer this over direct service calls between modules.
 
+**The order state machine** lives in `orders.internal.OrderStatus` (the rules)
+and `OrderServiceImpl#transition` (the guards): PLACED → CONFIRMED → PACKING →
+READY_FOR_DELIVERY → OUT_FOR_DELIVERY → DELIVERED, with DELIVERY_FAILED beside
+the last leg and CANCELLED reachable while the goods are still ours. **Staff
+drive it only as far as READY_FOR_DELIVERY** (packed, bagged, on the counter);
+the hand-over to OUT_FOR_DELIVERY is the assigned rider's own step, via
+`POST /delivery/orders/{id}/pick-up` (`OrderService#pickUp` — idempotent for
+that rider, because it is tapped on a phone in a doorway; an ADMIN may override
+through the ordinary transition endpoint). Everything customer-facing that means
+*on the road* keys off OUT_FOR_DELIVERY and nothing earlier — the delivery OTP,
+the rider's position and the ETA — so a new signal of that kind belongs at the
+same gate, not at the packing step.
+
 **Persistence — schema per module:**
 - Each module owns its **own Postgres schema** and its **own Flyway migration
   folder** under `src/main/resources/db/migration/<module>/`.
@@ -159,7 +172,8 @@ images use `output: 'standalone'`.
   stream**: domain events go through the persisted outbox, and a GPS ping every
   ~8 s per rider is not an event worth persisting. The rider app
   (`apps/delivery/app/components/LocationSharing.tsx`) reports
-  `PUT /delivery/location` while its queue is non-empty and `DELETE`s it when
+  `PUT /delivery/location` while it is carrying something (an order picked up,
+  not one still waiting on the counter) and `DELETE`s it when
   the queue empties, on Stop (remembered per phone), and on sign-out — before
   the token is dropped, or the delete could not be authorised. Storage is one
   row per rider in `orders.agent_locations`, overwritten each ping: current

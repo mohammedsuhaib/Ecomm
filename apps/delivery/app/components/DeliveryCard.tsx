@@ -1,13 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { ApiError, AuthRequiredError, confirmDelivery, reportDeliveryFailure } from '@/app/lib/api';
+import {
+  ApiError,
+  AuthRequiredError,
+  confirmDelivery,
+  pickUpOrder,
+  reportDeliveryFailure,
+} from '@/app/lib/api';
 import type { Order } from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
 interface Props {
   order: Order;
   onDelivered: (id: string) => void;
+  /** The rider has taken this bag — hand the updated order back to the queue. */
+  onPickedUp?: (order: Order) => void;
 }
 
 function fmtTime(iso: string) {
@@ -28,7 +36,7 @@ const FAIL_REASONS = [
   'Other',
 ] as const;
 
-export default function DeliveryCard({ order, onDelivered }: Props) {
+export default function DeliveryCard({ order, onDelivered, onPickedUp }: Props) {
   const { refresh } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -43,6 +51,32 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
   const [reported, setReported] = useState(false);
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${order.address.lat},${order.address.lng}`;
+
+  // Still on the counter. Driven by the order's own status, not by which list
+  // the queue put it in, so a card never offers an action the server would
+  // refuse after a poll has moved it on.
+  const awaitingPickup = order.status === 'READY_FOR_DELIVERY';
+
+  async function collect() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await pickUpOrder(order.id);
+      onPickedUp?.(updated);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) { refresh(); return; }
+      if (err instanceof ApiError && err.status === 422) {
+        // Staff sent it out from the dashboard, or cancelled it, while the
+        // rider was walking over. The next poll will show the truth.
+        setError('This order has already moved on — tap Refresh to see where it is.');
+      } else {
+        setError('Could not mark this picked up. Check your connection and try again.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submitOtp() {
     if (!otp.trim()) return;
@@ -182,6 +216,21 @@ export default function DeliveryCard({ order, onDelivered }: Props) {
               Back
             </button>
           </div>
+          {error && <p className="field-error">{error}</p>}
+        </div>
+      ) : awaitingPickup ? (
+        // One action only. A bag that has not left the shop cannot be
+        // delivered and cannot have failed at a door, so offering either would
+        // be offering something the server refuses.
+        <div className="dcard-actions">
+          <button
+            type="button"
+            className="btn btn-primary dcard-deliver-btn"
+            disabled={busy}
+            onClick={collect}
+          >
+            {busy ? '…' : 'Picked up'}
+          </button>
           {error && <p className="field-error">{error}</p>}
         </div>
       ) : !confirming ? (

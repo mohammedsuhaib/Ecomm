@@ -170,6 +170,10 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
         assertRefusedBeforeDelivery(token, customer);
 
+        // Bagged on the counter: packed is not handed over either.
+        orderService.transition(id, new TransitionRequest("READY_FOR_DELIVERY", null, null));
+        assertRefusedBeforeDelivery(token, customer);
+
         orderService.assignAgent(id, newRider());
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         assertRefusedBeforeDelivery(token, customer);
@@ -247,6 +251,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         Long id = order.id();
         orderService.transition(id, new TransitionRequest("CONFIRMED", null, null));
         orderService.transition(id, new TransitionRequest("PACKING", null, null));
+        orderService.transition(id, new TransitionRequest("READY_FOR_DELIVERY", null, null));
         orderService.assignAgent(id, newRider());
         orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
         // The OTP reaches the customer only at OUT_FOR_DELIVERY, and only the owner.

@@ -1,6 +1,8 @@
 /**
- * {@code orders} module — the staff-driven order state machine
- * (PLACED → CONFIRMED → PACKING → OUT_FOR_DELIVERY → DELIVERED, with CANCELLED).
+ * {@code orders} module — the order state machine
+ * (PLACED → CONFIRMED → PACKING → READY_FOR_DELIVERY → OUT_FOR_DELIVERY →
+ * DELIVERED, with CANCELLED). Staff drive it as far as READY_FOR_DELIVERY; the
+ * hand-over to OUT_FOR_DELIVERY belongs to the rider who collects the bag.
  *
  * <p>Checkout is idempotent via a client idempotency key. Each transition emits
  * an event consumed by {@code inventory}, {@code payments} and

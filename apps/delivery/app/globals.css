@@ -713,3 +713,27 @@ html, body {
   border-left: 4px solid #d97706;
   font-size: .9rem;
 }
+
+/* ── Queue sections ────────────────────────────────────────────
+   A rider's plate has two halves: bags to collect from the store, and bags
+   already on the bike. They are different jobs, so they get separate headings
+   rather than one undifferentiated list — and the "collect" half comes first,
+   because those are the orders the shop is waiting on. */
+.dcard-group + .dcard-group {
+  margin-top: 22px;
+}
+.dcard-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--clr-text);
+}
+.dcard-group-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--clr-muted);
+  line-height: 1.45;
+}
