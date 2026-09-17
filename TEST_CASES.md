@@ -16,7 +16,7 @@ notifications, analytics, plus i18n, PWA and security.
 | Environment | Storefront | Admin | Delivery | Notes |
 |---|---|---|---|---|
 | Local | http://localhost:3000 | :3001 | :3002 | `docker compose -f infra/docker-compose.yml up --build` |
-| QA | https://qa.town-basket.com | qa-admin. | qa-delivery. | Behind HTTP basic auth — see `infra/qa/README.md` |
+| QA | https://qa.town-basket.com | qa-admin. | qa-delivery. | No HTTP gate; reachable only from the tailnet — see `infra/qa/README.md` |
 
 QA and local both run the **dev conveniences**: fake phone OTP, fake UPI
 gateway, seeded accounts. That is deliberate — it is what makes end-to-end
@@ -526,7 +526,7 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-SEC-011 | Security | Seeded credentials rotated | On any public/production deployment, try the seeded admin/staff/rider logins | **All must fail.** If any succeeds, stop the release | P1 |
 | TC-SEC-012 | Security | No secrets in responses | Inspect API responses and page source | No password hashes, JWT secret, VAPID private key or cost prices anywhere | P1 |
 | TC-SEC-013 | Negative | OTP not exposed early | Read the tracking payload before OUT_FOR_DELIVERY | `deliveryOtp` is null; it is never present on admin/rider payloads | P1 |
-| TC-SEC-014 | Negative | QA env not public | Open a `qa.*` host in a fresh browser | HTTP basic auth challenge; page carries `X-Robots-Tag: noindex` | P2 |
+| TC-SEC-014 | Negative | QA env not public | From a device NOT on the tailnet, `curl --max-time 10 https://qa.town-basket.com/` | Times out or is refused. **Any HTTP response — 200 included — means QA is publicly reachable, and its fake OTP verifier lets anyone log in as any customer.** From a tailnet device the same URL serves the storefront and carries `X-Robots-Tag: noindex` | P1 |
 | TC-SEC-015 | Security | Backup objects are private | In the DO Spaces console, open the backups bucket; try an unauthenticated GET on a `db/<timestamp>.sql.gz` URL | Bucket listing is OFF and the object returns 403 — database dumps sit at timestamp-predictable keys, so a public bucket means every customer's data is enumerable by date | P1 |
 
 ---
@@ -557,7 +557,7 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 | TC-ENV-001 | Positive | Local stack | `docker compose -f infra/docker-compose.yml up --build` | All four services healthy; storefront, admin and rider apps reachable with seed data | P1 |
 | TC-ENV-002 | Positive | Migrations apply cleanly | Bring up an EMPTY database | Every module's schema is created and seeded with no Flyway error | P1 |
 | TC-ENV-003 | Positive | Migrations are re-runnable | Restart against an existing database | No checksum/version errors | P1 |
-| TC-ENV-004 | Positive | QA env | Follow `infra/qa/README.md` end to end | All four QA hosts serve over HTTPS behind basic auth | P1 |
+| TC-ENV-004 | Positive | QA env | Follow `infra/qa/README.md` end to end | All four QA hosts serve over HTTPS from a tailnet device, with no credential prompt; the storefront and admin are installable as PWAs there | P1 |
 | TC-ENV-005 | Negative | Browser API URL is baked correctly | Open any deployed app and watch the network tab | Requests go to the environment's real API host — never `localhost` | P1 |
 | TC-ENV-006 | Positive | Smoke test after any deploy | Log in → browse → add to cart → COD order → admin sees it → assign rider → rider confirms with OTP | Full loop passes | P1 |
 

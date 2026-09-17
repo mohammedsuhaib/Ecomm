@@ -1,16 +1,24 @@
 # Migrating QA access off HTTP basic auth
 
-**Status: planned, not applied.** Nothing in this file has been changed in the
-Caddyfile or the deploy workflow yet, on purpose — see
-[Do not reorder these steps](#do-not-reorder-these-steps). It is written out so
-the change is one reviewed commit when the prerequisite is in place, rather than
-something improvised on the droplet at the moment QA is broken.
+**Status: the application-layer gate is REMOVED (steps 2–4 applied). Step 1 —
+the tailnet — is the outstanding prerequisite and is a droplet-side change
+nobody can make from this repo.**
+
+That is the reverse of the order this document argues for, and the risk it
+names is now live rather than hypothetical: until the droplet and the test
+devices are on a tailnet, **QA is a publicly reachable environment whose OTP
+verifier accepts any phone number.** Do step 1 now — it is written out below —
+or take QA down until it is done. The `ufw`/DNS instructions in `README.md`
+step 3 point at the same work.
+
+The rest of this document is kept as the record of why the gate is gone and
+why it must not come back.
 
 ## Why
 
-The three QA app hosts sit behind Caddy `basic_auth`. That gate covers the whole
+The three QA app hosts sat behind Caddy `basic_auth`. That gate covered the whole
 origin, and it is incompatible with an installable PWA. Measured against
-`qa.town-basket.com`:
+`qa.town-basket.com` while it was up:
 
 | path | status without credentials |
 |---|---|
@@ -75,13 +83,13 @@ instead of removing it. It makes the symptom go away while leaving QA
 structurally not-quite-production, which is how you get a bug that only
 reproduces in production.
 
-## Do not reorder these steps
+## The steps
 
-Step 1 must be finished and verified before step 2 is merged. Between removing
-the gate and having the tailnet, QA is a publicly reachable environment whose
-OTP verifier accepts any phone number.
+Step 1 was meant to be finished and verified before step 2 was merged. It was
+not: steps 2–4 are applied and step 1 is still open, so the window this section
+warns about is the state QA is in right now. Close it first.
 
-### 1. Put the droplet and the test devices on a tailnet
+### 1. Put the droplet and the test devices on a tailnet — **NOT DONE**
 
 On the QA droplet:
 
@@ -99,14 +107,16 @@ Verify **before** going further — from a device that is NOT on the tailnet:
 
 ```bash
 curl -sS -o /dev/null -w '%{http_code}\n' --max-time 10 https://qa.town-basket.com/
-# must time out or refuse. A 200 here means step 2 would expose QA.
+# must time out or refuse. A 200 here means QA is exposed right now: the gate
+# that used to answer 401 is gone (step 2 is applied), so this curl is the
+# whole check.
 ```
 
 Restrict the droplet's public ingress to 80/443 only if you still need
 Let's Encrypt HTTP-01 challenges; otherwise close both and switch Caddy to a
 DNS-01 issuer.
 
-### 2. Delete the application-layer gate
+### 2. Delete the application-layer gate — **DONE**
 
 `infra/qa/Caddyfile` — remove the `qa_gate` snippet and its three imports:
 
@@ -127,44 +137,44 @@ DNS-01 issuer.
 …and the same single-line deletion under `qa-admin` and `qa-delivery`. Keep
 `qa_common`: `X-Robots-Tag: noindex, nofollow` should stay regardless.
 
-### 3. Update the deploy workflow, or the next deploy goes red
+### 3. Update the deploy workflow, or the next deploy goes red — **DONE**
 
-`.github/workflows/deploy-qa.yml` asserts the gate is present. Both of these
-must change in the same commit as step 2:
+`.github/workflows/deploy-qa.yml` asserted the gate was present. Both changed in
+the same commit as step 2:
 
-- the `QA_BASIC_AUTH_HASH` interpolation check (around lines 197–213) becomes
-  dead and should be deleted;
-- the public probe `check qa.town-basket.com / 401 6` (around line 297) now
-  expects **200**, not 401.
+- the `QA_BASIC_AUTH_HASH` interpolation check became dead and was deleted;
+- the public probe `check qa.town-basket.com / 401 6` was **removed**, not
+  merely flipped to expect 200.
 
 That second line is worth pausing on. It was added to prove the gate was still
-up, but it cannot distinguish "correctly demanding credentials" from "rejecting
-every password because the hash got corrupted" — the exact failure the README
-warns about, and the one the workflow's hash check exists to catch separately.
-A probe that returns the same result whether the system works or is completely
-broken is not a test. Expecting 200 is strictly more informative: it proves an
-app actually answered.
+up, but it could not distinguish "correctly demanding credentials" from
+"rejecting every password because the hash got corrupted". A probe that returns
+the same result whether the system works or is completely broken is not a test.
 
-Note the probe runs from a GitHub runner, which will not be on the tailnet. Once
-step 1 is done, an external probe of `qa.town-basket.com` should fail by design,
-so this check should move inside the compose network alongside the existing
-upstream probes (`for target in storefront:3000 admin:3001 delivery:3002`)
-rather than be pointed at the public hostname.
+Expecting 200 would have been strictly more informative — but the probe runs
+from a GitHub runner, which will not be on the tailnet, so once step 1 is done
+an external probe of `qa.town-basket.com` must fail by design. The check was
+therefore dropped in favour of the upstream probes that already run inside the
+compose network (`for target in storefront:3000 admin:3001 delivery:3002`);
+those prove an app actually answered, from the only vantage point that will
+still be able to ask.
 
-### 4. Then remove the now-unused secret
+### 4. Then remove the now-unused secret — **DONE in the repo**
 
-Drop `QA_BASIC_AUTH_HASH` from the droplet's `.env` and the setup instructions
-in `README.md`, and delete the hash-quoting warning — a whole section of
-documentation that exists only to stop `$`-sequences being eaten by Compose
-interpolation stops being needed.
+`QA_BASIC_AUTH_HASH` is gone from `.env.example`, `docker-compose.qa.yml` and
+the `README.md` setup instructions, along with the hash-quoting warning — a
+whole section of documentation that existed only to stop `$`-sequences being
+eaten by Compose interpolation.
 
-## Interim, needing no deploy
+**Still to do on the droplet:** delete the `QA_BASIC_AUTH_HASH` line from
+`infra/qa/.env`. Nothing reads it any more, so leaving it is harmless but
+misleading — it looks like protection that no longer exists.
 
-Until step 1 is done, a tester hitting the 401 in the installed PWA can:
+## After a deploy
 
-1. open `https://qa.town-basket.com` in a normal Chrome tab and authenticate as
-   `qa` / the QA password — Chrome caches the credentials for the origin, and the
-   installed PWA shares the profile;
-2. if it still fails, the old service worker is wedged: Chrome → Settings → Site
-   settings → `qa.town-basket.com` → **Clear & reset**, authenticate in a tab
-   again, then reinstall the PWA.
+An installed PWA on QA no longer hits `HTTP ERROR 401`, because there is no
+gate to answer it. A tester whose installed app is still wedged from the
+basic-auth era should clear it once: Chrome → Settings → Site settings →
+`qa.town-basket.com` → **Clear & reset**, then reinstall the PWA. From then on
+QA's install and update behaviour is what production's will be, which is the
+entire point of the change.
