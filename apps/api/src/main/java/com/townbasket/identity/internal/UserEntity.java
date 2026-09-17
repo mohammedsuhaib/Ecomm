@@ -86,6 +86,26 @@ class UserEntity {
         return u;
     }
 
+    /**
+     * A fresh STORE_STAFF or ADMIN (email + password login, admin-created).
+     *
+     * <p>The role is re-checked here rather than trusted from the caller: this
+     * factory is the only path that takes a role as a parameter, so a future
+     * caller that forgets to validate would otherwise be able to mint a
+     * CUSTOMER with a password (a shape nothing else in the module produces) or
+     * a rider that skips the on-duty lifecycle {@link #deliveryAgent} sets up.
+     */
+    static UserEntity staff(Role role, String name, String email, String passwordHash) {
+        if (role != Role.STORE_STAFF && role != Role.ADMIN) {
+            throw new IllegalArgumentException("staff() accepts STORE_STAFF or ADMIN, not " + role);
+        }
+        UserEntity u = new UserEntity(role);
+        u.name = name;
+        u.email = email;
+        u.passwordHash = passwordHash;
+        return u;
+    }
+
     Long getId() {
         return id;
     }
