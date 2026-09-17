@@ -100,6 +100,54 @@ class RiderDaySummaryIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void theStoreTallyIsEveryRidersDeliveriesTogether() {
+        // The delivery app's dispatcher view: an ADMIN signing in gets the
+        // STORE's numbers, not their own. They have to — an admin can never be
+        // assigned an order (assignAgent requires an active DELIVERY_AGENT), so
+        // their own tally is structurally ₹0 and read as "the store took
+        // nothing today".
+        //
+        // Asserted as a DELTA on purpose. The Testcontainers database is a
+        // shared singleton, so other test classes' deliveries land on the same
+        // store day; an absolute count here would pass or fail depending on
+        // what else ran first.
+        Long riderA = newAgent("store-a");
+        Long riderB = newAgent("store-b");
+        Long customer = authService.phoneVerify(new PhoneVerifyRequest("dev:9990007001")).user().id();
+        ProductVariantDto variant = buyableVariant();
+        LocalDate today = LocalDate.now(IST);
+
+        AgentDaySummary before = orderService.storeDaySummary(today);
+
+        OrderDto cashA = deliver(dispatch(variant, riderA, PaymentMethod.COD, customer), riderA, customer);
+        OrderDto cashB = deliver(dispatch(variant, riderB, PaymentMethod.COD, customer), riderB, customer);
+        OrderDto prepaid = deliver(dispatch(variant, riderB, PaymentMethod.UPI, customer), riderB, customer);
+        // Still in a bag: out for delivery is not delivered, and must not count.
+        dispatch(variant, riderA, PaymentMethod.COD, customer);
+
+        AgentDaySummary after = orderService.storeDaySummary(today);
+
+        assertThat(after.date()).isEqualTo(today);
+        assertThat(after.deliveredCount() - before.deliveredCount())
+                .as("three deliveries, across two different riders")
+                .isEqualTo(3);
+        assertThat(after.codOrders() - before.codOrders())
+                .as("the UPI order is a delivery but not cash")
+                .isEqualTo(2);
+        assertThat(after.codCollected().subtract(before.codCollected()))
+                .as("both riders' cash added together")
+                .isEqualByComparingTo(cashA.total().add(cashB.total()));
+        assertThat(prepaid.paymentMethod()).isEqualTo("UPI");
+
+        // The whole point of the view: it is more than any one rider's.
+        AgentDaySummary aOnly = orderService.agentDaySummary(riderA, today);
+        assertThat(aOnly.codCollected())
+                .as("rider A alone accounts for only their own order")
+                .isEqualByComparingTo(cashA.total());
+        assertThat(after.deliveredCount()).isGreaterThan(aOnly.deliveredCount());
+    }
+
+    @Test
     void aRiderWhoHasDeliveredNothingGetsAnEmptyTally() {
         Long rider = newAgent("tally-fresh");
         AgentDaySummary summary = orderService.agentDaySummary(rider, LocalDate.now(IST));

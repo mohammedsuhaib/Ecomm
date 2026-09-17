@@ -589,13 +589,31 @@ class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public AgentDaySummary agentDaySummary(Long agentId, LocalDate day) {
-        // The store day, not the UTC day: a rider settling up at 21:30 IST is
-        // still on the same shift, and 21:30 IST is already tomorrow in UTC.
-        ZoneId zone = clock.getZone();
-        Instant from = day.atStartOfDay(zone).toInstant();
-        Instant to = day.plusDays(1).atStartOfDay(zone).toInstant();
-        OrderRepository.AgentDayRow row = orders.summarizeAgentDeliveries(agentId, from, to);
+        OrderRepository.AgentDayRow row =
+                orders.summarizeAgentDeliveries(agentId, startOfStoreDay(day), startOfStoreDay(day.plusDays(1)));
         return new AgentDaySummary(day, row.getDeliveries(), row.getCodOrders(), row.getCodAmount());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AgentDaySummary storeDaySummary(LocalDate day) {
+        OrderRepository.AgentDayRow row =
+                orders.summarizeAllDeliveries(startOfStoreDay(day), startOfStoreDay(day.plusDays(1)));
+        return new AgentDaySummary(day, row.getDeliveries(), row.getCodOrders(), row.getCodAmount());
+    }
+
+    /**
+     * Midnight on {@code day} in the STORE's zone, not UTC.
+     *
+     * <p>The window has to be the day people lived: a shift that ends at 21:30
+     * IST is one day's takings, and bucketing by the UTC date would split it —
+     * IST is UTC+5:30, so every delivery between 00:00 and 05:29 IST falls on
+     * the previous UTC date. Settling up would then be reconciling against a
+     * figure that starts halfway through the morning.
+     */
+    private Instant startOfStoreDay(LocalDate day) {
+        ZoneId zone = clock.getZone();
+        return day.atStartOfDay(zone).toInstant();
     }
 
     @Override

@@ -35,13 +35,24 @@ function deliveredAt(order: Order): string {
 }
 
 /**
- * The rider's own record: what they delivered and what cash they took at the
- * door. Read-only — a delivered order has nothing left to do. The tally is
- * today's (the store day); the list is everything they have ever delivered,
- * newest first, each card dated so the two never get confused.
+ * What has been delivered and what cash came in at the door. Read-only — a
+ * delivered order has nothing left to do. The tally is today's (the store day);
+ * the list is the full history, newest first, each card dated so the two never
+ * get confused.
+ *
+ * <p><strong>Scope follows the account.</strong> A rider sees their own
+ * deliveries and the cash they personally settle up with. An ADMIN — who may
+ * sign in here as a dispatcher — sees the whole store: every delivery today
+ * whoever made it, and all the cash together. The API scopes both the list and
+ * the tally by role; this component only has to say WHICH it is showing, since
+ * a store total captioned "cash collected" beside a rider's own history would
+ * be the same confusion in the other direction.
  */
 export default function CompletedDeliveries() {
-  const { refresh } = useAuth();
+  const { refresh, user } = useAuth();
+  // Riders get their own figures; anyone else signing in here (an admin acting
+  // as dispatcher) gets the store's.
+  const isRider = user?.role === 'DELIVERY_AGENT';
   const [summary, setSummary] = useState<DaySummary | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
@@ -111,10 +122,15 @@ export default function CompletedDeliveries() {
         </button>
       </div>
 
-      {/* Today's tally. Cash is the number the rider settles with the store. */}
+      {/* Today's tally: the rider's own to settle with, or the store's total. */}
       {summary && (
-        <section className="day-summary" aria-label="Today's summary">
-          <p className="day-summary-title">Today · {fmtSummaryDate(summary.date)}</p>
+        <section
+          className="day-summary"
+          aria-label={isRider ? "Today's summary" : "The store's day so far"}
+        >
+          <p className="day-summary-title">
+            {isRider ? 'Today' : 'Whole store today'} · {fmtSummaryDate(summary.date)}
+          </p>
           <div className="day-stats">
             <div className="day-stat">
               <span className="day-stat-value">{summary.deliveredCount}</span>
@@ -129,7 +145,9 @@ export default function CompletedDeliveries() {
             </div>
           </div>
           <p className="day-summary-hint">
-            Cash counts Pay on Delivery only — UPI orders were paid before you picked them up.
+            {isRider
+              ? 'Cash counts Pay on Delivery only — UPI orders were paid before you picked them up.'
+              : 'Every rider’s deliveries together. Cash counts Pay on Delivery only — UPI orders were paid before pickup.'}
           </p>
         </section>
       )}
@@ -145,7 +163,11 @@ export default function CompletedDeliveries() {
         <div className="queue-empty-state">
           <div className="queue-empty-icon">📦</div>
           <p>No completed deliveries yet.</p>
-          <p className="queue-empty-sub">Orders you confirm with the customer&apos;s OTP will show up here.</p>
+          <p className="queue-empty-sub">
+            {isRider
+              ? 'Orders you confirm with the customer’s OTP will show up here.'
+              : 'Deliveries confirmed by any rider will show up here.'}
+          </p>
         </div>
       ) : (
         <>
