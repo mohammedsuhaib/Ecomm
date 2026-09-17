@@ -52,6 +52,21 @@ class AdminDirectoryController {
     }
 
     /**
+     * Create a STORE_STAFF or ADMIN account. ADMIN only, by the same
+     * SecurityConfig rule on {@code /admin/staff} that guards the listing —
+     * handing out a login to the admin surface is not a store-staff power.
+     *
+     * <p>Riders go through {@code POST /delivery-agents} above: they carry an
+     * on-duty lifecycle this path does not set up.
+     */
+    @PostMapping("/staff")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a staff or admin account (ADMIN only).")
+    StaffMemberDto createStaff(@RequestBody CreateStaffRequest request) {
+        return authService.createStaff(request);
+    }
+
+    /**
      * Set a new password for a rider or staff member who has forgotten theirs,
      * signing out all their sessions. Who may reset whom is decided in the
      * service from the caller's stored role (ADMIN → staff/riders, STORE_STAFF

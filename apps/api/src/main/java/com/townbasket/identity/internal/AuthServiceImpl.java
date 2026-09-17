@@ -5,6 +5,7 @@ import com.townbasket.identity.AddressInput;
 import com.townbasket.identity.AuthResponse;
 import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
+import com.townbasket.identity.CreateStaffRequest;
 import com.townbasket.identity.DeliveryAgentDto;
 import com.townbasket.identity.InvalidCredentialsException;
 import com.townbasket.identity.LogoutRequest;
@@ -358,9 +359,63 @@ class AuthServiceImpl implements AuthService {
     public List<StaffMemberDto> listStaff() {
         List<UserEntity> staff = new ArrayList<>(users.findByRoleOrderByNameAsc(Role.ADMIN));
         staff.addAll(users.findByRoleOrderByNameAsc(Role.STORE_STAFF));
-        return staff.stream()
-                .map(u -> new StaffMemberDto(u.getId(), u.getName(), u.getEmail(), u.getRole().name(), u.isActive()))
-                .toList();
+        return staff.stream().map(AuthServiceImpl::toStaffMemberDto).toList();
+    }
+
+    @Override
+    public StaffMemberDto createStaff(CreateStaffRequest request) {
+        if (request == null || isBlank(request.name())) {
+            throw new IllegalArgumentException("name is required");
+        }
+        if (isBlank(request.email()) || !request.email().contains("@")) {
+            throw new IllegalArgumentException("a valid email is required");
+        }
+        if (request.password() == null || request.password().length() < 8) {
+            throw new IllegalArgumentException("password must be at least 8 characters");
+        }
+        Role role = parseStaffRole(request.role());
+        String email = request.email().trim().toLowerCase();
+        if (users.existsByEmail(email)) {
+            throw new BusinessRuleException("That email is already in use");
+        }
+        UserEntity staff = UserEntity.staff(
+                role, request.name().trim(), email, passwordEncoder.encode(request.password()));
+        UserEntity saved = users.saveAndFlush(staff);
+        // Worth a log line for the same reason resetPassword has one: granting
+        // someone a password login to the admin surface is an authority change,
+        // and an ADMIN created this way can go on to create more.
+        log.info("Staff account {} ({}) created", saved.getId(), saved.getRole());
+        return toStaffMemberDto(saved);
+    }
+
+    /**
+     * STORE_STAFF or ADMIN, case-insensitively. Anything else is a 400 naming
+     * the accepted values — including DELIVERY_AGENT and CUSTOMER, which are
+     * real roles but not creatable here, so the message says where to go
+     * instead rather than just refusing.
+     */
+    private static Role parseStaffRole(String raw) {
+        if (isBlank(raw)) {
+            throw new IllegalArgumentException("role is required (STORE_STAFF or ADMIN)");
+        }
+        Role role;
+        try {
+            role = Role.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown role: " + raw + " (expected STORE_STAFF or ADMIN)");
+        }
+        if (role == Role.DELIVERY_AGENT) {
+            throw new IllegalArgumentException(
+                    "Onboard delivery agents through POST /admin/delivery-agents");
+        }
+        if (role != Role.STORE_STAFF && role != Role.ADMIN) {
+            throw new IllegalArgumentException("role must be STORE_STAFF or ADMIN, not " + role);
+        }
+        return role;
+    }
+
+    private static StaffMemberDto toStaffMemberDto(UserEntity u) {
+        return new StaffMemberDto(u.getId(), u.getName(), u.getEmail(), u.getRole().name(), u.isActive());
     }
 
     @Override

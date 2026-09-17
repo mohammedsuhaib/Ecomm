@@ -142,6 +142,27 @@ public interface AuthService {
     List<StaffMemberDto> listStaff();
 
     /**
+     * Admin: create a STORE_STAFF or ADMIN account (email + password login).
+     *
+     * <p>ADMIN-only, enforced by the {@code /admin/staff} rule in
+     * {@code SecurityConfig} — creating an account that can itself create
+     * accounts is not a store-staff power. Riders are onboarded through
+     * {@link #createDeliveryAgent(CreateDeliveryAgentRequest)} instead, which
+     * carries their on-duty lifecycle; customers have no password to set.
+     *
+     * <p>Until this existed, the only way to add a manager was an INSERT against
+     * the production database — and the seeded dev admin was the sole ADMIN the
+     * app shipped with.
+     *
+     * @throws IllegalArgumentException if name/email/password are missing, the
+     *     password is shorter than 8 characters, or {@code role} is not
+     *     STORE_STAFF or ADMIN (mapped to 400)
+     * @throws com.townbasket.shared.BusinessRuleException if the email is
+     *     already in use (mapped to 422)
+     */
+    StaffMemberDto createStaff(CreateStaffRequest request);
+
+    /**
      * Set a new password on another account and sign out all its sessions.
      * This is the recovery path for a rider or staff member who has forgotten
      * theirs — there is no self-service reset because staff have no verified
