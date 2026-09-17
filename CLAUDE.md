@@ -47,7 +47,8 @@ pnpm --filter @town-basket/storefront dev  # storefront on :3000
 pnpm --filter @town-basket/admin dev       # admin on :3001
 pnpm --filter @town-basket/storefront build
 pnpm --filter @town-basket/storefront lint # next lint (per-app)
-pnpm pwa-gate                              # storefront still installable? (needs the build above)
+pnpm pwa-gate                              # all three apps still installable? (needs their builds)
+pnpm pwa-gate admin                        # ...or just one
 ```
 
 **Full local stack (Postgres + API + both frontends, with seed data):**
@@ -57,10 +58,10 @@ docker compose -f infra/docker-compose.yml up --build
 ```
 
 **CI** (`.github/workflows/ci.yml`) runs two jobs: `./mvnw verify` for the API
-(uploads Modulith docs + surefire reports) and pnpm type-check + build for both
-frontends, followed by the storefront's **PWA installability gate**
-(`scripts/pwa-gate.mjs`) — it serves the standalone build and has Chrome, via
-Lighthouse, confirm the app is still installable. Note the script pins
+(uploads Modulith docs + surefire reports) and pnpm type-check + build for the
+frontends, followed by the **PWA installability gate**
+(`scripts/pwa-gate.mjs`) — it serves each standalone build and has Chrome, via
+Lighthouse, confirm all three apps are still installable. Note the script pins
 **Lighthouse 11.7.1**: Lighthouse 12 deleted the PWA category and the
 `installable-manifest` audit, so a newer version would check nothing. See the
 header comment in the script before touching that pin.
@@ -129,9 +130,25 @@ is on). E.g. an order state transition emits an event consumed by `inventory`,
 
 ## Frontend architecture
 
-Both apps are **Next.js 14 App Router + TypeScript**. Storefront is an installable
-**PWA** via Serwist (`next.config.js` compiles `app/sw.ts` → `public/sw.js`;
-disabled in dev). Production images use `output: 'standalone'`.
+Both apps are **Next.js 14 App Router + TypeScript**. Storefront **and admin** are
+installable **PWAs** via Serwist (`next.config.js` compiles `app/sw.ts` →
+`public/sw.js`; disabled in dev). The rider app (`apps/delivery`) is installable
+too, from a manifest plus a hand-written push-only `public/sw.js`. Production
+images use `output: 'standalone'`.
+
+- **The two service workers take opposite postures, on purpose.** The storefront
+  caches the catalogue (stale-while-revalidate for the category nav, network-first
+  for products and the store row) because a shopper seeing a slightly stale price
+  is recoverable. **`apps/admin/app/sw.ts` caches the shell and nothing else** —
+  no API response is ever cached, because staff *act* on the queue, and a cached
+  order could have someone pick a cancelled order or a rider take the wrong
+  parcel. That is affordable because admin's HTML carries no live data (the page
+  is a client-rendered shell), so document + JS + CSS are static build output.
+  Two consequences worth knowing before editing that file: it deliberately does
+  **not** spread Serwist's `defaultCache` (its last rule is a NetworkFirst
+  *cache* matching every cross-origin request — and the API is cross-origin), and
+  it deliberately matches **nothing** on the API, so the worker stays out of the
+  order queue's SSE stream (`/admin/orders/stream`).
 
 - **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`.
   Two mechanisms, not one: Chromium hands us a deferred `beforeinstallprompt` to

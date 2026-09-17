@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-// Lighthouse PWA-installability gate for the storefront (ARCHITECTURE.md §4.1).
+// Lighthouse PWA-installability gate for the installable frontends
+// (ARCHITECTURE.md §4.1).
 //
-// Starts the built storefront, runs Lighthouse against it, and fails if the app
-// has stopped being installable. Run it from the repo root AFTER a production
-// build of the storefront:
+// Starts each app's production build, runs Lighthouse against it, and fails if
+// the app has stopped being installable. Run it from the repo root AFTER
+// building the apps you want checked:
 //
 //   pnpm --filter @town-basket/storefront build
-//   node scripts/pwa-gate.mjs
+//   pnpm --filter @town-basket/admin build
+//   node scripts/pwa-gate.mjs             # every app below
+//   node scripts/pwa-gate.mjs admin       # just one
 //
-// The production build matters: Serwist is disabled in development
-// (next.config.js), so a dev server has no service worker and could never pass.
+// The production build matters: Serwist is disabled in development (each app's
+// next.config.js), so a dev server has no service worker and could never pass.
 //
 // ---------------------------------------------------------------------------
 // Why Lighthouse is PINNED to 11.x
@@ -36,10 +39,24 @@ import { fileURLToPath } from 'node:url';
 const LIGHTHOUSE_VERSION = '11.7.1';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const STOREFRONT = path.join(REPO_ROOT, 'apps', 'storefront');
 
-const PORT = Number(process.env.PWA_GATE_PORT ?? 3210);
-const ORIGIN = `http://localhost:${PORT}`;
+/**
+ * The installable apps, and the port each is checked on.
+ *
+ * <p>The ports are this script's own, not the apps' usual ones, so a gate run
+ * never collides with a dev server someone has open.
+ *
+ * <p>All three frontends are here, including the rider app, whose worker is
+ * hand-written and push-only. It passes: Chrome's installability check is about
+ * the manifest, the icons and a secure origin — it has not required a service
+ * worker with a fetch handler for some years — so a caching worker is what
+ * makes an app fast offline, not what makes it installable.
+ */
+const APPS = {
+  storefront: { pkg: '@town-basket/storefront', port: 3210 },
+  admin: { pkg: '@town-basket/admin', port: 3211 },
+  delivery: { pkg: '@town-basket/delivery', port: 3212 },
+};
 
 /**
  * The audits that have to pass.
@@ -62,7 +79,7 @@ const REQUIRED_AUDITS = [
 ];
 
 /** Wait for the server to answer, or give up. */
-async function waitForServer(url, timeoutMs = 60_000) {
+async function waitForServer(name, url, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
@@ -73,7 +90,7 @@ async function waitForServer(url, timeoutMs = 60_000) {
     }
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error(`storefront did not start on ${url} within ${timeoutMs}ms`);
+  throw new Error(`${name} did not start on ${url} within ${timeoutMs}ms`);
 }
 
 function run(command, args, options = {}) {
@@ -81,62 +98,58 @@ function run(command, args, options = {}) {
 }
 
 /**
- * Assemble the standalone output into a runnable server, the way the
+ * Assemble an app's standalone output into a runnable server, the way its
  * production image does.
  *
  * <p>`output: 'standalone'` writes a self-contained server but deliberately
  * leaves out the static assets and `public/`, because a real deployment often
- * serves those from a CDN. apps/storefront/Dockerfile copies both in next to
- * the server; this does the same in place, so the gate measures the artifact
- * that actually ships.
+ * serves those from a CDN. Each app's Dockerfile copies both in next to the
+ * server; this does the same in place, so the gate measures the artifact that
+ * actually ships.
  *
  * <p>Without this the app HTML would still be served, but every JS chunk,
  * `/sw.js` and every icon would 404 — the service worker would never register
  * and the gate would fail for a reason that has nothing to do with the code.
  */
-async function prepareStandalone(root) {
-  await cp(path.join(STOREFRONT, '.next', 'static'), path.join(root, '.next', 'static'), {
-    recursive: true,
-  });
-  await cp(path.join(STOREFRONT, 'public'), path.join(root, 'public'), {
+async function prepareStandalone(appDir, standaloneRoot) {
+  await cp(
+    path.join(appDir, '.next', 'static'),
+    path.join(standaloneRoot, '.next', 'static'),
+    { recursive: true },
+  );
+  await cp(path.join(appDir, 'public'), path.join(standaloneRoot, 'public'), {
     recursive: true,
   });
 }
 
-async function main() {
+/** Gate one app. Returns the list of failures (empty means it passed). */
+async function gate(name, { pkg, port }) {
+  const appDir = path.join(REPO_ROOT, 'apps', name);
   // The standalone tree mirrors the workspace layout, so the server lands at
-  // .next/standalone/apps/storefront/server.js.
-  const standaloneRoot = path.join(
-    STOREFRONT,
-    '.next',
-    'standalone',
-    'apps',
-    'storefront',
-  );
+  // .next/standalone/apps/<name>/server.js.
+  const standaloneRoot = path.join(appDir, '.next', 'standalone', 'apps', name);
   const serverEntry = path.join(standaloneRoot, 'server.js');
+  const origin = `http://localhost:${port}`;
 
   if (!existsSync(serverEntry)) {
-    throw new Error(
-      'apps/storefront/.next/standalone is missing — run ' +
-        '`pnpm --filter @town-basket/storefront build` first',
-    );
+    return [
+      `apps/${name}/.next/standalone is missing — run \`pnpm --filter ${pkg} build\` first`,
+    ];
   }
 
-  await prepareStandalone(standaloneRoot);
+  await prepareStandalone(appDir, standaloneRoot);
 
-  const workDir = await mkdtemp(path.join(tmpdir(), 'tb-pwa-gate-'));
+  const workDir = await mkdtemp(path.join(tmpdir(), `tb-pwa-gate-${name}-`));
   const reportPath = path.join(workDir, 'lighthouse.json');
 
   // The standalone server, exactly as the Dockerfile's CMD runs it — not
   // `next start`, which Next warns is not supported alongside
   // `output: 'standalone'`.
   //
-  // `detached` so the whole process group can be signalled, and the port is
-  // ours rather than the app's default 3000, so the gate cannot collide with a
-  // dev server someone has running.
+  // `detached` so the whole process group can be signalled.
   const server = run('node', [serverEntry], {
     cwd: standaloneRoot,
-    env: { ...process.env, PORT: String(PORT), NODE_ENV: 'production' },
+    env: { ...process.env, PORT: String(port), NODE_ENV: 'production' },
     detached: true,
   });
 
@@ -149,10 +162,10 @@ async function main() {
   };
 
   try {
-    await waitForServer(ORIGIN);
+    await waitForServer(name, origin);
 
-    // The storefront calls the API during SSR. There is no API in this job and
-    // it does not need one: the page renders its empty states and stays
+    // Both apps call the API from the browser. There is no API in this job and
+    // neither needs one: they render their signed-out / empty states and stay
     // installable, which is exactly what this gate measures.
     const chromeFlags = [
       '--headless=new',
@@ -168,7 +181,7 @@ async function main() {
         [
           '--yes',
           `lighthouse@${LIGHTHOUSE_VERSION}`,
-          ORIGIN,
+          origin,
           '--only-categories=pwa',
           '--output=json',
           `--output-path=${reportPath}`,
@@ -182,7 +195,7 @@ async function main() {
     });
 
     if (exitCode !== 0) {
-      throw new Error(`lighthouse exited with code ${exitCode}`);
+      return [`lighthouse exited with code ${exitCode}`];
     }
 
     const report = JSON.parse(await readFile(reportPath, 'utf8'));
@@ -197,29 +210,54 @@ async function main() {
         continue;
       }
       if (audit.score === 1) {
-        console.log(`PASS  ${id}`);
+        console.log(`  PASS  ${id}`);
         continue;
       }
-      failures.push(
-        `${id}: ${audit.explanation ?? audit.title ?? 'failed'}`.trim(),
-      );
+      failures.push(`${id}: ${audit.explanation ?? audit.title ?? 'failed'}`.trim());
     }
 
-    if (failures.length > 0) {
-      console.error('\nThe storefront is no longer installable as a PWA:\n');
-      for (const failure of failures) console.error(`  FAIL  ${failure}`);
-      console.error(
-        '\nSee apps/storefront/app/manifest.ts, app/sw.ts and public/icons/.',
-      );
-      process.exitCode = 1;
-      return;
-    }
-
-    console.log('\nStorefront is installable — PWA gate passed.');
+    return failures;
   } finally {
     stopServer();
     await rm(workDir, { recursive: true, force: true });
   }
+}
+
+async function main() {
+  const requested = process.argv.slice(2);
+  for (const name of requested) {
+    if (!APPS[name]) {
+      throw new Error(
+        `unknown app "${name}" — expected one of: ${Object.keys(APPS).join(', ')}`,
+      );
+    }
+  }
+  const names = requested.length > 0 ? requested : Object.keys(APPS);
+
+  const failed = [];
+  for (const name of names) {
+    console.log(`\n── ${name} ──`);
+    // Sequential, not parallel: two Chrome instances on one CI runner compete
+    // for the same limited memory, and Lighthouse's own timings get noisy.
+    const failures = await gate(name, APPS[name]);
+    if (failures.length > 0) {
+      failed.push({ name, failures });
+    }
+  }
+
+  if (failed.length > 0) {
+    console.error('\nNo longer installable as a PWA:\n');
+    for (const { name, failures } of failed) {
+      for (const failure of failures) console.error(`  FAIL  ${name}: ${failure}`);
+    }
+    console.error(
+      '\nSee each app’s app/manifest.ts, app/sw.ts and public/icons/.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(`\nInstallable — PWA gate passed for: ${names.join(', ')}.`);
 }
 
 main().catch((error) => {
