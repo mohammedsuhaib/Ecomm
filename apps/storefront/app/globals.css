@@ -36,6 +36,24 @@ body {
   background: var(--bg);
   line-height: 1.55;
   font-size: 16px;
+  /* Sticky footer. Without this the footer sat wherever the content ended, and
+     on a short page — the empty cart, /offline, a search with no results, the
+     error screen — the rest of the viewport below it stayed blank white. On a
+     tablet that is most of the screen, and because the footer is dark the gap
+     reads as "something failed to load after the footer" rather than as an
+     empty page.
+     `main` takes the slack (see .wrap below), so the footer lands on the
+     bottom edge when the page is short and flows normally when it is long.
+     100dvh, not 100vh: mobile Safari's 100vh counts the collapsing toolbar,
+     which leaves the page a little taller than the screen and makes it jiggle
+     on first scroll.
+     Safe to put on body because every provider in layout.tsx renders a
+     fragment — body's real children are the header, the closed banner, main
+     and the footer. Wrap any of them in an element and this rule has to move
+     onto that element. */
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 a {
@@ -52,6 +70,18 @@ a:hover {
   max-width: var(--max);
   margin: 0 auto;
   padding: 1rem 1.25rem;
+  /* Absorb the leftover height so the footer is pushed to the bottom of a
+     short page. `1 0 auto`, not `1`: a flex-basis of 0 would let a LONG page's
+     content be squashed toward the viewport height instead of overflowing
+     normally, which is the opposite failure. Only <main> carries .wrap. */
+  flex: 1 0 auto;
+  /* Required, not belt-and-braces: an auto margin on the cross axis suppresses
+     a flex item's default `stretch`, so with `margin: 0 auto` this would
+     shrink to its content width instead of filling the column — collapsing the
+     product grid to whatever one row happens to need. An explicit width
+     restores the full column, max-width still caps it, and the auto margins go
+     back to doing only what they are there for: centring the capped box. */
+  width: 100%;
 }
 
 /* ---- Header ---- */
