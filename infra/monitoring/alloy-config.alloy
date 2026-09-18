@@ -27,6 +27,7 @@ discovery.relabel "containers" {
 		source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
 		target_label  = "service"
 	}
+
 	rule {
 		source_labels = ["__meta_docker_container_name"]
 		regex         = "/(.*)"
@@ -40,7 +41,43 @@ loki.source.docker "containers" {
 	host       = "unix:///var/run/docker.sock"
 	targets    = discovery.relabel.containers.output
 	labels     = {env = sys.env("TB_ENV")}
+	forward_to = [loki.process.levels.receiver]
+}
+
+// Lift the API's log level into a label.
+//
+// {service="api", level="ERROR"} is a different thing from |= "ERROR", which
+// also matches the word inside a message and misses nothing-matching lines of
+// a wall of output. Five possible values, so the label stays cheap — the rule
+// for Loki is that labels are for things with few values, and everything else
+// belongs in the line.
+//
+// Scoped to the API on purpose: the other containers log in their own shapes
+// (Caddy emits one JSON object per line, Next.js free text) and a rule written
+// for Spring Boot's pattern would either miss or mislabel them. They pass
+// through untouched.
+//
+// NOTE: a Java stack trace still arrives as one Loki entry PER LINE. Alloy's
+// stage.multiline does not join lines coming from loki.source.docker — tried
+// against a real Loki, both nested in this match and hoisted to its own
+// pipeline, and neither joined anything. Rather than leave a rule here that
+// looks like it works, the honest fix is at the source: make the app emit one
+// line per event (structured JSON logging). Until then use Grafana's "show
+// context" on the ERROR line to read the frames around it.
+loki.process "levels" {
 	forward_to = [loki.write.grafana_cloud.receiver]
+
+	stage.match {
+		selector = "{service=\"api\"}"
+
+		stage.regex {
+			expression = "^\\S+\\s+(?P<level>TRACE|DEBUG|INFO|WARN|ERROR)\\s"
+		}
+
+		stage.labels {
+			values = {level = ""}
+		}
+	}
 }
 
 // Push to Grafana Cloud. If the three vars are blank (profile enabled but not
