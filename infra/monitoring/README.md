@@ -10,31 +10,74 @@ opt in per environment.
 
 ## One-time setup
 
+Three values have to travel from Grafana Cloud to the droplet's `.env`, and
+that is the whole job. **Do QA first**, then repeat part B for production with
+its own token.
+
+> The credentials live in the Grafana Cloud **Portal** (grafana.com), not
+> inside your Grafana instance. Grafana moves this UI around — the "Hosted
+> logs" tile under *Connections → Add new connection* no longer exists — so
+> the navigation below was re-checked against Grafana's docs in September 2026.
+> If a menu has moved again, the two things you are hunting for are unchanged:
+> the stack's **Loki endpoint + instance id**, and an **access policy token**
+> scoped `logs:write`.
+
+### A. Get the three values (browser, ~5 minutes)
+
 1. Create a free [Grafana Cloud](https://grafana.com/auth/sign-up/create-user)
-   account (the free tier is ~50 GB of logs with ~14-day retention — far above
-   this app's volume).
-2. In Grafana Cloud → **Connections → Add new connection → Hosted logs (Loki)**,
-   generate an access policy / token. You get three values:
-   - **URL** — the push endpoint, e.g. `https://logs-prod-012.grafana.net/loki/api/v1/push`
-   - **User** — a numeric instance id (the basic-auth username)
-   - **Token** — an API key scoped `logs:write` (the basic-auth password)
-3. On the droplet, in the stack's `.env` (`infra/qa/.env` or `infra/deploy/.env`):
+   account if you have none. The free tier is ~50 GB of logs with ~14-day
+   retention, far above this shop's volume.
+2. Sign in at [grafana.com](https://grafana.com/auth/sign-in/). That lands on
+   the **Cloud Portal**, which is a different place from your Grafana stack.
+3. Pick your organisation, then your stack in the left-hand overview. Find the
+   **Loki** (Logs) tile and press **Details** / **Send Logs**. Copy:
+   - **URL** — e.g. `https://logs-prod-012.grafana.net`
+   - **User** — a number, e.g. `123456` (the basic-auth username)
+4. Add the push path yourself; the tile usually shows only the base URL:
+   ```
+   https://logs-prod-012.grafana.net/loki/api/v1/push
+   ```
+5. In the Portal, go to **Security → Access Policies**
+   (`grafana.com/orgs/<your-org>/access-policies`) and press **Create access
+   policy**. Name it per environment, e.g. `townbasket-qa-logs`; set **Realm**
+   to your stack; tick the **`logs:write`** scope and nothing else.
+6. Open the policy, press **Add token**, and copy the `glc_…` value. It is
+   shown once. One token per environment, so QA can be revoked without
+   touching production.
+
+### B. Put them on the droplet (~2 minutes)
+
+7. SSH in and open the stack's `.env` — `~/Ecomm/infra/qa` for QA,
+   `~/Ecomm/infra/deploy` for production:
+   ```bash
+   ssh root@<droplet-ip>
+   cd ~/Ecomm/infra/qa
+   nano .env
+   ```
+8. Append the profile line and the three values:
    ```
    COMPOSE_PROFILES=monitoring
-   GRAFANA_LOKI_URL=…/loki/api/v1/push
+   GRAFANA_LOKI_URL=https://logs-prod-012.grafana.net/loki/api/v1/push
    GRAFANA_LOKI_USER=123456
    GRAFANA_LOKI_TOKEN=glc_…
    ```
    The token is a secret — it lives in `.env`, never in git.
-4. Redeploy: `docker compose -f docker-compose.qa.yml up -d` (or the prod file).
-   Because `COMPOSE_PROFILES=monitoring` is in `.env`, every future deploy —
-   including the auto-deploy on green `main` — starts the agent automatically
-   (both deploy workflows run a plain `up -d` with no service list, so the
-   profile is all that decides it).
+9. Start the agent. Only the agent starts; nothing rebuilds and no app
+   restarts:
+   ```bash
+   chmod 600 .env
+   docker compose -f docker-compose.qa.yml up -d     # prod: docker-compose.prod.yml
+   ```
 
-## Checking it actually works
+`.env` is untracked, so a deploy's hard reset of the clone leaves it alone:
+every future deploy — including the auto-deploy on green `main` — starts the
+agent from then on. Both deploy workflows run a plain `up -d` with no service
+list, so that profile line is the only switch.
 
-In order, because each step rules out the one below it:
+## C. Checking it actually works
+
+Straight after step 9, and in this order, because each step rules out the one
+below it:
 
 1. `docker compose -f docker-compose.qa.yml ps alloy` — the container should be
    `Up`. Missing entirely means the profile is not set in `.env`.
@@ -44,7 +87,20 @@ In order, because each step rules out the one below it:
 3. In Grafana → Explore → Loki, run `{env="qa"}` over the last 15 minutes. If
    the agent is up and the query is empty, the token is usually scoped to the
    wrong stack or missing `logs:write`.
-4. Make a line to look for: hit a QA page, then query `{service="caddy"}`.
+4. Make a line to look for: open `https://qa.town-basket.com` in a browser,
+   then query `{env="qa", service="caddy"}` and watch your own request arrive.
+   Then try `{env="qa", service="api", level="ERROR"}` to confirm the labels.
+
+What the three usual failures look like:
+
+| Symptom | Cause |
+|---|---|
+| No `alloy` container at all | `COMPOSE_PROFILES=monitoring` missing from `.env` |
+| Agent up, 401s in its log | Wrong `GRAFANA_LOKI_USER`, or a token without `logs:write` |
+| Agent up and quiet, Explore empty | Token belongs to a different stack than the URL |
+
+To turn it all off again: delete the `COMPOSE_PROFILES` line and run
+`docker compose -f docker-compose.qa.yml up -d --remove-orphans`.
 
 The agent's own diagnostics UI listens on port 12345 inside the container and
 is deliberately NOT published to the host. To look at it during an

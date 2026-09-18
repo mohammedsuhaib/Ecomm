@@ -772,7 +772,8 @@ already claims a tested restore runbook exists — this is what makes that true.
 
 1. Turn on log shipping: set `COMPOSE_PROFILES=monitoring` plus the
    `GRAFANA_LOKI_*` values in `.env`, then `docker compose up -d`. Confirm logs
-   arrive in Grafana Cloud.
+   arrive in Grafana Cloud. Step-by-step, including where the three values live
+   in the Grafana Cloud portal and how to verify: `infra/monitoring/README.md`.
 2. External uptime checks on all four subdomains from a third-party monitor —
    something outside the droplet, so it can still alert when the droplet is the
    problem.
