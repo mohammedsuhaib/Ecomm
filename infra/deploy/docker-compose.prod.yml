@@ -118,6 +118,14 @@ services:
       # getApiBaseUrl() when there is no `window`. Keeps server rendering off
       # the public hostname and out of Caddy.
       INTERNAL_API_BASE_URL: http://api:8080/api/v1
+      # The ONE public origin this shop answers on. Canonical tags, the sitemap
+      # and robots.txt are all built from it, so it has to be the hostname you
+      # want in search results — every other host should 301 to it. A runtime
+      # value on purpose (not NEXT_PUBLIC_*): the same image serves QA and
+      # production, and the public hostname is a property of the deployment.
+      SITE_URL: ${SITE_URL:-https://town-basket.com}
+      # Set to "true" on any deployment that must stay out of search results.
+      SEO_NOINDEX: ${SEO_NOINDEX:-false}
       # NOTE: every NEXT_PUBLIC_* value (API base URL, FIREBASE_*, GOOGLE_MAPS)
       # is inlined by Next.js at IMAGE BUILD time and is INERT here — setting it
       # in this block does nothing, in the browser or on the server. CI must pass

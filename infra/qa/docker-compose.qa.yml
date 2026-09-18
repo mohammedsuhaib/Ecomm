@@ -112,6 +112,13 @@ services:
     environment:
       # SSR-side URL (container-to-container).
       INTERNAL_API_BASE_URL: http://api:8080/api/v1
+      # Keep QA out of search results. The Caddyfile already sends
+      # X-Robots-Tag: noindex for every QA host; this makes the app say the
+      # same thing itself — robots.txt answers "Disallow: /", the sitemap is
+      # empty and every page carries a noindex tag. Two locks, because a copy
+      # of the shop's whole catalogue showing up in Google under a qa- hostname
+      # would compete with the real one.
+      SEO_NOINDEX: "true"
     expose:
       - "3000"
     depends_on:

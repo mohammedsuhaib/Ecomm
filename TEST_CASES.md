@@ -537,6 +537,26 @@ the opt-in must simply not appear — that itself is TC-NOTIF-001.
 
 ---
 
+## 18a. Search visibility (storefront)
+
+Everything here is checked on a **production-like** deployment, i.e. one with
+`SITE_URL` set and `SEO_NOINDEX` unset. TC-SEO-009 is the opposite case.
+
+| ID | Type | Scenario | Steps | Expected result | Pri |
+|---|---|---|---|---|---|
+| TC-SEO-001 | Positive | robots.txt | `GET /robots.txt` | Allows the catalogue; disallows /account, /cart, /checkout, /order/ and /search; names the canonical host and links the sitemap — all on the deployment's own hostname | P1 |
+| TC-SEO-002 | Positive | Sitemap lists the live catalogue | `GET /sitemap.xml` | Home, every category and every product, as absolute URLs on the canonical host; a product added in Admin appears within the hour | P1 |
+| TC-SEO-003 | Positive | Product canonical is the slug | Open a product by its numeric id and by its slug | Both pages carry the SAME canonical, pointing at the slug URL | P1 |
+| TC-SEO-004 | Positive | Category canonical ignores sort | Open a category, then the same with `?sort=price_asc`, then `?page=1` | Sorted views canonicalise to the unsorted page; page 1 keeps `?page=1` — it is a different set of products | P2 |
+| TC-SEO-005 | Positive | Product structured data matches the page | View source on a product page | One `Product` block with an Offer per variant: the price shown on the page, INR, and InStock only where the page lets you add to cart | P1 |
+| TC-SEO-006 | Positive | The shop's own entity | View source on the home page | A `GroceryStore` block whose address, phone, coordinates, hours and delivery radius match the Store panel in Admin, plus a `WebSite` block with the search action | P1 |
+| TC-SEO-007 | Positive | Share preview | Paste the home page URL into WhatsApp | A wide card with the Town Basket mark, name and tagline — not a bare link | P2 |
+| TC-SEO-008 | Negative | Private pages stay out | View source on /cart, /checkout, /account and an order tracking URL | Each carries `noindex, nofollow`; /search carries `noindex, follow` | P1 |
+| TC-SEO-009 | Negative | A non-production deployment hides | On QA: `GET /robots.txt`, `GET /sitemap.xml`, and view source on any page | "Disallow: /", an empty sitemap, and a noindex tag on the page — plus the `X-Robots-Tag: noindex` header from the proxy | P1 |
+| TC-SEO-010 | Edge | Structured data validates | Run a product page and the home page through Google's Rich Results Test | No errors; Product and the local-business block are both recognised | P2 |
+
+---
+
 ## 19. Security & authorisation
 
 | ID | Type | Scenario | Steps | Expected result | Pri |

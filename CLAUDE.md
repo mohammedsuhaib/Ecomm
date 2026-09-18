@@ -184,6 +184,22 @@ images use `output: 'standalone'`.
   server call per poll per open page and would still need this fallback when
   no Maps key is set. Tune the two constants there, not the copy.
 
+- **Search visibility** lives in three storefront files: `app/robots.ts` and
+  `app/sitemap.ts` (both `force-dynamic`, because they depend on the runtime
+  hostname), and `app/lib/structuredData.ts` for the schema.org blocks, rendered
+  through `components/JsonLd.tsx`. Two **runtime** env vars drive them,
+  deliberately not `NEXT_PUBLIC_*` (Next inlines those at image-build time, and
+  one image serves QA and prod): `SITE_URL` is the one canonical origin, and
+  `SEO_NOINDEX=true` turns a deployment into Disallow-all plus an empty sitemap
+  plus a noindex tag (QA sets it; its proxy also sends `X-Robots-Tag`). Rules
+  worth keeping: a product canonicalises to its **slug** (the numeric id
+  resolves too and would be a duplicate); category canonicals keep `page` and
+  drop `sort`; `/search` is noindex-follow; cart, checkout, account and
+  `/order/*` are noindex via their own tiny `layout.tsx`, because an order URL
+  is its own access token. Structured data must never assert what the API does
+  not say — availability comes from the same stock figure Add-to-cart uses, and
+  there are no ratings because the shop has none.
+
 - **The install ask** is `components/InstallPrompt.tsx` on top of `lib/install.ts`,
   in **both** the storefront and admin. Two mechanisms, not one: Chromium hands
   us a deferred `beforeinstallprompt` to replay from our own button, while iOS

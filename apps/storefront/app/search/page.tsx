@@ -15,7 +15,13 @@ interface Params {
 export async function generateMetadata({ searchParams }: Params) {
   const t = await getTranslations('metadata');
   const q = (searchParams.q ?? '').trim();
-  return { title: q ? t('searchTitle', { q }) : t('searchFallback') };
+  return {
+    title: q ? t('searchTitle', { q }) : t('searchFallback'),
+    // A search result page is an endless supply of near-duplicates of the
+    // category and product pages that should rank instead, and every visitor
+    // can mint a new one. Crawl it for the links, keep it out of the index.
+    robots: { index: false, follow: true },
+  };
 }
 
 export default async function SearchPage({ searchParams }: Params) {

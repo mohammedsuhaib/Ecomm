@@ -3,13 +3,31 @@ import { getTranslations } from 'next-intl/server';
 import { getCategories, getProducts, getStore } from './lib/api';
 import { formatHours, formatRupees } from './lib/format';
 import CategoryCard from './components/CategoryCard';
+import JsonLd from './components/JsonLd';
 import ProductCard from './components/ProductCard';
 import SortControl from './components/SortControl';
 import { parseSort } from './lib/sort';
+import { groceryStoreJsonLd, webSiteJsonLd } from './lib/structuredData';
 import type { Category, Product, Store } from './lib/types';
 
 // SSR with ISR: fast first paint + SEO-indexable, revalidated periodically.
 export const revalidate = 60;
+
+/**
+ * The home page is the shop's front door, so it owns the canonical for the
+ * site root. Sorted views (`/?sort=price_asc`) are the same page in a
+ * different order — pointing them all here is what stops the shop competing
+ * with itself for its own name.
+ */
+export async function generateMetadata() {
+  const t = await getTranslations('metadata');
+  return {
+    title: t('title'),
+    description: t('description'),
+    alternates: { canonical: '/' },
+    openGraph: { title: t('title'), description: t('description'), url: '/' },
+  };
+}
 
 export default async function Home({
   searchParams,
@@ -33,6 +51,13 @@ export default async function Home({
 
   return (
     <>
+      {/* What the shop IS, for a crawler: where it stands, when it opens, how
+          far it delivers — the facts a local result is built from. Only
+          rendered when the API answered; inventing a shop's hours because a
+          fetch failed is exactly the kind of mismatch that earns a penalty. */}
+      {store && <JsonLd data={groceryStoreJsonLd(store)} />}
+      <JsonLd data={webSiteJsonLd(store?.name ?? 'Town Basket')} />
+
       <section
         className="notice"
         style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}
