@@ -14,10 +14,11 @@ import java.util.List;
  * can't be harvested by id enumeration. {@code publicCode} is the short,
  * speakable order number customers quote and staff search by.
  *
- * <p>{@code invoiceNumber} / {@code invoicedAt} are null until a GST invoice is
- * actually issued for the order, and immutable afterwards — the number comes
- * from a per-financial-year consecutive series (CGST Rule 46(b)), not from the
- * order id.
+ * <p>{@code invoiceNumber} / {@code invoicedAt} / {@code invoiceGstin} are null
+ * until a GST invoice is actually issued for the order, and immutable
+ * afterwards — the number comes from a per-financial-year consecutive series
+ * (CGST Rule 46(b)), not from the order id, and the GSTIN is the supplier's as
+ * it stood at issue, not as it reads today (staff can edit it).
  *
  * <p>{@code deliveryOtp} is the proof-of-delivery / COD-fraud code. It is
  * exposed to the <strong>customer only while the order is OUT_FOR_DELIVERY</strong>
@@ -52,5 +53,6 @@ public record OrderDto(
         Long assignedAgentId,
         String invoiceNumber,
         Instant invoicedAt,
+        String invoiceGstin,
         RiderLocationDto riderLocation) {
 }

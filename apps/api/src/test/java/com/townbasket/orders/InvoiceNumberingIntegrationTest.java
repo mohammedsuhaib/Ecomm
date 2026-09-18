@@ -13,6 +13,9 @@ import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
 import com.townbasket.identity.PhoneVerifyRequest;
 import com.townbasket.payments.PaymentMethod;
+import com.townbasket.serviceability.ServiceabilityService;
+import com.townbasket.serviceability.StoreDto;
+import com.townbasket.serviceability.StoreUpdateRequest;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.ResourceNotFoundException;
 import java.math.BigDecimal;
@@ -46,6 +49,7 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
     @Autowired CartService cartService;
     @Autowired CatalogService catalogService;
     @Autowired AuthService authService;
+    @Autowired ServiceabilityService serviceabilityService;
 
     /**
      * A rider to pin a delivery on. DELIVERED requires an assigned agent — the
@@ -130,6 +134,61 @@ class InvoiceNumberingIntegrationTest extends AbstractIntegrationTest {
         // And the number sticks to the order on a plain read.
         assertThat(orderService.getOrderByToken(token, customer).orElseThrow().invoiceNumber())
                 .isEqualTo(issued.invoiceNumber());
+    }
+
+    @Test
+    void theGstinIsSnapshottedAtIssueAndSurvivesLaterEdits() {
+        // The store's GSTIN is a setting staff can change, and the invoice PDF
+        // is re-rendered on every download. Without a snapshot, editing the
+        // GSTIN would silently reprint every past invoice under the new
+        // registration — so the number is stamped on the order when the invoice
+        // is issued, and stays put.
+        String originalGstin = currentGstin();
+        try {
+            setGstin("29AAPFU0939F1ZV");
+
+            Long customer = customer("9991110009");
+            OrderDto order = place(customer, "inv-key-gstin");
+            UUID token = UUID.fromString(order.trackingToken());
+
+            // Nothing is stamped before an invoice exists.
+            assertThat(order.invoiceGstin()).isNull();
+
+            deliver(order, customer);
+            OrderDto issued = orderService.issueInvoice(token, customer);
+            assertThat(issued.invoiceGstin()).isEqualTo("29AAPFU0939F1ZV");
+
+            // The store re-registers (or a typo is corrected) afterwards.
+            setGstin("27AAPFU0939F1ZV");
+
+            // The issued invoice is unchanged, on a re-issue and a plain read
+            // alike — both feed the same PDF renderer.
+            assertThat(orderService.issueInvoice(token, customer).invoiceGstin())
+                    .isEqualTo("29AAPFU0939F1ZV");
+            assertThat(orderService.getOrderByToken(token, customer).orElseThrow().invoiceGstin())
+                    .isEqualTo("29AAPFU0939F1ZV");
+
+            // A NEW invoice picks up the current registration.
+            OrderDto later = place(customer, "inv-key-gstin-2");
+            deliver(later, customer);
+            assertThat(orderService
+                    .issueInvoice(UUID.fromString(later.trackingToken()), customer).invoiceGstin())
+                    .isEqualTo("27AAPFU0939F1ZV");
+        } finally {
+            setGstin(originalGstin);
+        }
+    }
+
+    private String currentGstin() {
+        return serviceabilityService.activeStore().orElseThrow().gstin();
+    }
+
+    /** Edit only the GSTIN, leaving the rest of the shared store row alone. */
+    private void setGstin(String gstin) {
+        StoreDto s = serviceabilityService.activeStore().orElseThrow();
+        serviceabilityService.updateStore(new StoreUpdateRequest(
+                s.name(), s.address(), s.lat(), s.lng(), s.deliveryRadiusMeters(),
+                s.openingTime(), s.closingTime(), s.minOrderValue(), s.supportPhone(), gstin));
     }
 
     @Test

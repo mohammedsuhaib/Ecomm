@@ -162,17 +162,24 @@ outside. Alternative: drop `metrics` from the exposure list and keep
 `health,info`. Note `deploy-app.yml` health-checks `/actuator/health` through
 the public hostname, so if you move the port, that check moves with it.
 
-### A7. Invoices ship without a GSTIN
+### A7. Invoices ship without a GSTIN — now a setting, still unset
 
-`TOWNBASKET_INVOICE_GSTIN` defaults to blank, and the config comment is explicit:
-"GSTIN is hidden while blank — set it once the store is registered, since a tax
-invoice must carry it." The invoice numbering machinery itself is properly built
-(`V6_9`: per-FY consecutive series, transactional counter, immutable once
-issued, Rule 46(b) 16-char cap respected).
+**Partly closed.** The GSTIN used to be `TOWNBASKET_INVOICE_GSTIN`, so the one
+number that makes an invoice legally valid needed a redeploy, and was blank
+everywhere. It is now a **store setting staff edit from the admin Store card**
+(`V8_6`), validated on the way in, and **snapshotted onto each order as its
+invoice is issued** (`V6_14`) so an invoice always reprints under the
+registration it was issued with — the PDF is re-rendered on every download, so
+without that snapshot editing the setting would silently restate every past
+invoice. The invoice numbering machinery was already properly built (`V6_9`:
+per-FY consecutive series, transactional counter, immutable once issued, Rule
+46(b) 16-char cap respected).
 
-Set `TOWNBASKET_INVOICE_GSTIN` and confirm `TOWNBASKET_INVOICE_SERIES_PREFIX`
-(defaults to `TB`, must stay ≤4 chars) before the first invoice is issued — the
-series is immutable once numbers are handed out.
+**What is left is data entry, not code:** somebody has to type the real GSTIN
+into the admin card, and confirm `TOWNBASKET_INVOICE_SERIES_PREFIX` (defaults to
+`TB`, must stay ≤4 chars) before the first invoice is issued — the series is
+immutable once numbers are handed out, and an invoice issued while the GSTIN is
+blank keeps that blank for good.
 
 ### A8. Firebase phone OTP — configuration plus cost
 

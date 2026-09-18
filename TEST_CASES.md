@@ -437,8 +437,11 @@ added on top. The customer-facing total must never change because of a GST edit.
 | TC-TAX-006 | Edge | Odd-paisa rounding | Order a line with an awkward price (e.g. ₹33.33) | CGST and SGST differ by at most 1 paisa and still re-add exactly | P2 |
 | TC-TAX-007 | Positive | Historical invoices are frozen | Place an order, then change the product's GST rate, then reopen the OLD invoice | Old invoice still shows the ORIGINAL rate — snapshots must not move | P1 |
 | TC-TAX-008 | Positive | Invoice is a GST invoice | Open any invoice | HSN and GST% columns per line; taxable value, CGST, SGST and "Total (incl. GST)" in the summary; "prices inclusive of GST" note | P1 |
-| TC-TAX-009 | Positive | GSTIN shown when configured | Set `townbasket.invoice.gstin`, restart, reopen an invoice | GSTIN printed under the store details | P2 |
-| TC-TAX-010 | Edge | GSTIN absent | Leave it unset | Invoice renders with no empty GSTIN line | P2 |
+| TC-TAX-009 | Positive | GSTIN shown when set | Admin → Store → enter a GSTIN, save, then issue an invoice | GSTIN printed under the store details, no restart needed | P2 |
+| TC-TAX-010 | Edge | GSTIN absent | Leave it blank | Invoice renders with no empty GSTIN line | P2 |
+| TC-TAX-011 | Edge | GSTIN typed as printed | Enter `29 aapfu 0939 f1zv` (spaced, lower case) | Saved and shown as `29AAPFU0939F1ZV` | P2 |
+| TC-TAX-012 | Negative | Malformed GSTIN | Enter 14 characters, or a state code like `00` | Refused with a message naming the problem; nothing saved | P2 |
+| TC-TAX-013 | Edge | Issued invoices don't change **[auto]** | Issue an invoice, change the GSTIN in admin, re-download that invoice | Still shows the GSTIN it was issued under; a NEW invoice shows the new one | P1 |
 | TC-TAX-011 | Positive | Storefront GST line | Open an order with tax | "Includes GST of ₹X" shown under the total, matching the invoice | P2 |
 | TC-TAX-012 | Edge | Legacy zero-tax orders | Open an order placed before GST was added | Shows as zero tax; no crash, no blank invoice | P2 |
 

@@ -329,8 +329,19 @@ class OrderServiceImpl implements OrderService {
                     .orElseThrow(() -> new IllegalStateException(
                             "Invoice series row missing for financial year " + fy))
                     .nextSeq();
+            // The supplier GSTIN is read once, here, and stamped on the order
+            // with the number. Staff can change it from the admin store card
+            // (it is a store setting, not config), so an invoice has to keep
+            // the one it was issued under — the PDF is re-rendered on every
+            // download.
+            String gstin = serviceabilityService.activeStore()
+                    .map(StoreDto::gstin)
+                    .orElse(null);
             order.markInvoiced(
-                    InvoiceNumbers.format(invoicePrefix, fy, sequence), Instant.now(clock));
+                    InvoiceNumbers.format(invoicePrefix, fy, sequence), Instant.now(clock), gstin);
+            log.info("Invoice {} issued for order {} ({}) under GSTIN {}",
+                    order.getInvoiceNumber(), order.getId(), order.getPublicCode(),
+                    gstin == null ? "(none — store not registered)" : gstin);
         }
         return toDto(order, true);
     }
@@ -890,6 +901,7 @@ class OrderServiceImpl implements OrderService {
                 o.getAssignedAgentId(),
                 o.getInvoiceNumber(),
                 o.getInvoicedAt(),
+                o.getInvoiceGstin(),
                 riderLocation);
     }
 }

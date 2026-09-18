@@ -243,9 +243,11 @@ townbasket:
     # characters or fewer — a longer prefix fails fast at issue time rather than
     # quietly producing non-compliant invoices.
     series-prefix: ${TOWNBASKET_INVOICE_SERIES_PREFIX:TB}
-    # Shown on the invoice masthead. GSTIN is hidden while blank — set it once
-    # the store is registered, since a tax invoice must carry it.
-    gstin: ${TOWNBASKET_INVOICE_GSTIN:}
+    # NOTE: the GSTIN is NOT here. It used to be TOWNBASKET_INVOICE_GSTIN, which
+    # meant the number that makes an invoice legally valid needed a redeploy.
+    # It is now a store setting staff edit from the admin store card, snapshotted
+    # onto each order as its invoice is issued (orders.orders.invoice_gstin), so
+    # an invoice always reprints under the registration it was issued with.
   serviceability:
     # TESTING ONLY: override the store's base coordinates for the 5 km gate so you
     # can test serviceability from your OWN location without changing the seeded

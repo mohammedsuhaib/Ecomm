@@ -48,6 +48,12 @@ export interface Store {
    * present — there is nowhere to send them otherwise.
    */
   supportPhone?: string | null;
+  /**
+   * The store's GST registration number, null until it is registered. Public
+   * by law (it is displayed at the place of business and on every invoice);
+   * carried here so the storefront can show it if it ever needs to.
+   */
+  gstin?: string | null;
   /** Whether the store is serving right now, decided on the SERVER clock. */
   open: boolean;
   /** True when the next opening is the following day (today's window has closed). */

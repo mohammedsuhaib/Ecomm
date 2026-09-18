@@ -53,18 +53,13 @@ class InvoicePdfGenerator implements InvoiceService {
     private final String storeAddress;
     private final String storeContact;
 
-    /** Store GSTIN; shown on the invoice only when configured (blank = hidden). */
-    private final String gstin;
-
     InvoicePdfGenerator(
             @Value("${townbasket.invoice.store-name:Town Basket}") String storeName,
             @Value("${townbasket.invoice.store-address:Mysuru, Karnataka, India}") String storeAddress,
-            @Value("${townbasket.invoice.store-contact:town-basket.com}") String storeContact,
-            @Value("${townbasket.invoice.gstin:}") String gstin) {
+            @Value("${townbasket.invoice.store-contact:town-basket.com}") String storeContact) {
         this.storeName = storeName;
         this.storeAddress = storeAddress;
         this.storeContact = storeContact;
-        this.gstin = gstin == null ? "" : gstin.trim();
     }
 
     @Override
@@ -116,8 +111,13 @@ class InvoicePdfGenerator implements InvoiceService {
         left.addElement(text(storeName, font(20, Font.BOLD, BRAND)));
         left.addElement(text(storeAddress, font(9, Font.NORMAL, MUTED)));
         left.addElement(text(storeContact, font(9, Font.NORMAL, MUTED)));
-        if (!gstin.isEmpty()) {
-            left.addElement(text("GSTIN: " + gstin, font(9, Font.NORMAL, MUTED)));
+        // The GSTIN comes off the ORDER, not from configuration or from the
+        // store's current setting: it is the registration this invoice was
+        // issued under, snapshotted by OrderService#issueInvoice. Absent for
+        // invoices issued before the store was registered, and the line is
+        // simply omitted then, as it always was.
+        if (order.invoiceGstin() != null && !order.invoiceGstin().isBlank()) {
+            left.addElement(text("GSTIN: " + order.invoiceGstin(), font(9, Font.NORMAL, MUTED)));
         }
         table.addCell(left);
 

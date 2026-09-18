@@ -65,6 +65,13 @@ class OrderEntity {
     @Column(name = "invoiced_at")
     private Instant invoicedAt;
 
+    // The supplier GSTIN this invoice was issued under. Snapshotted with the
+    // number above, because staff can change the store's GSTIN and the PDF is
+    // re-rendered on every download — reading it live would reprint an old
+    // invoice under a registration it was never issued with.
+    @Column(name = "invoice_gstin")
+    private String invoiceGstin;
+
     @Column(name = "store_id", nullable = false)
     private Long storeId;
 
@@ -181,15 +188,26 @@ class OrderEntity {
         return invoicedAt;
     }
 
+    String getInvoiceGstin() {
+        return invoiceGstin;
+    }
+
     /**
-     * Record that a GST invoice was issued for this order. Write-once: an
-     * already-issued number is kept, so a re-download reproduces the same
-     * document rather than minting a second invoice for one supply.
+     * Record that a GST invoice was issued for this order, under the supplier
+     * GSTIN in force at that moment. Write-once, all three fields together: an
+     * already-issued invoice is kept as it was, so a re-download reproduces the
+     * same document rather than minting a second invoice for one supply — or
+     * reprinting this one under a GSTIN edited since.
+     *
+     * @param gstin the store's GSTIN, or null if it is not registered yet, in
+     *     which case the invoice omits the line exactly as it did before the
+     *     number could be set at all
      */
-    void markInvoiced(String number, Instant at) {
+    void markInvoiced(String number, Instant at, String gstin) {
         if (this.invoiceNumber == null) {
             this.invoiceNumber = number;
             this.invoicedAt = at;
+            this.invoiceGstin = gstin;
         }
     }
 
