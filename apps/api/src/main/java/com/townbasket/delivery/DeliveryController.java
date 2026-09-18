@@ -54,9 +54,17 @@ class DeliveryController {
 
     /**
      * GET /api/v1/delivery/orders — the caller's assigned orders in a given
-     * status, defaulting to OUT_FOR_DELIVERY (their active delivery queue).
-     * Passing {@code status=DELIVERED} lets agents review completed deliveries.
-     * An ADMIN sees the whole store queue (dispatcher view).
+     * status, defaulting to OUT_FOR_DELIVERY (the orders they are carrying).
+     * {@code status=READY_FOR_DELIVERY} is the other half of a rider's working
+     * list: bagged orders waiting on the counter for them to collect. Passing
+     * {@code status=DELIVERED} lets agents review completed deliveries. An
+     * ADMIN sees the whole store queue (dispatcher view).
+     *
+     * <p>One status per call, deliberately: the app asks for the two live ones
+     * separately and shows them as two sections, which is how a rider reads
+     * them anyway ("pick these up" / "deliver these"). A combined query would
+     * have to invent a paging and ordering story across two different kinds of
+     * work.
      */
     @GetMapping("/orders")
     @Operation(summary = "My delivery queue — assigned orders, default OUT_FOR_DELIVERY (ADMIN sees all).")
@@ -97,6 +105,26 @@ class DeliveryController {
         return isAdmin()
                 ? orderService.storeDaySummary(today)
                 : orderService.agentDaySummary(userId, today);
+    }
+
+    /**
+     * POST /api/v1/delivery/orders/{id}/pick-up — the rider has taken the bag
+     * off the counter: READY_FOR_DELIVERY → OUT_FOR_DELIVERY.
+     *
+     * <p>The rider's own transition. Staff mark an order ready when it is
+     * packed, but only the person carrying it knows when it actually left the
+     * shop — and that instant is what the customer's tracking map, ETA and
+     * delivery code all hang off. Must be assigned to the caller; an ADMIN may
+     * record the hand-over for any order (a rider whose phone is flat still has
+     * to be able to set off).
+     */
+    @PostMapping("/orders/{id}/pick-up")
+    @Operation(summary = "I've collected this order — mark it out for delivery (must be assigned to you; ADMIN may override).")
+    OrderDto pickUp(@PathVariable Long id, @AuthenticationPrincipal Long userId) {
+        if (isAdmin()) {
+            return orderService.transition(id, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
+        }
+        return orderService.pickUp(id, userId);
     }
 
     /**

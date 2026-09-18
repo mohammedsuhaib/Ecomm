@@ -9,7 +9,7 @@ import {
   transitionOrder,
 } from '@/app/lib/api';
 import { formatRupees, formatTime } from '@/app/lib/format';
-import { STATUS_LABELS, canCancel, nextStatus } from '@/app/lib/status';
+import { STATUS_LABELS, awaitsRiderPickup, canCancel, nextStatus } from '@/app/lib/status';
 import type { DeliveryAgent, Order } from '@/app/lib/types';
 
 function agentLabel(a: DeliveryAgent): string {
@@ -222,6 +222,23 @@ export default function OrderCard({
         </p>
       )}
 
+      {/* Packed and bagged, waiting on the counter. Say whose move it is: the
+          rider's app marks it collected, which is what starts the customer's
+          live map and delivery code. Staff still have the button for the day a
+          rider's phone is flat, so the note explains what it records rather
+          than hiding it. */}
+      {awaitsRiderPickup(order.status) && (
+        <p className="order-awaiting-pickup" role="status">
+          <strong>Ready for the rider to collect.</strong>
+          <span className="muted">
+            {' '}
+            {order.assignedAgentId == null
+              ? 'Assign a rider above — they pick it up from their own app.'
+              : 'They mark it picked up in the delivery app; use the button below only if you are sending it out for them.'}
+          </span>
+        </p>
+      )}
+
       <div className="order-assign">
         <label htmlFor={`assign-${order.id}`}>Rider</label>
         {terminal ? (
@@ -340,7 +357,12 @@ export default function OrderCard({
                   ? 'Re-dispatch'
                   : order.status === 'PLACED'
                     ? 'Confirm order'
-                    : `Mark ${STATUS_LABELS[next]}`}
+                    : awaitsRiderPickup(order.status)
+                      // Not "Mark Out for delivery": from here the normal move
+                      // is the rider's own, so staff pressing this are
+                      // recording a hand-over they did themselves.
+                      ? 'Handed to rider'
+                      : `Mark ${STATUS_LABELS[next]}`}
             </button>
           ) : (
             <span className="muted">

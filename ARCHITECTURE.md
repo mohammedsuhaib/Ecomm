@@ -138,13 +138,29 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
 - Owns: `carts`, `cart_items`.
 
 ### 3.5 `orders`
-- The order **state machine**, staff-driven from the admin queue:
+- The order **state machine**, driven from the admin queue as far as the
+  counter and by the rider from there on:
 
   ```
-  PLACED → CONFIRMED → PACKING → OUT_FOR_DELIVERY → DELIVERED
+  PLACED → CONFIRMED → PACKING → READY_FOR_DELIVERY → OUT_FOR_DELIVERY → DELIVERED
   (plus `OUT_FOR_DELIVERY → DELIVERY_FAILED` with a mandatory reason when the rider cannot complete an attempt; from there `→ OUT_FOR_DELIVERY` re-dispatches with the same stock reservation and OTP, or `→ CANCELLED` releases stock once the goods are back on the shelf)
-     └────────┴──────────┴──→ CANCELLED (with reason + stock release)
+     └────────┴──────────┴───────────┴──→ CANCELLED (with reason + stock release)
   ```
+
+- **The hand-over is its own step.** `READY_FOR_DELIVERY` means packed,
+  bagged and waiting on the counter; `OUT_FOR_DELIVERY` means a rider has
+  it. Staff mark the first, and the assigned **rider** marks the second
+  from their own app (`POST /delivery/orders/{id}/pick-up`, idempotent for
+  the assigned rider; an ADMIN may record the hand-over as an override).
+  Packing used to advance straight to `OUT_FOR_DELIVERY`, which meant the
+  queue said an order had left while the bag sat on the counter, and the
+  customer watched a rider who was not moving. The split also gives
+  everything customer-facing an honest start: the delivery OTP, the live
+  rider position and the ETA all key off `OUT_FOR_DELIVERY` (§4.1), so they
+  now appear when the bag actually leaves. A rider's working list is those
+  two statuses — "collect these" above "deliver these" — and their push
+  notification for a new job fires at `READY_FOR_DELIVERY`, the moment it
+  becomes theirs to start.
 
 - Checkout is **idempotent**: the client sends an idempotency key;
   retries (flaky mobile networks) cannot double-order.
@@ -236,8 +252,9 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   not a routed answer: a directions API would put a billable server call
   behind every poll of every open tracking page and still need this fallback
   wherever there is no key.
-  The rider app reports `PUT /delivery/location` every ~8 s while it has
-  deliveries in the queue and `DELETE`s it when the queue empties, on Stop,
+  The rider app reports `PUT /delivery/location` every ~8 s while it is
+  actually carrying something (an order they have picked up, not one still
+  waiting on the counter) and `DELETE`s it when that list empties, on Stop,
   or on sign-out. The API keeps ONE current position per rider
   (`orders.agent_locations` — no history, by design) and includes it on the
   customer's single-order tracking read **only** while OUT_FOR_DELIVERY,
@@ -454,8 +471,8 @@ provider port, so it is additive — no rebuild of delivered functionality.
 - *Delivery management (role-based):* add a `DELIVERY` role in
   `identity` and a small `delivery` context (assignment, delivery status,
   proof of delivery) with mobile-friendly pages in the existing PWA. The
-  `OUT_FOR_DELIVERY → DELIVERED` transitions move from staff to the
-  assigned delivery person. Originally scoped with no GPS; live rider
+  `READY_FOR_DELIVERY → OUT_FOR_DELIVERY → DELIVERED` transitions move from
+  staff to the assigned delivery person. Originally scoped with no GPS; live rider
   location was added later at the client's request — see §4.1 for the
   design and the gate on who may see it.
 - *Sales & analytics dashboard incl. gross-profit %:* a read-model over

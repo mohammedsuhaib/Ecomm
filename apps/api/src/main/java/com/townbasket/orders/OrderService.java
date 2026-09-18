@@ -175,6 +175,25 @@ public interface OrderService {
     AgentDaySummary storeDaySummary(java.time.LocalDate day);
 
     /**
+     * Delivery: the rider has collected the bag — READY_FOR_DELIVERY →
+     * OUT_FOR_DELIVERY. This is the rider's own transition, not the store's:
+     * the packer marks an order READY_FOR_DELIVERY when it is bagged on the
+     * counter, and only the person picking it up knows when it has actually
+     * left. It is also what starts everything the customer sees of the
+     * journey — the tracking map, the ETA and the delivery OTP all key off
+     * OUT_FOR_DELIVERY.
+     *
+     * <p>Idempotent for the assigned rider: an order they have already picked
+     * up is returned as-is rather than refused, so a tap whose response was
+     * lost on a bad connection can safely be repeated.
+     *
+     * @throws org.springframework.security.access.AccessDeniedException if the order is not assigned to {@code agentId}
+     * @throws com.townbasket.shared.BusinessRuleException if the order is not
+     *     waiting to be collected (mapped to 422)
+     */
+    OrderDto pickUp(Long orderId, Long agentId);
+
+    /**
      * Delivery: confirm delivery by OTP, verifying the order is assigned to this
      * agent first.
      *

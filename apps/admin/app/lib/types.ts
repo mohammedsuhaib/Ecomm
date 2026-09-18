@@ -7,6 +7,7 @@ export type OrderStatus =
   | 'PLACED'
   | 'CONFIRMED'
   | 'PACKING'
+  | 'READY_FOR_DELIVERY'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERY_FAILED'
   | 'DELIVERED'

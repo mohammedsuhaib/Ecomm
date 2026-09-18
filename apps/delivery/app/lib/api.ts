@@ -175,13 +175,29 @@ export const apiLogout = async (refreshToken: string): Promise<void> => {
 
 // ---- delivery endpoints -----------------------------------------------------
 
-/** GET /delivery/orders — defaults to OUT_FOR_DELIVERY queue. */
+/**
+ * GET /delivery/orders — my assigned orders in one status; defaults to
+ * OUT_FOR_DELIVERY (what I am carrying). The other live one is
+ * READY_FOR_DELIVERY: packed bags waiting at the store for me to collect. The
+ * queue asks for both and shows them as two sections.
+ */
 export function getDeliveryOrders(
   status = 'OUT_FOR_DELIVERY',
   page = 0,
   size = 50,
 ): Promise<Page<Order>> {
   return apiFetch<Page<Order>>('/delivery/orders', { status, page, size });
+}
+
+/**
+ * POST /delivery/orders/{id}/pick-up — I have the bag: READY_FOR_DELIVERY →
+ * OUT_FOR_DELIVERY. This is the moment the customer's tracking map, ETA and
+ * delivery code go live, so it is tapped at the counter, not on the way out.
+ * Safe to retry — the server treats a second pick-up of my own order as a
+ * no-op rather than an error.
+ */
+export function pickUpOrder(orderId: string): Promise<Order> {
+  return apiPost<Order>(`/delivery/orders/${encodeURIComponent(orderId)}/pick-up`);
 }
 
 /**

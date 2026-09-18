@@ -639,6 +639,21 @@ class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderDto pickUp(Long orderId, Long agentId) {
+        requireAssignedTo(orderId, agentId);
+        OrderEntity order = orders.findById(orderId).orElseThrow();
+        // Already picked up BY THIS RIDER: return it instead of refusing. The
+        // button is tapped on a phone in a shop doorway, and a reply lost on
+        // the way back would otherwise leave the rider holding a bag the app
+        // says they cannot take. requireAssignedTo above is what makes this
+        // safe — it is this rider's own order either way.
+        if (order.getStatus() == OrderStatus.OUT_FOR_DELIVERY) {
+            return toDto(order, false);
+        }
+        return transition(orderId, new TransitionRequest("OUT_FOR_DELIVERY", null, null));
+    }
+
+    @Override
     public OrderDto confirmDelivery(Long orderId, Long agentId, String otp) {
         requireAssignedTo(orderId, agentId);
         return transition(orderId, new TransitionRequest("DELIVERED", otp, null));

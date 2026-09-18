@@ -26,6 +26,7 @@ const STATUS_FLOW: OrderStatus[] = [
   'PLACED',
   'CONFIRMED',
   'PACKING',
+  'READY_FOR_DELIVERY',
   'OUT_FOR_DELIVERY',
   'DELIVERED',
 ];
@@ -36,6 +37,7 @@ const STATUS_EMOJI: Record<OrderStatus, string> = {
   PLACED: '✅',
   CONFIRMED: '✅',
   PACKING: '📦',
+  READY_FOR_DELIVERY: '🛍️',
   OUT_FOR_DELIVERY: '🛵',
   DELIVERY_FAILED: '⚠️',
   DELIVERED: '🎉',
@@ -57,6 +59,7 @@ const HEADLINE_KEY = {
   PLACED: 'headlinePlaced',
   CONFIRMED: 'headlineConfirmed',
   PACKING: 'headlinePacking',
+  READY_FOR_DELIVERY: 'headlineReadyForDelivery',
   OUT_FOR_DELIVERY: 'headlineOutForDelivery',
   DELIVERY_FAILED: 'headlineDeliveryFailed',
   DELIVERED: 'headlineDelivered',
