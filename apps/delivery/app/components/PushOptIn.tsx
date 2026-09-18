@@ -4,14 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getPushConfig,
   subscribeToPush,
+  unsubscribeFromPush,
   type PushSubscriptionPayload,
 } from '@/app/lib/api';
-import {
-  clearPushOptOut,
-  hasOptedOut,
-  rememberPushOptOut,
-  unsubscribeCurrentBrowser,
-} from '@/app/lib/push';
 
 // VAPID keys travel as base64url; PushManager wants raw bytes.
 function urlBase64ToUint8Array(base64Url: string): Uint8Array {
@@ -33,26 +28,6 @@ function pushSupported(): boolean {
 }
 
 /**
- * Subscribe this phone and store the subscription against the signed-in rider.
- * Never prompts — it assumes permission is already granted — so it is safe to
- * call without a user gesture.
- */
-async function register(
-  registration: ServiceWorkerRegistration,
-  publicKey: string,
-): Promise<void> {
-  const subscription =
-    (await registration.pushManager.getSubscription()) ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    }));
-  await subscribeToPush(
-    subscription.toJSON() as unknown as PushSubscriptionPayload,
-  );
-}
-
-/**
  * Lets a rider turn on alerts for newly assigned deliveries — the one thing
  * they need to know while out on the road and not looking at the screen.
  *
@@ -62,8 +37,7 @@ async function register(
  * the time the rider taps.
  *
  * Prompted only on an explicit tap: a permission dialog a rider didn't ask for
- * gets dismissed, and a dismissed prompt is hard to recover from. Re-arming an
- * existing grant on mount is not a prompt and is done silently — see below.
+ * gets dismissed, and a dismissed prompt is hard to recover from.
  */
 export default function PushOptIn() {
   const [available, setAvailable] = useState(false);
@@ -83,28 +57,12 @@ export default function PushOptIn() {
         if (cancelled || !config.enabled || !config.publicKey) return;
         const registration = await navigator.serviceWorker.register('/sw.js');
         await navigator.serviceWorker.ready;
+        const existing = await registration.pushManager.getSubscription();
         if (cancelled) return;
         setPublicKey(config.publicKey);
         setAvailable(true);
-        setDenied(Notification.permission === 'denied');
-
-        // Re-arm a grant the rider already gave, without prompting. This
-        // component only mounts once a rider is signed in, and a subscription
-        // is stored against whoever registered it — so signing out drops it
-        // (see app/lib/push.ts). Without this re-arm a rider would have to
-        // switch alerts back on by hand at the start of every shift, and a
-        // phone passed between riders would keep pushing one rider's jobs at
-        // the next, because the stored row would still be pointing at them.
-        if (Notification.permission === 'granted' && !hasOptedOut()) {
-          await register(registration, config.publicKey);
-          if (cancelled) return;
-          setSubscribed(true);
-          return;
-        }
-
-        const existing = await registration.pushManager.getSubscription();
-        if (cancelled) return;
         setSubscribed(existing !== null);
+        setDenied(Notification.permission === 'denied');
       } catch {
         // Alerts are a helper, not the job — a failed probe just hides them.
       }
@@ -126,8 +84,15 @@ export default function PushOptIn() {
         return;
       }
       const registration = await navigator.serviceWorker.ready;
-      await register(registration, publicKey);
-      clearPushOptOut();
+      const subscription =
+        (await registration.pushManager.getSubscription()) ??
+        (await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        }));
+      await subscribeToPush(
+        subscription.toJSON() as unknown as PushSubscriptionPayload,
+      );
       setSubscribed(true);
     } catch {
       setError('Could not turn on alerts. Please try again.');
@@ -140,11 +105,14 @@ export default function PushOptIn() {
     setBusy(true);
     setError(null);
     try {
-      // Same teardown sign-out runs (app/lib/push.ts), so the two can't drift.
-      await unsubscribeCurrentBrowser();
-      // Remember the choice: the browser permission stays granted, so without
-      // this the re-arm on mount would switch alerts straight back on.
-      rememberPushOptOut();
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        // Server first: dropping it locally while the row survives would leave
+        // the API pushing at a dead endpoint.
+        await unsubscribeFromPush(subscription.endpoint).catch(() => undefined);
+        await subscription.unsubscribe();
+      }
       setSubscribed(false);
     } catch {
       setError('Could not turn off alerts. Please try again.');
