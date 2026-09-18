@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @EnableConfigurationProperties(PaymentProperties.class)
 class PaymentServiceImpl implements PaymentService {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentServiceImpl.class);
 
     private final Map<PaymentMethod, PaymentProvider> providers = new EnumMap<>(PaymentMethod.class);
     private final PaymentRepository payments;
@@ -65,6 +69,17 @@ class PaymentServiceImpl implements PaymentService {
         PaymentStatus status = outcome.status();
         payments.save(new PaymentEntity(
                 orderId, method.name(), status.name(), amount, outcome.reference()));
+        // Money: always worth a line, and a failure is worth a loud one — it
+        // rolls the whole checkout back (see OrderServiceImpl#placeOrder), so
+        // the customer sees an order that never appeared and this is the only
+        // record of why.
+        if (status == PaymentStatus.FAILED) {
+            log.warn("Payment FAILED for order {}: {} {} (ref {})",
+                    orderId, method, amount, outcome.reference());
+        } else {
+            log.info("Payment {} for order {}: {} {} (ref {})",
+                    status, orderId, method, amount, outcome.reference());
+        }
         return new PaymentResult(method, status, outcome.reference());
     }
 }

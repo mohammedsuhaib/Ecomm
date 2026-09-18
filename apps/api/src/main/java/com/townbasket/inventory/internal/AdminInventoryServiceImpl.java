@@ -5,8 +5,9 @@ import com.townbasket.inventory.StockLevelDto;
 import com.townbasket.shared.BusinessRuleException;
 import com.townbasket.shared.PagedResponse;
 import com.townbasket.shared.ResourceNotFoundException;
-import java.math.BigDecimal;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 class AdminInventoryServiceImpl implements AdminInventoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminInventoryServiceImpl.class);
 
     private final StockLevelRepository stockLevels;
     private final StockMovementRepository movements;
@@ -133,11 +136,17 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
                             + "Cancel or fulfil those orders before lowering the count this far.");
         }
 
-        int delta = newOnHand - entity.getOnHand();
+        int previousOnHand = entity.getOnHand();
+        int delta = newOnHand - previousOnHand;
         if (delta == 0) return;
 
         stockLevels.setOnHand(storeId, variantId, newOnHand);
         String movReason = (reason != null && !reason.isBlank() ? reason : "physical count") + " [correction Δ" + delta + "]";
         movements.save(new StockMovementEntity(variantId, delta, movReason));
+        // A human overriding the system's count. The movement row is the
+        // permanent record; this is so an unexplained stock swing can be found
+        // in the log next to whatever else happened at that moment.
+        log.info("Stock corrected at store {}: variant {} {} -> {} (Δ{}), reason: {}",
+                storeId, variantId, previousOnHand, newOnHand, delta, movReason);
     }
 }

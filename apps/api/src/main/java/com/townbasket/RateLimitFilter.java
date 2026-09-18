@@ -7,10 +7,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -49,6 +50,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * identity module free of any dependency on it.
  */
 class RateLimitFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
 
     private static final String PHONE_VERIFY = "/api/v1/auth/phone/verify";
     private static final String STAFF_LOGIN = "/api/v1/auth/staff/login";
@@ -152,6 +155,13 @@ class RateLimitFilter extends OncePerRequestFilter {
 
     private void reject(HttpServletRequest request, HttpServletResponse response, long retryAfterSeconds)
             throws IOException {
+        // The IP is already in every proxy access log, so logging it here adds
+        // nothing new about anyone — it just puts the refusal next to the reason.
+        // Tripping this is not normal: the budget is sized for a whole shop
+        // behind one NAT address, so it means abuse or a client in a retry loop.
+        log.warn("Rate limit hit: {} from {} refused for {}s (budget {} per {})",
+                request.getRequestURI(), clientIp(request), retryAfterSeconds,
+                properties.capacity(), properties.window());
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
         response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(retryAfterSeconds));

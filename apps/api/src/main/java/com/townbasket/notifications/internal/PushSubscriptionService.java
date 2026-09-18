@@ -2,6 +2,8 @@ package com.townbasket.notifications.internal;
 
 import com.townbasket.notifications.PushSubscriptionRequest;
 import com.townbasket.shared.BusinessRuleException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class PushSubscriptionService {
+
+    private static final Logger log = LoggerFactory.getLogger(PushSubscriptionService.class);
 
     private final PushSubscriptionRepository subscriptions;
     private final WebPushProperties properties;
@@ -48,9 +52,19 @@ public class PushSubscriptionService {
         String endpoint = request.endpoint().trim();
         PushSubscriptionEntity entity = subscriptions.findByEndpoint(endpoint).orElse(null);
         if (entity == null) {
-            subscriptions.save(new PushSubscriptionEntity(
+            PushSubscriptionEntity saved = subscriptions.save(new PushSubscriptionEntity(
                     userId, endpoint, request.keys().p256dh().trim(), request.keys().auth().trim(), userAgent));
+            // Row id, never the endpoint: the endpoint URL is the capability that
+            // authorises pushing to (and unsubscribing) that device.
+            log.debug("Push subscription {} registered for user {}", saved.getId(), userId);
             return;
+        }
+        if (!userId.equals(entity.getUserId())) {
+            // A device that belonged to someone else — a shared or handed-on
+            // phone. Notable: from here on, that person's notifications stop
+            // arriving on it and this user's start.
+            log.info("Push subscription {} re-pointed from user {} to user {}",
+                    entity.getId(), entity.getUserId(), userId);
         }
         entity.setUserId(userId);
         entity.setP256dh(request.keys().p256dh().trim());

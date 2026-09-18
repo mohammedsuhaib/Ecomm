@@ -113,10 +113,18 @@ class WebPushNotificationChannel implements NotificationChannel {
         // looked up: their device keeps its subscription, and this is the only
         // thing standing between a signed-out phone and someone else's orders.
         if (!authService.hasActiveSession(message.recipientUserId())) {
+            // DEBUG, not WARN: this is the design working, and on a busy day it
+            // is every push to every signed-out person. It is here because
+            // "why did my alerts stop?" is otherwise unanswerable — see the
+            // troubleshooting steps in NOTIFICATIONS.md.
+            log.debug("Push skipped for user {}: no active session ({} for order {})",
+                    message.recipientUserId(), message.type(), message.orderId());
             return false;
         }
         List<PushSubscriptionEntity> targets = subscriptions.findByUserId(message.recipientUserId());
         if (targets.isEmpty()) {
+            // Never granted permission, or cleared their site data. Not a failure.
+            log.debug("Push skipped for user {}: no subscriptions registered", message.recipientUserId());
             return false; // customer never granted permission — not a failure
         }
         byte[] payload = payload(message);
@@ -126,6 +134,8 @@ class WebPushNotificationChannel implements NotificationChannel {
                 delivered++;
             }
         }
+        log.debug("Push {} for order {}: delivered to {} of {} device(s) for user {}",
+                message.type(), message.orderId(), delivered, targets.size(), message.recipientUserId());
         return delivered > 0;
     }
 
@@ -141,6 +151,8 @@ class WebPushNotificationChannel implements NotificationChannel {
             HttpResponse response = pushService.send(notification);
             int status = response.getStatusLine().getStatusCode();
             if (status == 404 || status == 410) {
+                log.info("Pruning dead push subscription {} (push service answered HTTP {})",
+                        subscription.getId(), status);
                 subscriptions.delete(subscription);
                 return false;
             }

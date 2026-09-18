@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 class InventoryServiceImpl implements InventoryService {
+
+    private static final Logger log = LoggerFactory.getLogger(InventoryServiceImpl.class);
 
     private final StockLevelRepository stockLevels;
     private final ReservationRepository reservations;
@@ -43,6 +47,11 @@ class InventoryServiceImpl implements InventoryService {
                         .map(StockLevelEntity::available)
                         .orElse(0);
                 // Triggers rollback of any reservations already applied in this tx.
+                // A lost sale, and the one inventory event worth reading back:
+                // it means the shelf count and the catalogue had drifted apart
+                // by the time someone tried to buy.
+                log.warn("Reservation refused for order {}: variant {} wanted {}, available {}",
+                        orderId, line.variantId(), line.qty(), available);
                 throw new InsufficientStockException(line.variantId(), line.qty(), available);
             }
             reservations.save(new ReservationEntity(orderId, line.variantId(), line.qty()));

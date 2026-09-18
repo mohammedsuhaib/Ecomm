@@ -31,14 +31,6 @@ class InvoiceSeriesEntity {
         // JPA
     }
 
-    String getFy() {
-        return fy;
-    }
-
-    long getLastSeq() {
-        return lastSeq;
-    }
-
     /** Take the next number in this year's series. Caller must hold the row lock. */
     long nextSeq() {
         lastSeq += 1;

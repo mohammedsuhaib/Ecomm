@@ -101,8 +101,14 @@ class AuthServiceImpl implements AuthService {
                     }
                     return existing;
                 })
-                .orElseGet(() -> users.saveAndFlush(
-                        UserEntity.customer(phone, verified.firebaseUid())));
+                .orElseGet(() -> {
+                    UserEntity created = users.saveAndFlush(
+                            UserEntity.customer(phone, verified.firebaseUid()));
+                    // Signup, which is worth counting. By id only — a phone
+                    // number is the customer's, and logs are not the place for it.
+                    log.info("New customer account {} created by phone login", created.getId());
+                    return created;
+                });
 
         return issueAuthResponse(user);
     }
@@ -125,6 +131,15 @@ class AuthServiceImpl implements AuthService {
                 || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             loginAttempts.recordFailure(email);
+            // By id, never by email: an operator needs to know WHICH account is
+            // being guessed at, and the id says that without putting a login
+            // name in the logs. An unknown email has no id to report, which is
+            // itself the useful signal (someone guessing at accounts).
+            if (user == null) {
+                log.warn("Staff login failed: no such account");
+            } else {
+                log.warn("Staff login failed for user {} ({})", user.getId(), user.getRole());
+            }
             throw new InvalidCredentialsException("Invalid email or password");
         }
         // Checked AFTER the password, deliberately: the right password on a
@@ -135,10 +150,14 @@ class AuthServiceImpl implements AuthService {
         // credential. Neither a guess nor a success for the throttle: the
         // failure count is left exactly as it was.
         if (!user.isActive()) {
+            // The password was right, so this is a real person locked out — not
+            // an attack. Worth seeing when a rider reports they cannot sign in.
+            log.warn("Staff login refused: user {} ({}) is deactivated", user.getId(), user.getRole());
             throw new AccountDeactivatedException(
                     "Your account has been deactivated. Please contact the store manager.");
         }
         loginAttempts.clear(email);
+        log.info("Staff login: user {} ({})", user.getId(), user.getRole());
         return issueAuthResponse(user);
     }
 
@@ -156,6 +175,13 @@ class AuthServiceImpl implements AuthService {
         // family (in its own committed transaction) and reject. Distinguished from a
         // merely expired token, which is just rejected.
         if (stored.isRevoked()) {
+            // The one security event in here that is not routine: either a token
+            // was stolen and replayed, or a client is retrying a rotation it
+            // already completed. Every session of that user is now dead, so the
+            // person is about to be bounced to the login screen — log it loudly
+            // enough to explain that to them.
+            log.warn("Refresh token REUSE detected for user {} — revoking all of their sessions",
+                    stored.getUserId());
             refreshTokenRevoker.revokeFamily(stored.getUserId());
             throw new InvalidCredentialsException("Invalid refresh token");
         }
@@ -168,6 +194,7 @@ class AuthServiceImpl implements AuthService {
         // by riding its still-valid refresh token (staffLogin already blocks this on
         // the password path).
         if (!user.isActive()) {
+            log.warn("Refresh refused: user {} is deactivated", user.getId());
             throw new InvalidCredentialsException("Invalid refresh token");
         }
 
@@ -184,7 +211,13 @@ class AuthServiceImpl implements AuthService {
             return; // Idempotent: nothing to revoke.
         }
         String hash = tokens.hashRefreshToken(request.refreshToken());
-        refreshTokens.findByTokenHash(hash).ifPresent(RefreshTokenEntity::revoke);
+        refreshTokens.findByTokenHash(hash).ifPresent(token -> {
+            token.revoke();
+            // Worth a line: this is what silences that person's push
+            // notifications (AuthService#hasActiveSession), so "why did the
+            // alerts stop?" is answerable from the log.
+            log.info("Logout: session ended for user {}", token.getUserId());
+        });
     }
 
     @Override
@@ -351,6 +384,7 @@ class AuthServiceImpl implements AuthService {
             // minutes. Same treatment resetPassword gives a changed credential.
             refreshTokenRevoker.revokeFamily(agent.getId());
         }
+        log.info("Delivery agent {} switched {}", agent.getId(), active ? "ON" : "OFF");
         return dto;
     }
 
