@@ -477,6 +477,13 @@ class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(readOnly = true)
+    public boolean hasActiveSession(Long userId) {
+        return userId != null
+                && refreshTokens.existsByUserIdAndRevokedFalseAndExpiresAtAfter(userId, Instant.now());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public DutyStatusDto dutyStatus(Long agentId) {
         return new DutyStatusDto(requireAgent(agentId).isOnDuty());
     }

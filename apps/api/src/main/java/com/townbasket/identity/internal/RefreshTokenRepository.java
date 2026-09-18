@@ -13,6 +13,15 @@ interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity, Long>
     Optional<RefreshTokenEntity> findByTokenHash(String tokenHash);
 
     /**
+     * Whether the user still holds a usable refresh token — i.e. is signed in
+     * somewhere. A session ends by logout (the presented token is revoked), by
+     * expiry, or by a family revoke (password reset, deactivation, token reuse),
+     * and all three leave nothing that matches. Rotation keeps exactly one live
+     * token per session, so this is true for the whole life of a session.
+     */
+    boolean existsByUserIdAndRevokedFalseAndExpiresAtAfter(Long userId, Instant now);
+
+    /**
      * Revoke every still-usable token for a user in one statement. Used by the
      * reuse-detection path: presenting an already-revoked (rotated) token is the
      * classic sign of a stolen token, so the whole family is invalidated.

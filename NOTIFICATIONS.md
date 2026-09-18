@@ -90,6 +90,15 @@ cancellations do not vibrate, so they don't startle someone mid-ride.
 
 Notes worth knowing:
 
+- **Nothing is pushed to anyone who is signed out.** A browser subscription
+  belongs to the browser, not to the session — it survives a logout, and a
+  signed-out phone may never run our code again to say so. So the recipient's
+  session is checked at send time (`AuthService#hasActiveSession`), and a person
+  who has signed out, whose session has expired, or whose sessions an admin has
+  revoked is skipped. This is what stops a rider phone handed to the next rider
+  from announcing the previous rider's deliveries — their customers' addresses
+  included. The subscription is left alone and goes quiet until they sign in
+  again, so turning alerts on is a one-time thing per phone, not per shift.
 - **Android/Chrome** works with the site simply open. **iPhone** only allows
   push once the customer has *installed* the PWA to their home screen (Safari
   16.4+) — until then the button won't appear for them.
@@ -113,9 +122,12 @@ Notes worth knowing:
    A `WEB_PUSH` row means it was actually delivered to at least one device.
 
 If nothing arrives: confirm the customer is subscribed
-(`SELECT count(*) FROM notifications.push_subscriptions WHERE user_id = …`), and
-check the API log for `Push to subscription … rejected` — the HTTP status from
-the push service says why.
+(`SELECT count(*) FROM notifications.push_subscriptions WHERE user_id = …`),
+confirm they are still signed in on that device — a subscription with no live
+session is skipped on purpose (`SELECT count(*) FROM identity.refresh_tokens
+WHERE user_id = … AND NOT revoked AND expires_at > now()`) — and check the API
+log for `Push to subscription … rejected`, where the HTTP status from the push
+service says why.
 
 ## Adding WhatsApp or SMS later
 

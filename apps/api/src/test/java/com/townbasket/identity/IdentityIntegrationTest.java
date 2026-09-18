@@ -141,6 +141,43 @@ class IdentityIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void hasActiveSessionFollowsLoginLogoutAndRevocation() {
+        // What the notifications module asks before pushing to someone's phone:
+        // the browser subscription outlives the session, so this is the only
+        // thing that stops a signed-out device from being told about orders.
+        assertThat(authService.hasActiveSession(null)).isFalse();
+        assertThat(authService.hasActiveSession(-1L)).isFalse();
+
+        AuthResponse res = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900007"));
+        Long userId = res.user().id();
+        assertThat(authService.hasActiveSession(userId)).isTrue();
+
+        // Rotation replaces the live token; the session continues.
+        TokenPair rotated = authService.refresh(new RefreshRequest(res.refreshToken()));
+        assertThat(authService.hasActiveSession(userId)).isTrue();
+
+        // A second device is its own session — signing out of one leaves the
+        // other signed in, so the person is still reachable.
+        AuthResponse second = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900007"));
+        authService.logout(new LogoutRequest(rotated.refreshToken()));
+        assertThat(authService.hasActiveSession(userId)).isTrue();
+
+        // Last session out: now nothing should reach them.
+        authService.logout(new LogoutRequest(second.refreshToken()));
+        assertThat(authService.hasActiveSession(userId)).isFalse();
+
+        // An expired token is not a session either, even though it was never
+        // revoked — a phone that stopped being used goes quiet by itself.
+        AuthResponse stale = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900008"));
+        Long staleUserId = stale.user().id();
+        assertThat(authService.hasActiveSession(staleUserId)).isTrue();
+        jdbcTemplate.update(
+                "UPDATE identity.refresh_tokens SET expires_at = now() - interval '1 day' WHERE user_id = ?",
+                staleUserId);
+        assertThat(authService.hasActiveSession(staleUserId)).isFalse();
+    }
+
+    @Test
     void addressCrudEnforcesSingleDefault() {
         Long userId = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900004")).user().id();
 
