@@ -2,6 +2,7 @@ package com.townbasket.notifications.internal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.townbasket.identity.AuthService;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
@@ -30,6 +31,15 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Self-healing: a push service that answers 404/410 is telling us the
  * subscription is permanently gone (app uninstalled, site data cleared), so the
  * row is deleted rather than retried forever.
+ *
+ * <p><strong>Only reaches people who are signed in.</strong> A subscription is
+ * the browser's, not the session's: it survives a logout, and the device cannot
+ * be relied on to say so — a signed-out phone, or one that is offline or closed,
+ * may never run our code again. So the recipient's session is checked here, at
+ * send time, and nothing is pushed to someone who has signed out, whose session
+ * has expired, or whose sessions an admin has revoked. The row stays; it goes
+ * quiet until they sign in again. This is what keeps a handed-back rider phone
+ * from announcing the previous rider's deliveries.
  */
 @Component
 @EnableConfigurationProperties(WebPushProperties.class)
@@ -44,6 +54,7 @@ class WebPushNotificationChannel implements NotificationChannel {
 
     private final WebPushProperties properties;
     private final PushSubscriptionRepository subscriptions;
+    private final AuthService authService;
     private final ObjectMapper objectMapper;
 
     /** Built once at startup; null when the channel is not configured. */
@@ -51,9 +62,11 @@ class WebPushNotificationChannel implements NotificationChannel {
 
     WebPushNotificationChannel(WebPushProperties properties,
                                PushSubscriptionRepository subscriptions,
+                               AuthService authService,
                                ObjectMapper objectMapper) {
         this.properties = properties;
         this.subscriptions = subscriptions;
+        this.authService = authService;
         this.objectMapper = objectMapper;
     }
 
@@ -96,8 +109,22 @@ class WebPushNotificationChannel implements NotificationChannel {
         if (message.recipientUserId() == null) {
             return false;
         }
+        // Signed out — say nothing. Checked before the subscriptions are even
+        // looked up: their device keeps its subscription, and this is the only
+        // thing standing between a signed-out phone and someone else's orders.
+        if (!authService.hasActiveSession(message.recipientUserId())) {
+            // DEBUG, not WARN: this is the design working, and on a busy day it
+            // is every push to every signed-out person. It is here because
+            // "why did my alerts stop?" is otherwise unanswerable — see the
+            // troubleshooting steps in NOTIFICATIONS.md.
+            log.debug("Push skipped for user {}: no active session ({} for order {})",
+                    message.recipientUserId(), message.type(), message.orderId());
+            return false;
+        }
         List<PushSubscriptionEntity> targets = subscriptions.findByUserId(message.recipientUserId());
         if (targets.isEmpty()) {
+            // Never granted permission, or cleared their site data. Not a failure.
+            log.debug("Push skipped for user {}: no subscriptions registered", message.recipientUserId());
             return false; // customer never granted permission — not a failure
         }
         byte[] payload = payload(message);
@@ -107,6 +134,8 @@ class WebPushNotificationChannel implements NotificationChannel {
                 delivered++;
             }
         }
+        log.debug("Push {} for order {}: delivered to {} of {} device(s) for user {}",
+                message.type(), message.orderId(), delivered, targets.size(), message.recipientUserId());
         return delivered > 0;
     }
 
@@ -122,6 +151,8 @@ class WebPushNotificationChannel implements NotificationChannel {
             HttpResponse response = pushService.send(notification);
             int status = response.getStatusLine().getStatusCode();
             if (status == 404 || status == 410) {
+                log.info("Pruning dead push subscription {} (push service answered HTTP {})",
+                        subscription.getId(), status);
                 subscriptions.delete(subscription);
                 return false;
             }

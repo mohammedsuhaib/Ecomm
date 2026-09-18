@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.townbasket.AbstractIntegrationTest;
 import com.townbasket.catalog.internal.ProductCsvImporter;
 import com.townbasket.inventory.AdminInventoryService;
-import com.townbasket.inventory.StockLevelDto;
 import com.townbasket.shared.BusinessRuleException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

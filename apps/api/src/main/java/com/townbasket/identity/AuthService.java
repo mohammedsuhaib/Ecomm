@@ -132,6 +132,24 @@ public interface AuthService {
      */
     boolean isAvailableDeliveryAgent(Long userId);
 
+    /**
+     * Whether {@code userId} is signed in on at least one device — they hold a
+     * refresh token that is neither revoked nor expired.
+     *
+     * <p>Used by the notifications module to decide whether a person should be
+     * reached off-page at all. A browser push subscription outlives the session
+     * that registered it (the browser keeps it until the app is uninstalled or
+     * site data is cleared), so without this test a phone goes on announcing
+     * one person's orders after they have signed out — to whoever is now
+     * holding it. Asking here means logout, expiry and an admin revoking a
+     * session all silence those notifications with no cooperation from the
+     * device, which is the point: a signed-out phone may never run our code
+     * again.
+     *
+     * <p>False for an unknown user id.
+     */
+    boolean hasActiveSession(Long userId);
+
     /** The calling rider's own availability. DELIVERY_AGENT only. */
     DutyStatusDto dutyStatus(Long agentId);
 

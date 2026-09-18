@@ -136,6 +136,13 @@ server:
 logging:
   level:
     root: INFO
+    # Our own code logs the things an operator has to answer questions about at
+    # INFO — every order state change, payment, stock correction, login and
+    # session end — and the routine per-device detail at DEBUG. Turn one package
+    # up when chasing something specific rather than the root logger, which also
+    # opens the floodgates on Spring, Hibernate and Flyway:
+    #   LOGGING_LEVEL_COM_TOWNBASKET_NOTIFICATIONS=DEBUG   # who a push reached, and who it skipped
+    com.townbasket: INFO
 
 # CORS allowed origins for the browser-facing apps (override in prod with the
 # real domains, e.g. https://town-basket.com,https://admin.town-basket.com).

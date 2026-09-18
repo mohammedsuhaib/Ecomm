@@ -58,8 +58,4 @@ class PaymentEntity {
     String getStatus() {
         return status;
     }
-
-    String getReference() {
-        return reference;
-    }
 }

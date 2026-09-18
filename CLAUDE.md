@@ -140,6 +140,14 @@ same gate, not at the packing step.
   re-tighten the IP budget to do it. Customer login needs no per-credential
   twin: Firebase verifies the OTP, and `/auth/phone/verify` only consumes the
   resulting signed token.
+- **A refresh token is the record of "signed in somewhere"**, and one thing
+  outside the identity module reads it: `WebPushNotificationChannel` asks
+  `AuthService#hasActiveSession` before pushing, so nothing is sent to a person
+  who has signed out, expired, or been revoked. A browser push subscription
+  outlives the session that made it and a signed-out phone may never run our
+  code again, so this check — not a client-side unsubscribe — is what keeps a
+  handed-on rider phone from announcing the previous rider's deliveries. Leave
+  the subscription row alone; it goes quiet by itself.
 
 ## Frontend architecture
 

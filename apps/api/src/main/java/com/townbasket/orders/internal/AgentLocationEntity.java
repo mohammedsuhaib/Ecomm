@@ -52,10 +52,6 @@ class AgentLocationEntity {
         return lng;
     }
 
-    Double getAccuracyMeters() {
-        return accuracyMeters;
-    }
-
     Instant getRecordedAt() {
         return recordedAt;
     }

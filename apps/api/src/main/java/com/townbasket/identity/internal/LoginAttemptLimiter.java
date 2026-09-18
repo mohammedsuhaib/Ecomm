@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,6 +40,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 class LoginAttemptLimiter {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginAttemptLimiter.class);
 
     private final LoginThrottleProperties properties;
 
@@ -75,6 +79,13 @@ class LoginAttemptLimiter {
         }
         if (current.count.get() >= properties.maxFailures()) {
             long retryAfterSeconds = (windowMillis - elapsed + 999) / 1000;
+            // No account key in the message on purpose: the key is a login
+            // email, and the "Staff login failed for user {}" lines that had to
+            // come first already name the account (or report that there isn't
+            // one, which is the enumeration signal). Sequence over PII.
+            log.warn("Staff login throttled: an account is over its budget of {} failures "
+                            + "per {}; refusing for another {}s",
+                    properties.maxFailures(), properties.window(), retryAfterSeconds);
             throw new TooManyRequestsException(
                     "Too many failed sign-in attempts for this account; please try again later",
                     retryAfterSeconds);

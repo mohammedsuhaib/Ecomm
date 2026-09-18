@@ -72,10 +72,6 @@ class StockLevelEntity {
         return reserved;
     }
 
-    int getLowStockThreshold() {
-        return lowStockThreshold;
-    }
-
     int available() {
         return onHand - reserved;
     }

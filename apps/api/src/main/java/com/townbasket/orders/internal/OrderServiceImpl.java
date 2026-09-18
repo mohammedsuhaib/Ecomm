@@ -42,7 +42,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,6 +50,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -73,6 +74,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 class OrderServiceImpl implements OrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderServiceImpl.class);
 
     private static final SecureRandom OTP_RANDOM = new SecureRandom();
 
@@ -271,6 +274,15 @@ class OrderServiceImpl implements OrderService {
         events.publishEvent(new OrderPlaced(saved.getId(), saved.getPublicCode(), storeId));
 
         cartService.markCheckedOut(cart.cartId());
+
+        // The order log is the trail for "what happened to order X?", which is
+        // how every support question and every reconciliation starts. Ids, the
+        // customer-facing code, money and payment state only — never the
+        // customer's name, phone or address, which are all a query away for
+        // anyone who is actually entitled to them.
+        log.info("Order {} ({}) placed: {} item(s), total {}, {} {}",
+                saved.getId(), saved.getPublicCode(), saved.getItems().size(),
+                saved.getTotal(), method, saved.getPaymentStatus());
 
         // Customer-facing response: carries the tracking token; the OTP stays
         // hidden until OUT_FOR_DELIVERY (so it is null here at placement).
@@ -525,6 +537,16 @@ class OrderServiceImpl implements OrderService {
                     order.getId(), order.getPublicCode(), order.getStoreId(), request.reason()));
         }
 
+        // One line per state change, so an order's whole history is greppable by
+        // its id. DELIVERY_FAILED and CANCELLED carry the reason staff typed,
+        // because that is the part nobody can reconstruct afterwards.
+        if (to == OrderStatus.DELIVERY_FAILED || to == OrderStatus.CANCELLED) {
+            log.info("Order {} ({}): {} -> {} ({})",
+                    order.getId(), order.getPublicCode(), from, to, request.reason());
+        } else {
+            log.info("Order {} ({}): {} -> {}", order.getId(), order.getPublicCode(), from, to);
+        }
+
         // Admin surface: never expose the delivery OTP.
         return toDto(orders.findById(orderId).orElseThrow(), false);
     }
@@ -593,6 +615,10 @@ class OrderServiceImpl implements OrderService {
             events.publishEvent(new OrderAssigned(
                     order.getId(), order.getPublicCode(), order.getStoreId(), agentId, previousAgentId,
                     status.name(), order.getAddressLine()));
+            // Who is carrying what is the question asked when a parcel goes
+            // missing, and the previous holder is half the answer.
+            log.info("Order {} ({}) assigned to rider {} (was {}) while {}",
+                    order.getId(), order.getPublicCode(), agentId, previousAgentId, status);
         }
         return toDto(order, false);
     }
@@ -673,6 +699,11 @@ class OrderServiceImpl implements OrderService {
         OrderEntity order = orders.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found: " + orderId));
         if (order.getAssignedAgentId() == null || !order.getAssignedAgentId().equals(agentId)) {
+            // A rider acting on an order that is not theirs. Usually a stale
+            // queue on a phone that has been offline — but it is a refused
+            // authorisation either way, and the pair of ids says which it was.
+            log.warn("Rider {} refused action on order {}: assigned to {}",
+                    agentId, orderId, order.getAssignedAgentId());
             throw new AccessDeniedException("This order is not assigned to you.");
         }
     }
