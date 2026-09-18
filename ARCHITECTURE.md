@@ -244,6 +244,29 @@ External: Paytm Payment Gateway (UPI payments) · Firebase Auth (phone OTP)
   which covers all three frontends and is pinned to Lighthouse 11.7.1 — 12
   removed the PWA category and with it the only installability audit).
   (Web-push subscription wiring lands with the Web Push add-on.)
+- **Search visibility.** The catalogue is server-rendered, so what matters is
+  that a crawler is told where it is and what it means. `robots.ts` and
+  `sitemap.ts` are dynamic routes: the sitemap is generated from the live
+  catalogue (categories plus every product, in cached pages of 200) rather
+  than a hand-kept file, and both are built from **`SITE_URL`**, a runtime
+  variable — the public hostname is a property of the deployment, not of the
+  image, and the same image serves QA and production. `SEO_NOINDEX=true`
+  turns a deployment into "Disallow: /", an empty sitemap and a noindex tag on
+  every page; QA sets it, on top of the `X-Robots-Tag` its proxy already
+  sends. Canonicals are self-referencing, dropping `sort` (a re-ordered list
+  is the same page) and keeping `page` (it is not). Product pages canonicalise
+  to the **slug**, since the id resolves too and would otherwise be a second
+  indexable URL. The basket, checkout, account and order tracking are
+  noindex/nofollow by layout as well as disallowed, because a disallowed page
+  can still be indexed from inbound links — and an order URL *is* its access
+  token. Structured data (`lib/structuredData.ts`) states only what the API
+  says: a GroceryStore with the store's real address, hours, position and the
+  delivery radius as a GeoCircle, and per-variant Offers whose price and
+  availability come from the same figures that enable Add to cart, so a rich
+  result can never promise what the basket refuses. No ratings — the shop has
+  none. **The domain itself is the biggest lever and is not a code change:**
+  the shop must answer on one hostname, with every other host redirecting to
+  it permanently.
 - **Live rider location:** while an order is OUT_FOR_DELIVERY the tracking
   page shows where the rider is — an ETA in minutes with the distance to the
   address, how old the fix is, plus a map with rider and home pins when a

@@ -41,6 +41,7 @@
     "title": "Town Basket — ದಿನಸಿ ಮನೆಬಾಗಿಲಿಗೆ ತಲುಪಿಸಲಾಗುತ್ತದೆ",
     "description": "ನಿಮ್ಮ ನೆರೆಹೊರೆಯ ಸೂಪರ್‌ಮಾರ್ಕೆಟ್‌ನಿಂದ ದಿನಸಿ ಆರ್ಡರ್ ಮಾಡಿ, 5 ಕಿ.ಮೀ. ಒಳಗೆ ವೇಗವಾಗಿ ತಲುಪಿಸಲಾಗುತ್ತದೆ.",
     "categoryTitle": "{name} — Town Basket",
+    "categoryDescription": "{name} ಅನ್ನು Town Basket ನಿಂದ ಆನ್‌ಲೈನ್‌ನಲ್ಲಿ ಆರ್ಡರ್ ಮಾಡಿ — ನಿಮ್ಮ ನೆರೆಹೊರೆಯ ಸೂಪರ್‌ಮಾರ್ಕೆಟ್‌ನಿಂದ ನಿಮ್ಮ ಮನೆಬಾಗಿಲಿಗೆ ತಲುಪಿಸಲಾಗುತ್ತದೆ.",
     "categoryFallback": "ವರ್ಗ — Town Basket",
     "productTitle": "{name} — Town Basket",
     "productFallback": "ಉತ್ಪನ್ನ — Town Basket",

@@ -6,7 +6,10 @@ import { productDisplayName } from '@/app/lib/productName';
 import VegMarker from '@/app/components/VegMarker';
 import PriceTag from '@/app/components/PriceTag';
 import AddToCartButton from '@/app/components/AddToCartButton';
+import JsonLd from '@/app/components/JsonLd';
 import ProductThumb from '@/app/components/ProductThumb';
+import { absoluteUrl } from '@/app/lib/site';
+import { breadcrumbJsonLd, productJsonLd } from '@/app/lib/structuredData';
 
 export const revalidate = 60;
 
@@ -19,9 +22,23 @@ export async function generateMetadata({ params }: Params) {
   const locale = await getLocale();
   const product = await getProduct(params.idOrSlug).catch(() => null);
   if (!product) return { title: t('productFallback') };
+  const name = productDisplayName(product, locale);
+  const title = t('productTitle', { name });
+  // Always the slug, never the numeric id: both resolve here, and without a
+  // canonical the same product would be two indexable URLs competing with
+  // each other. The slug is the one a person would recognise in a result.
+  const canonical = `/product/${product.slug}`;
   return {
-    title: t('productTitle', { name: productDisplayName(product, locale) }),
+    title,
     description: product.description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'website',
+      title,
+      description: product.description,
+      url: canonical,
+      ...(product.imageUrl ? { images: [{ url: absoluteUrl(product.imageUrl) }] } : {}),
+    },
   };
 }
 
@@ -41,6 +58,17 @@ export default async function ProductPage({ params }: Params) {
 
   return (
     <>
+      {/* Price and availability per variant, from the same live figures the
+          Add to cart button reads — so a rich result never offers something
+          the basket then refuses. */}
+      <JsonLd data={productJsonLd(product, locale)} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: tc('home'), path: '/' },
+          { name: displayName, path: `/product/${product.slug}` },
+        ])}
+      />
+
       <nav className="breadcrumb">
         <Link href="/">{tc('home')}</Link> / <span>{displayName}</span>
       </nav>

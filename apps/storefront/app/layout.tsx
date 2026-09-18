@@ -11,10 +11,17 @@ import CartProvider from './components/CartProvider';
 import AuthProvider from './components/AuthProvider';
 import ChunkErrorRecovery from './components/ChunkErrorRecovery';
 import InstallPrompt from './components/InstallPrompt';
+import { isNoIndex, siteUrl } from './lib/site';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
+  const locale = await getLocale();
   return {
+    // Everything relative in a page's metadata — canonicals, Open Graph
+    // images — is resolved against this. Without it Next emits relative OG
+    // image URLs, which no crawler or chat app will fetch, and the shop's
+    // shared links come out blank. Runtime value: see lib/site.ts.
+    metadataBase: new URL(siteUrl()),
     title: t('title'),
     description: t('description'),
     manifest: '/manifest.webmanifest',
@@ -24,6 +31,22 @@ export async function generateMetadata(): Promise<Metadata> {
       statusBarStyle: 'default',
       title: 'Town Basket',
     },
+    openGraph: {
+      type: 'website',
+      siteName: 'Town Basket',
+      title: t('title'),
+      description: t('description'),
+      locale: locale === 'kn' ? 'kn_IN' : 'en_IN',
+      url: '/',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('title'),
+      description: t('description'),
+    },
+    // A non-production deployment says so in every page's head, on top of the
+    // X-Robots-Tag its proxy sends and the robots.txt it serves.
+    ...(isNoIndex() ? { robots: { index: false, follow: false } } : {}),
   };
 }
 

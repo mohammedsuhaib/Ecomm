@@ -41,6 +41,7 @@
     "title": "Town Basket — Groceries delivered",
     "description": "Order groceries from your neighbourhood supermarket, delivered fast within 5 km.",
     "categoryTitle": "{name} — Town Basket",
+    "categoryDescription": "Order {name} online from Town Basket and have it delivered to your door from your neighbourhood supermarket.",
     "categoryFallback": "Category — Town Basket",
     "productTitle": "{name} — Town Basket",
     "productFallback": "Product — Town Basket",

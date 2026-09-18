@@ -2,9 +2,11 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { getCategories, getProducts } from '@/app/lib/api';
+import JsonLd from '@/app/components/JsonLd';
 import ProductCard from '@/app/components/ProductCard';
 import SortControl from '@/app/components/SortControl';
 import { parseSort } from '@/app/lib/sort';
+import { breadcrumbJsonLd } from '@/app/lib/structuredData';
 import type { Category } from '@/app/lib/types';
 
 export const revalidate = 60;
@@ -14,12 +16,22 @@ interface Params {
   searchParams: { page?: string; sort?: string };
 }
 
-export async function generateMetadata({ params }: Params) {
+export async function generateMetadata({ params, searchParams }: Params) {
   const t = await getTranslations('metadata');
   const categories = await getCategories().catch(() => [] as Category[]);
   const cat = categories.find((c) => c.slug === params.slug);
+  const page = Math.max(0, Number.parseInt(searchParams.page ?? '0', 10) || 0);
+  // Self-referencing, and it keeps the page number: page two is a different
+  // set of products and deserves its own entry. It drops `sort`, because a
+  // re-ordered list of the same products is the same page — that is the one
+  // duplicate this catalogue can actually generate.
+  const canonical = `/category/${params.slug}${page > 0 ? `?page=${page}` : ''}`;
+  const title = cat ? t('categoryTitle', { name: cat.name }) : t('categoryFallback');
   return {
-    title: cat ? t('categoryTitle', { name: cat.name }) : t('categoryFallback'),
+    title,
+    ...(cat ? { description: t('categoryDescription', { name: cat.name }) } : {}),
+    alternates: { canonical },
+    openGraph: { title, url: canonical },
   };
 }
 
@@ -45,6 +57,13 @@ export default async function CategoryPage({ params, searchParams }: Params) {
 
   return (
     <>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: tc('home'), path: '/' },
+          { name: category.name, path: `/category/${category.slug}` },
+        ])}
+      />
+
       <nav className="breadcrumb">
         <Link href="/">{tc('home')}</Link> / <span>{category.name}</span>
       </nav>
