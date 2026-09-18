@@ -155,7 +155,10 @@ services:
   # Log shipper to Grafana Cloud. OFF unless COMPOSE_PROFILES=monitoring is set
   # in .env (see .env.example). Streams logs out; stores nothing on the droplet.
   alloy:
-    image: grafana/alloy:latest
+    # Pinned: this agent runs unattended on the droplet, and `latest`
+    # means a silent major upgrade can break log shipping on a day
+    # nobody is looking at Grafana. Bump deliberately.
+    image: grafana/alloy:${ALLOY_VERSION:-v1.19.2}
     profiles: ["monitoring"]
     restart: unless-stopped
     command:
