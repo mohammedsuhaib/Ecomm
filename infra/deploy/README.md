@@ -11,7 +11,8 @@ artifacts. Full provisioning/runbook polish lands in **M6**.
 |---|---|
 | `docker-compose.prod.yml` | Production compose: Caddy + api + storefront + admin + delivery (+ optional Postgres). Pulls pre-built images from the registry. |
 | `Caddyfile` | Reverse proxy + auto-TLS for `shop.`, `admin.`, `api.`, `delivery.town-basket.com`. |
-| `backup/nightly-backup.sh` | `pg_dump` → gzip → upload to DO Spaces; retention pruning. Run nightly via cron/systemd timer. |
+| `backup/nightly-backup.sh` | `pg_dump` → gzip → upload to DO Spaces; retention pruning. Run nightly via a systemd timer — setup in [`backup/README.md`](backup/README.md). |
+| `backup/RESTORE.md` | How to get the data back out of a dump, and the quarterly drill that keeps that claim true. |
 
 ## Topology
 
@@ -96,3 +97,8 @@ token on each deploy.
 Nightly off-site backups to DO Spaces with a tested restore runbook are the
 priority over failover (a single droplet has no auto-failover — a conscious
 trade-off, see §7/§7a). Alert on backup success/failure.
+
+The script does nothing until its timer is installed:
+[`backup/README.md`](backup/README.md) is the setup, and
+[`backup/RESTORE.md`](backup/RESTORE.md) is the restore procedure that makes
+"tested restore runbook" more than a sentence in this file.

@@ -705,6 +705,9 @@ The script exists; the schedule does not. Until this is installed there are no
 backups. Prefer a systemd timer over cron — it logs to the journal and surfaces
 failures.
 
+Full procedure, including the prerequisites and how to verify the first run:
+`infra/deploy/backup/README.md`. The units below are the short version.
+
 `/etc/systemd/system/tb-backup.service`:
 
 ```ini
@@ -763,10 +766,11 @@ no ping arrives within ~26 hours.
 
 ### 3.3 Write the restore runbook (A10)
 
-Turn 0.2 into a document at `infra/deploy/backup/RESTORE.md`: the exact commands
-you ran, the elapsed time, how to find the right dump in Spaces, and how to
-point the API at a restored database. Re-test it quarterly. The deploy README
-already claims a tested restore runbook exists — this is what makes that true.
+`infra/deploy/backup/RESTORE.md` now exists: finding the right dump, restoring
+it beside the live database, the row counts that prove it is real, and how to
+point the API at it. What it still needs from you is a run — walk it once here,
+record the elapsed time in the table at its foot, and re-test quarterly. The
+deploy README claims a tested restore runbook; only your run makes that true.
 
 ### 3.4 Monitoring and uptime alerting (A11)
 
