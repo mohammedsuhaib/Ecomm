@@ -3,16 +3,12 @@
 
 shop.town-basket.com {
 	encode gzip zstd
-	reverse_proxy storefront:3000 {
-		preserve_host
-	}
+	reverse_proxy storefront:3000
 }
 
 admin.town-basket.com {
 	encode gzip zstd
-	reverse_proxy admin:3001 {
-		preserve_host
-	}
+	reverse_proxy admin:3001
 }
 
 api.town-basket.com {
@@ -26,7 +22,5 @@ api.town-basket.com {
 
 delivery.town-basket.com {
 	encode gzip zstd
-	reverse_proxy delivery:3002 {
-		preserve_host
-	}
+	reverse_proxy delivery:3002
 }
