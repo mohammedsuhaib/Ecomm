@@ -86,7 +86,7 @@ export default function LoginGate({ children }: { children: ReactNode }) {
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-
+      </form>
     </div>
   );
 }
