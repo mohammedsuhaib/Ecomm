@@ -60,7 +60,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="delivery@townbasket.local"
             required
             autoFocus
           />
@@ -74,7 +73,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
             required
           />
         </label>
@@ -89,8 +87,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        <p className="login-hint">Dev: <code>delivery@townbasket.local</code> / <code>Delivery@12345</code></p>
-      </form>
     </div>
   );
 }

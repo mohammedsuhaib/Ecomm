@@ -54,6 +54,7 @@ export default function LoginGate({ children }: { children: ReactNode }) {
 
   if (isAuthenticated) return <>{children}</>;
 
+  // @ts-ignore
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
@@ -74,7 +75,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@townbasket.local"
             required
             autoFocus
           />
@@ -88,7 +88,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Admin@12345"
             required
           />
         </label>
@@ -103,9 +102,6 @@ export default function LoginGate({ children }: { children: ReactNode }) {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        <p className="login-hint muted">
-          Dev login: <code>admin@townbasket.local</code> / <code>Admin@12345</code>
-        </p>
       </form>
     </div>
   );
