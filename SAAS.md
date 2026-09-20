@@ -236,7 +236,7 @@ Today everything is a global env var (`application.yml`). The split:
 
 | Setting | Today | Why per-tenant |
 |---|---|---|
-| GSTIN | `TOWNBASKET_INVOICE_GSTIN` | Each tenant is a separate taxable person. Legal requirement |
+| GSTIN | `serviceability.stores.gstin` (per store, admin-editable) | Each tenant is a separate taxable person. Legal requirement — already per-row rather than per-deployment, so this one needs no extraction |
 | Invoice series prefix | `TOWNBASKET_INVOICE_SERIES_PREFIX` (`TB`) | Per-business series; still ≤4 chars for the Rule 46(b) 16-char cap |
 | Store coords, radius, hours, min order, support phone | `serviceability.stores` row | Already per-store ✓ |
 | Brand name, logo, theme, domain | Hardcoded in the frontends | §8 |

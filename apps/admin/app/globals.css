@@ -1454,6 +1454,19 @@ a {
 .store-form { flex-wrap: wrap; }
 .store-form .login-field { flex: 1 1 200px; }
 .store-form .store-form-wide { flex: 1 1 100%; }
+/* Helper line under a field (e.g. what the GSTIN affects). The label is bold,
+   so the hint has to opt out of that or it reads as part of the label. */
+.store-form .field-hint {
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+/* A GSTIN is a fixed-width code read back character by character against a
+   certificate, so it is worth the tabular glyphs. */
+.store-form input[autocapitalize='characters'] {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  text-transform: uppercase;
+}
 
 /* Order search above the status tabs. */
 .queue-search { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }

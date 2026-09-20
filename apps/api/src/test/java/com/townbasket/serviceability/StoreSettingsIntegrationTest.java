@@ -39,7 +39,7 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         serviceabilityService.updateStore(new StoreUpdateRequest(
                 original.name(), original.address(), original.lat(), original.lng(),
                 original.deliveryRadiusMeters(), original.openingTime(), original.closingTime(),
-                original.minOrderValue(), original.supportPhone()));
+                original.minOrderValue(), original.supportPhone(), original.gstin()));
     }
 
     @Test
@@ -50,7 +50,7 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         StoreDto updated = serviceabilityService.updateStore(new StoreUpdateRequest(
                 "Town Basket QA", before.address(), before.lat(), before.lng(),
                 7_000, LocalTime.of(0, 0), LocalTime.of(23, 59), new BigDecimal("199.00"),
-                "08212345678"));
+                "08212345678", before.gstin()));
 
         assertThat(updated.name()).isEqualTo("Town Basket QA");
         assertThat(updated.supportPhone()).isEqualTo("08212345678");
@@ -68,7 +68,7 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         serviceabilityService.updateStore(new StoreUpdateRequest(
                 before.name(), before.address(), before.lat(), before.lng(),
                 before.deliveryRadiusMeters(), LocalTime.of(0, 0), LocalTime.of(23, 59),
-                before.minOrderValue(), before.supportPhone()));
+                before.minOrderValue(), before.supportPhone(), before.gstin()));
         assertThat(serviceabilityService.activeStore().orElseThrow().open()).isTrue();
 
         StoreDto closed = serviceabilityService.closeForToday("Power cut");
@@ -93,9 +93,42 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         // call link to nowhere, which is the dead end this field exists to fix.
         StoreDto updated = serviceabilityService.updateStore(new StoreUpdateRequest(
                 b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
-                b.openingTime(), b.closingTime(), b.minOrderValue(), "   "));
+                b.openingTime(), b.closingTime(), b.minOrderValue(), "   ", b.gstin()));
 
         assertThat(updated.supportPhone()).isNull();
+    }
+
+    @Test
+    void theGstinRoundTripsAndIsNormalisedAndValidated() {
+        StoreDto b = snapshot();
+
+        // Accepted as it appears on a registration certificate — spaced, and
+        // whatever case it was pasted in — and stored in one canonical form,
+        // because it is printed on invoices.
+        StoreDto updated = serviceabilityService.updateStore(new StoreUpdateRequest(
+                b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
+                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone(),
+                "29 aapfu 0939 f1zv"));
+        assertThat(updated.gstin()).isEqualTo("29AAPFU0939F1ZV");
+        // The public /store endpoint serves the same row: a GSTIN is public by
+        // law, so this is not a leak.
+        assertThat(serviceabilityService.activeStore().orElseThrow().gstin())
+                .isEqualTo("29AAPFU0939F1ZV");
+
+        // Blank clears it — an unregistered store still has to save the card.
+        StoreDto cleared = serviceabilityService.updateStore(new StoreUpdateRequest(
+                b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
+                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone(), "  "));
+        assertThat(cleared.gstin()).isNull();
+
+        // Malformed is refused at the point staff can still fix it, rather than
+        // reaching an invoice.
+        assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
+                b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
+                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone(),
+                "29AAPFU0939F1Z")))
+                .as("14 characters").isInstanceOf(IllegalArgumentException.class);
+        assertThat(serviceabilityService.activeStore().orElseThrow().gstin()).isNull();
     }
 
     @Test
@@ -109,15 +142,15 @@ class StoreSettingsIntegrationTest extends AbstractIntegrationTest {
         StoreDto b = snapshot();
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
                 b.name(), b.address(), b.lat(), b.lng(), 100, b.openingTime(), b.closingTime(),
-                b.minOrderValue(), b.supportPhone())))
+                b.minOrderValue(), b.supportPhone(), b.gstin())))
                 .as("radius below 500 m").isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
                 b.name(), b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
-                LocalTime.of(9, 0), LocalTime.of(9, 0), b.minOrderValue(), b.supportPhone())))
+                LocalTime.of(9, 0), LocalTime.of(9, 0), b.minOrderValue(), b.supportPhone(), b.gstin())))
                 .as("opening == closing").isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> serviceabilityService.updateStore(new StoreUpdateRequest(
                 " ", b.address(), b.lat(), b.lng(), b.deliveryRadiusMeters(),
-                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone())))
+                b.openingTime(), b.closingTime(), b.minOrderValue(), b.supportPhone(), b.gstin())))
                 .as("blank name").isInstanceOf(IllegalArgumentException.class);
         // Nothing changed.
         assertThat(serviceabilityService.activeStore().orElseThrow().name()).isEqualTo(b.name());

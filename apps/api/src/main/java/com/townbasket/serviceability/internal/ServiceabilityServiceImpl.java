@@ -3,6 +3,7 @@ package com.townbasket.serviceability.internal;
 import com.townbasket.serviceability.ServiceabilityCheckDto;
 import com.townbasket.serviceability.ServiceabilityService;
 import com.townbasket.serviceability.StoreDto;
+import java.util.Objects;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,9 +178,27 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
         // and an empty string would otherwise render as a call link to nowhere.
         // Deliberately not format-validated: this has to accept a landline, a
         // mobile, or a number with spaces or an STD code as staff write it.
+        // The GSTIN is optional and normalised to null when blank, for the same
+        // reason as the phone: an unregistered store still has to be able to
+        // save the card. Unlike the phone it IS validated — a GSTIN has a fixed
+        // shape and it is printed on legal documents, so a malformed one is
+        // worth refusing at the point someone can still fix it. Editing it
+        // never rewrites an invoice already issued; each keeps the number it
+        // was issued under.
+        String gstin = Gstin.normalise(r.gstin());
+        Gstin.validate(gstin);
+        String previousGstin = store.getGstin();
         store.updateSettings(r.name().trim(), r.address().trim(), r.lat(), r.lng(),
                 r.deliveryRadiusMeters(), r.openingTime(), r.closingTime(), r.minOrderValue(),
-                isBlank(r.supportPhone()) ? null : r.supportPhone().trim());
+                isBlank(r.supportPhone()) ? null : r.supportPhone().trim(),
+                gstin);
+        if (!Objects.equals(previousGstin, gstin)) {
+            // Every invoice issued from here on carries this number, so the
+            // moment it changed is worth being able to find.
+            log.info("Store {} GSTIN changed from {} to {}",
+                    store.getId(), previousGstin == null ? "(none)" : previousGstin,
+                    gstin == null ? "(none)" : gstin);
+        }
         return saveAndPublish(store);
     }
 
@@ -277,6 +296,7 @@ class ServiceabilityServiceImpl implements ServiceabilityService {
                 open,
                 nextDay,
                 s.supportPhone(),
+                s.gstin(),
                 manuallyClosed,
                 manuallyClosed ? s.closedReason() : null,
                 manuallyClosed ? s.closedUntil() : null);

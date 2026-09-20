@@ -25,6 +25,14 @@ public record StoreDto(
          * somewhere to send them.
          */
         String supportPhone,
+        /**
+         * The store's GST registration number, or null while it isn't
+         * registered. Public because a GSTIN is public by law — it has to be
+         * displayed at the place of business and printed on every tax invoice —
+         * so the storefront may show it, and the admin card edits it through
+         * this same shape.
+         */
+        String gstin,
         /** True while a manual "closed for today" is in force — the reason for {@code open == false} then. */
         boolean manuallyClosed,
         /** Staff's reason for the manual closure (shown to customers), null otherwise. */

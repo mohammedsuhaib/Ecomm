@@ -52,6 +52,7 @@ export default function StorePanel() {
   const [radiusKm, setRadiusKm] = useState('5');
   const [minOrder, setMinOrder] = useState('299');
   const [supportPhone, setSupportPhone] = useState('');
+  const [gstin, setGstin] = useState('');
 
   const hydrate = useCallback((s: StoreSettings) => {
     setStore(s);
@@ -64,6 +65,7 @@ export default function StorePanel() {
     setRadiusKm(String(s.deliveryRadiusMeters / 1000));
     setMinOrder(String(s.minOrderValue));
     setSupportPhone(s.supportPhone ?? '');
+    setGstin(s.gstin ?? '');
   }, []);
 
   const load = useCallback(async () => {
@@ -104,6 +106,7 @@ export default function StorePanel() {
         closingTime: closing,
         minOrderValue: Number(minOrder),
         supportPhone: supportPhone.trim(),
+        gstin: gstin.trim(),
       });
       hydrate(updated);
       setSuccess('Store settings saved. Customers see the new hours immediately.');
@@ -220,6 +223,21 @@ export default function StorePanel() {
             onChange={(e) => setSupportPhone(e.target.value)}
             placeholder="e.g. 0821 234 5678"
           />
+        </label>
+        <label className="login-field store-form-wide">
+          GSTIN
+          <input
+            value={gstin}
+            onChange={(e) => setGstin(e.target.value)}
+            placeholder="e.g. 29AAPFU0939F1ZV — leave blank until registered"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={20}
+          />
+          <span className="field-hint neutral">
+            Printed on every tax invoice issued from now on. Invoices already
+            issued keep the number they were issued under.
+          </span>
         </label>
         <label className="login-field">
           Latitude

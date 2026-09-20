@@ -268,6 +268,8 @@ export interface StoreSettings {
   opensNextDay: boolean;
   /** Public contact number shown to customers; null until it is set here. */
   supportPhone: string | null;
+  /** GST registration number; null until the store is registered. */
+  gstin: string | null;
   manuallyClosed: boolean; // a "closed for today" is in force
   closedReason: string | null;
   closedUntil: string | null; // ISO instant when the closure lapses
@@ -285,6 +287,12 @@ export interface StoreUpdateRequest {
   minOrderValue: number;
   /** Blank clears it, and the storefront then stops offering a way to call. */
   supportPhone: string;
+  /**
+   * GST registration number. Blank clears it; spaces and hyphens are accepted
+   * and normalised away by the API. Changing it never alters an invoice already
+   * issued — each keeps the GSTIN it was issued under.
+   */
+  gstin: string;
 }
 
 /** GET /admin/staff — password-login accounts (ADMIN + STORE_STAFF). ADMIN only. */

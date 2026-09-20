@@ -648,16 +648,28 @@ expect on a map.
 
 ### 2.3 GSTIN and invoice series (A7)
 
-In `.env`, before the first invoice is issued — the series is immutable once
-numbers are handed out:
+**The GSTIN is no longer an environment variable.** Enter it in the admin app
+(**Store** card → **GSTIN**) and save; it takes effect on the next invoice with
+no restart. Spaces and hyphens as they appear on the registration certificate
+are accepted and normalised away.
+
+Only the series prefix is still `.env`, and it must be set before the first
+invoice is issued — the series is immutable once numbers are handed out:
 
 ```
-TOWNBASKET_INVOICE_GSTIN=<the store's GSTIN>
 TOWNBASKET_INVOICE_SERIES_PREFIX=TB     # ≤ 4 chars (Rule 46(b) 16-char cap)
 ```
 
-Restart the API (`docker compose up -d api`), then issue one invoice and check
-it renders the GSTIN and a number of the form `TB/25-26/00001`.
+Then issue one invoice and check it renders the GSTIN and a number of the form
+`TB/25-26/00001`.
+
+Each invoice records the GSTIN it was issued under
+(`orders.orders.invoice_gstin`), so correcting the store's GSTIN later changes
+what *new* invoices carry and never rewrites one already issued. Two
+consequences worth knowing: enter the GSTIN **before** issuing invoices you
+intend to hand over, because an invoice issued while it was blank keeps that
+blank; and if you do discover a wrong GSTIN after issuing, fix the setting and
+re-issue through a credit note, not by editing the setting and re-downloading.
 
 ### 2.4 Firebase phone OTP (A8)
 
@@ -824,7 +836,7 @@ understands schema changes are forward-only.
 | 1.3–1.4 | Close Swagger, api-docs, metrics | yes | yes (image rollback) |
 | 1.5 | Payment boot guard | yes | yes (image rollback) |
 | 2.1–2.2 | Real catalogue, stock, store settings | no | from backup only |
-| 2.3–2.5 | GSTIN, Firebase, push, images | restart | yes (env) |
+| 2.3–2.5 | GSTIN (admin card, no restart), Firebase, push, images | restart for 2.4–2.5 | yes (env) |
 | 3 | Backup timer, alerting, monitoring | no | yes |
 | 4 | Docs, policies, UAT, rehearsal | no | n/a |
 

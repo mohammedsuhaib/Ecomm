@@ -49,6 +49,13 @@ class StoreEntity {
     @Column(name = "support_phone")
     private String supportPhone;
 
+    /**
+     * GST registration number, null until the store is registered. Validated
+     * and normalised by {@link Gstin} on the way in.
+     */
+    @Column(name = "gstin")
+    private String gstin;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -103,6 +110,10 @@ class StoreEntity {
         return supportPhone;
     }
 
+    String getGstin() {
+        return gstin;
+    }
+
     boolean isActive() {
         return active;
     }
@@ -118,7 +129,7 @@ class StoreEntity {
     // Settings are edited from the admin app; identity and `active` are not.
     void updateSettings(String name, String address, double lat, double lng,
                         int deliveryRadiusM, LocalTime openingTime, LocalTime closingTime,
-                        BigDecimal minOrderValue, String supportPhone) {
+                        BigDecimal minOrderValue, String supportPhone, String gstin) {
         this.name = name;
         this.address = address;
         this.lat = lat;
@@ -128,6 +139,7 @@ class StoreEntity {
         this.closingTime = closingTime;
         this.minOrderValue = minOrderValue;
         this.supportPhone = supportPhone;
+        this.gstin = gstin;
     }
 
     void closeUntil(Instant until, String reason) {
