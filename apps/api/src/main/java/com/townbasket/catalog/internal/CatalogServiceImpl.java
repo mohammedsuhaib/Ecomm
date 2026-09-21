@@ -285,8 +285,9 @@ class CatalogServiceImpl implements CatalogService {
         String name = requireText(request.name(), "Category name must not be blank.");
         String slug = resolveSlug(request.slug(), name, this::categorySlugExists);
         int sortOrder = request.sortOrder() != null ? request.sortOrder() : nextCategorySortOrder();
-        CategoryEntity saved = categoryRepository.save(
-                CategoryEntity.create(name, slug, sortOrder, trimToNull(request.imageUrl())));
+        CategoryEntity category = CategoryEntity.create(name, slug, sortOrder, trimToNull(request.imageUrl()));
+        transliterateCategory(category, name);
+        CategoryEntity saved = categoryRepository.save(category);
         return toCategoryDto(saved);
     }
 
@@ -296,7 +297,9 @@ class CatalogServiceImpl implements CatalogService {
     public CategoryDto updateCategory(Long id, UpdateCategoryRequest request) {
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> categoryNotFound(id));
-        category.setName(requireText(request.name(), "Category name must not be blank."));
+        String newName = requireText(request.name(), "Category name must not be blank.");
+        category.setName(newName);
+        transliterateCategory(category, newName);
         if (request.sortOrder() != null) {
             category.setSortOrder(request.sortOrder());
         }
@@ -678,7 +681,13 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     private static CategoryDto toCategoryDto(CategoryEntity e) {
-        return new CategoryDto(e.getId(), e.getName(), e.getSlug(), e.getImageUrl(), e.getSortOrder());
+        return new CategoryDto(e.getId(), e.getName(), e.getSlug(), e.getImageUrl(), e.getSortOrder(), e.getNameKn());
+    }
+
+    private void transliterateCategory(CategoryEntity category, String englishName) {
+        if (transliterator.isPresent()) {
+            transliterator.get().toKannada(englishName).ifPresent(category::setNameKn);
+        }
     }
 
     /**
