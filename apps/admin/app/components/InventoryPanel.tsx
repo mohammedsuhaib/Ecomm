@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   correctStock,
+  exportInventoryValuation,
   getStockLevels,
   serverMessage,
   AuthRequiredError,
@@ -57,6 +58,8 @@ export default function InventoryPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [edit, setEdit] = useState<EditState | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const PAGE_SIZE = 100;
 
   // Monotonic request id: a slower response from a superseded keystroke must
@@ -147,14 +150,41 @@ export default function InventoryPanel() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const handleExportValuation = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportInventoryValuation();
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        void refreshAuth();
+      } else {
+        setExportError('Could not generate the inventory valuation. Please try again.');
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <section className="inv-panel">
       <div className="inv-panel-head">
-        <h2 className="cat-panel-title">Stock Levels</h2>
-        <span className="muted" style={{ fontSize: '0.85rem' }}>
-          {search ? `${total} matching` : `${total} variants`}
-        </span>
+        <div className="inv-panel-title-group">
+          <h2 className="cat-panel-title">Stock Levels</h2>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>
+            {search ? `${total} matching` : `${total} variants`}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => void handleExportValuation()}
+          disabled={exporting}
+        >
+          {exporting ? 'Exporting…' : 'Export valuation (.xlsx)'}
+        </button>
       </div>
+      {exportError && <p className="order-error">{exportError}</p>}
 
       <div className="prod-filters">
         <input

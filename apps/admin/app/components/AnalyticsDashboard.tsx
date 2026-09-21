@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  exportSalesReport,
   getAnalyticsSummary,
   getDailySummary,
   getLowStockItems,
@@ -26,6 +27,15 @@ const PERIOD_OPTIONS = [
   { label: '90 days', days: 90 },
 ];
 
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function daysAgo(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return isoDate(d);
+}
+
 export default function AnalyticsDashboard() {
   const { refresh: refreshAuth } = useAuth();
   const [period, setPeriod] = useState(30);
@@ -36,6 +46,30 @@ export default function AnalyticsDashboard() {
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [reportFrom, setReportFrom] = useState(() => daysAgo(30));
+  const [reportTo, setReportTo] = useState(() => isoDate(new Date()));
+  const [exporting, setExporting] = useState<'xlsx' | 'pdf' | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExport = useCallback(
+    async (format: 'xlsx' | 'pdf') => {
+      setExporting(format);
+      setExportError(null);
+      try {
+        await exportSalesReport(reportFrom, reportTo, format);
+      } catch (err) {
+        if (err instanceof AuthRequiredError) {
+          refreshAuth();
+        } else {
+          setExportError('Could not generate the report — check the date range and try again.');
+        }
+      } finally {
+        setExporting(null);
+      }
+    },
+    [reportFrom, reportTo, refreshAuth],
+  );
 
   const load = useCallback(
     async (days: number) => {
@@ -95,6 +129,47 @@ export default function AnalyticsDashboard() {
         ))}
         {loading && <span className="muted" style={{ marginLeft: 'auto', fontSize: '0.82rem' }}>Loading…</span>}
       </div>
+
+      {/* GST sales report export — date range + xlsx/pdf, for filing/audit use. */}
+      <div className="analytics-export-row">
+        <span className="analytics-export-label">Sales report (GST):</span>
+        <label className="analytics-export-field">
+          From
+          <input
+            type="date"
+            value={reportFrom}
+            max={reportTo}
+            onChange={(e) => setReportFrom(e.target.value)}
+          />
+        </label>
+        <label className="analytics-export-field">
+          To
+          <input
+            type="date"
+            value={reportTo}
+            min={reportFrom}
+            max={isoDate(new Date())}
+            onChange={(e) => setReportTo(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={exporting !== null}
+          onClick={() => void handleExport('xlsx')}
+        >
+          {exporting === 'xlsx' ? 'Exporting…' : 'Export .xlsx'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={exporting !== null}
+          onClick={() => void handleExport('pdf')}
+        >
+          {exporting === 'pdf' ? 'Exporting…' : 'Export .pdf'}
+        </button>
+      </div>
+      {exportError && <p className="order-error">{exportError}</p>}
 
       {error && <p className="order-error">{error}</p>}
 
