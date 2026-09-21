@@ -23,6 +23,10 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminInventoryServiceImpl.class);
 
+    // Single-store MVP (see StockLevelEntity/StockLevelRepository javadoc) — the
+    // valuation export has no store selector, so it uses the one store there is.
+    private static final long DEFAULT_STORE_ID = 1L;
+
     private final StockLevelRepository stockLevels;
     private final StockMovementRepository movements;
     private final NamedParameterJdbcTemplate jdbc;
@@ -112,6 +116,37 @@ class AdminInventoryServiceImpl implements AdminInventoryService {
      */
     private static String escapeLike(String term) {
         return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] exportValuationXlsx() {
+        // Same native-SQL cross-schema join as listStockLevels above (this is
+        // how the inventory module already reads catalog display fields —
+        // ApplicationModules.verify() only inspects Java references, so a SQL
+        // join here introduces no module dependency). cost_price is the one
+        // extra catalog column this export needs.
+        String sql = """
+                SELECT
+                  p.name        AS product_name,
+                  pv.label      AS variant_label,
+                  sl.on_hand    AS on_hand,
+                  pv.cost_price AS cost_price
+                FROM inventory.stock_levels sl
+                JOIN catalog.product_variants pv ON pv.id = sl.variant_id
+                JOIN catalog.products p          ON p.id  = pv.product_id
+                WHERE sl.store_id = :storeId
+                ORDER BY p.name, pv.label
+                """;
+        List<InventoryValuationRow> rows = jdbc.query(
+                sql,
+                new MapSqlParameterSource("storeId", DEFAULT_STORE_ID),
+                (rs, n) -> new InventoryValuationRow(
+                        rs.getString("product_name"),
+                        rs.getString("variant_label"),
+                        rs.getInt("on_hand"),
+                        rs.getBigDecimal("cost_price")));
+        return InventoryValuationXlsxGenerator.generate(rows);
     }
 
     @Override

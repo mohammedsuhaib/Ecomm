@@ -31,4 +31,13 @@ public interface AdminInventoryService {
      * @throws com.townbasket.shared.BusinessRuleException    if {@code newOnHand < 0}
      */
     void correctStock(Long storeId, Long variantId, int newOnHand, String reason);
+
+    /**
+     * Full inventory valuation as a ready-to-download {@code .xlsx} workbook:
+     * every stock row (no paging), valued at cost price using on-hand quantity
+     * (physically-owned stock, including units already reserved for open
+     * orders — unlike {@code available}), sorted by product name then variant
+     * label, with a trailing GRAND TOTAL row. For accounting/audit export.
+     */
+    byte[] exportValuationXlsx();
 }
