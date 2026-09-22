@@ -25,9 +25,11 @@ class CatalogIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void productCarriesStoredKannadaNameAndNullByDefault() {
-        // name_kn is nullable and unset by the seed (the backfill job is disabled
-        // in tests), so it surfaces as null until populated.
-        assertThat(catalogService.findProduct("amul-paneer").orElseThrow().nameKn()).isNull();
+        // name_kn is nullable; most seeded products get one from the Kannada
+        // transliteration migration (V3_10), but amul-dahi (seeded later, in
+        // V3_6) is deliberately outside that migration's list, so it's the one
+        // product that reliably surfaces as still-null here.
+        assertThat(catalogService.findProduct("amul-dahi").orElseThrow().nameKn()).isNull();
 
         jdbc.update("UPDATE catalog.products SET name_kn = ? WHERE slug = ?",
                 "ಅಮುಲ್ ಬಟರ್", "amul-butter");
