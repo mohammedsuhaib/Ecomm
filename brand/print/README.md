@@ -14,10 +14,17 @@ printer; the individual panels are there for editing and for the other sizes.
 
 Every file is trim **+ 5 mm bleed** all round. 1 SVG user unit = 1 mm at 100 %.
 
+Handle is a **U-cut**, 140 × 70 mm, centred, cut from the top edge.
+
+> The base strip declares **150 MICRON**. That is a declaration of the film you
+> actually run — if you run anything else, change the strip to match before
+> plating. Read the thickness note below first.
+
+
 ## Before you output
 
 1. **Delete the `<g id="dieline">` layer.** It is trim, bleed, safe area, fold
-   and D-cut in magenta. None of it prints.
+   and the U-cut in magenta. None of it prints.
 2. **Nothing draws the substrate.** Every filled shape is ink. Reversed-out type
    and the QR plates are *holes* (`fill-rule="evenodd"`) — unprinted film, not
    white ink.
@@ -46,12 +53,21 @@ are no gradients in this artwork, so nothing can band.
 
 ## Non-negotiables
 
-- **120 micron minimum.** Plastic carry bags below 120 µm cannot legally be sold
-  or used in India (Plastic Waste Management Rules, from 31 Dec 2022). Anything
-  quoted at 50 or 75 µm is off the table however cheap.
+- **120 micron is the legal floor**, not the recommendation here. Plastic carry
+  bags below 120 µm cannot legally be sold or used in India (Plastic Waste
+  Management Rules, from 31 Dec 2022) — anything quoted at 50 or 75 µm is off
+  the table however cheap. But a U-cut removes the continuous top edge, so the
+  entire load goes through the two straps beside the cut instead of across the
+  full width. **Quote M and L at 150 µm.** 120 µm that would have been
+  comfortable on a D-cut is marginal on a U-cut at 10 kg.
 - **Registration ±1.0 mm assumed.** Nothing butt-registers; the spot ink and the
   logo never touch.
-- **58 mm clear at the top hem** for the seal and the D-cut punch.
+- **Handle is a U-cut**, 140 × 70 mm, centred, cut from the top edge. The bottom
+  is a **true constant-radius semicircle** — depth is exactly half the width.
+  Do not square it off with small corner radii: that corner is a stress raiser
+  and it is where the bag tears.
+- **82 mm clear at the top** — the whole handle zone carries no artwork. 25 mm
+  top reinforcement lip above that.
 - **Gusset type sits 8 mm clear of the pleat fold** or the name creases down its
   own middle on the first shop trip.
 - **Logo minimum sizes:** full lockup 60 mm wide, trolley alone 35 mm. Below that
