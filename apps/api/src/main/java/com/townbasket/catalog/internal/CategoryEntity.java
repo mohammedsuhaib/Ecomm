@@ -31,6 +31,9 @@ class CategoryEntity {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "name_kn")
+    private String nameKn;
+
     protected CategoryEntity() {
         // JPA
     }
@@ -75,5 +78,13 @@ class CategoryEntity {
 
     void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    String getNameKn() {
+        return nameKn;
+    }
+
+    void setNameKn(String nameKn) {
+        this.nameKn = nameKn;
     }
 }

@@ -11,5 +11,6 @@ public record CategoryDto(
         String name,
         String slug,
         String imageUrl,
-        Integer sortOrder) {
+        Integer sortOrder,
+        String nameKn) {
 }

@@ -389,6 +389,77 @@ export async function uploadProductImage(file: File): Promise<{ url: string }> {
 }
 
 /**
+ * Saves a blob response to disk via a throwaway object URL + programmatic
+ * anchor click — the only way to trigger a browser download for a response
+ * that (unlike `ProductsPanel`'s static CSV template) came from an
+ * authenticated fetch, so it can't be a plain `<a href>`.
+ */
+function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** GET a binary export and return it as a Blob, with the same auth-retry dance as `uploadProductImage`. */
+async function fetchBlob(path: string, query?: Record<string, unknown>): Promise<Blob> {
+  const url = buildUrl(path, query);
+
+  const run = async (): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        method: 'GET',
+        headers: withAuthHeader({}),
+        cache: 'no-store',
+      });
+    } catch (cause) {
+      throw new ApiError(0, url, `Network error reaching API: ${String(cause)}`);
+    }
+  };
+
+  let res = await run();
+  if (res.status === 401) {
+    const refreshed = await tryRefresh();
+    if (!refreshed) throw new AuthRequiredError();
+    res = await run();
+    if (res.status === 401) {
+      clearAuth();
+      throw new AuthRequiredError();
+    }
+  }
+  if (!res.ok) throw await errorFromResponse(res, url);
+  return await res.blob();
+}
+
+/**
+ * Downloads the GST sales report (one row per order-item line, all
+ * non-cancelled orders in the inclusive date range) as an .xlsx or .pdf and
+ * saves it to disk. `from`/`to` are `YYYY-MM-DD`.
+ */
+export async function exportSalesReport(
+  from: string,
+  to: string,
+  format: 'xlsx' | 'pdf',
+): Promise<void> {
+  const blob = await fetchBlob('/admin/orders/reports/sales', { from, to, format });
+  saveBlob(blob, `sales-report-${from}-to-${to}.${format}`);
+}
+
+/**
+ * Downloads the full inventory valuation (every stock row, cost price x
+ * on-hand, with a grand-total row) as an .xlsx and saves it to disk.
+ */
+export async function exportInventoryValuation(): Promise<void> {
+  const blob = await fetchBlob('/admin/inventory/stock/export');
+  const today = new Date().toISOString().slice(0, 10);
+  saveBlob(blob, `inventory-valuation-${today}.xlsx`);
+}
+
+/**
  * GET /admin/delivery-agents — delivery agents for dispatch (active-only) or,
  * with `includeInactive`, the full roster for the rider-management panel.
  */

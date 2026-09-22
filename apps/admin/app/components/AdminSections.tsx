@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import Catalogue from './Catalogue';
 import InventoryPanel from './InventoryPanel';
@@ -14,7 +14,6 @@ type Section = 'orders' | 'analytics' | 'inventory' | 'catalogue' | 'riders' | '
 
 const TABS: { value: Section; label: string }[] = [
   { value: 'orders', label: 'Orders' },
-  { value: 'analytics', label: 'Analytics' },
   { value: 'inventory', label: 'Inventory' },
   { value: 'catalogue', label: 'Catalogue' },
   { value: 'riders', label: 'Riders' },
@@ -23,8 +22,16 @@ const TABS: { value: Section; label: string }[] = [
   { value: 'staff', label: 'Staff' },
 ];
 
+// Reached through the "⋮" overflow menu rather than a persistent tab —
+// staff open it far less often than the queue/inventory/catalogue.
+const OVERFLOW_TABS: { value: Section; label: string }[] = [
+  { value: 'analytics', label: 'Analytics' },
+];
+
+const ALL_SECTIONS = [...TABS, ...OVERFLOW_TABS];
+
 const isSection = (v: string | null): v is Section =>
-  v != null && TABS.some((t) => t.value === v);
+  v != null && ALL_SECTIONS.some((t) => t.value === v);
 
 /**
  * In-page section switcher for the admin surface.
@@ -46,6 +53,8 @@ export default function AdminSections() {
   // only; the API enforces it too — this just keeps the tab out of the way.
   const tabs = TABS.filter((t) => t.value !== 'staff' || isAdmin);
   const [section, setSection] = useState<Section>('orders');
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
 
   // Restore section from the URL on first mount.
   useEffect(() => {
@@ -53,13 +62,35 @@ export default function AdminSections() {
     if (isSection(fromUrl)) setSection(fromUrl);
   }, []);
 
+  // Close the overflow menu on an outside click or Escape.
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setOverflowOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOverflowOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [overflowOpen]);
+
   const select = (next: Section) => {
     setSection(next);
+    setOverflowOpen(false);
     const url = new URL(window.location.href);
     if (next === 'orders') url.searchParams.delete('tab');
     else url.searchParams.set('tab', next);
     window.history.replaceState(null, '', url);
   };
+
+  const activeOverflowTab = OVERFLOW_TABS.find((t) => t.value === section);
 
   return (
     <>
@@ -75,6 +106,34 @@ export default function AdminSections() {
             {tab.label}
           </button>
         ))}
+
+        <div className="section-overflow" ref={overflowRef}>
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={overflowOpen}
+            aria-label="More sections"
+            className={`queue-tab section-overflow-trigger ${activeOverflowTab ? 'active' : ''}`}
+            onClick={() => setOverflowOpen((open) => !open)}
+          >
+            {activeOverflowTab ? activeOverflowTab.label : '⋮'}
+          </button>
+          {overflowOpen && (
+            <div className="section-overflow-menu" role="menu">
+              {OVERFLOW_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  role="menuitem"
+                  className={`section-overflow-item ${section === tab.value ? 'active' : ''}`}
+                  onClick={() => select(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {section === 'orders' && <OrderQueue />}

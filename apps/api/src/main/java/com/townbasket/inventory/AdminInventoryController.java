@@ -3,6 +3,9 @@ package com.townbasket.inventory;
 import com.townbasket.shared.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.LocalDate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +26,8 @@ import org.springframework.web.bind.annotation.RestController;
 class AdminInventoryController {
 
     private static final int MAX_PAGE_SIZE = 200;
+    private static final MediaType XLSX_MEDIA_TYPE =
+            MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
     private final AdminInventoryService adminInventoryService;
 
@@ -40,6 +45,17 @@ class AdminInventoryController {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
         return adminInventoryService.listStockLevels(storeId, q, safePage, safeSize);
+    }
+
+    @GetMapping("/stock/export")
+    @Operation(summary = "Full inventory valuation (cost price x on-hand, whole store, unpaged) as a downloadable .xlsx.")
+    ResponseEntity<byte[]> exportValuation() {
+        byte[] workbook = adminInventoryService.exportValuationXlsx();
+        String filename = "inventory-valuation-" + LocalDate.now() + ".xlsx";
+        return ResponseEntity.ok()
+                .contentType(XLSX_MEDIA_TYPE)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(workbook);
     }
 
     @PostMapping("/stock/{variantId}/correction")

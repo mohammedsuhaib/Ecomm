@@ -143,6 +143,69 @@ interface OrderRepository extends JpaRepository<OrderEntity, Long> {
     AgentDayRow summarizeAllDeliveries(@Param("from") Instant from,
                                        @Param("to") Instant to);
 
+    /** Projection for {@link #salesReportRows}. One row per order ITEM line, never per order. */
+    interface SalesReportRow {
+        Instant getPlacedAt();
+        String getInvoiceNumber();
+        String getPublicCode();
+        String getCustomerName();
+        String getPhone();
+        String getHsnCode();
+        String getProductName();
+        String getLabel();
+        int getQty();
+        BigDecimal getUnitPrice();
+        BigDecimal getTaxableValue();
+        BigDecimal getGstRate();
+        BigDecimal getCgst();
+        BigDecimal getSgst();
+        BigDecimal getLineTotal();
+        String getPaymentMethod();
+        String getPaymentStatus();
+        String getStatus();
+    }
+
+    /**
+     * Admin GST sales report (line-level): every order-item line belonging to
+     * an order placed in the half-open window {@code [from, to)} whose order
+     * is NOT {@code CANCELLED} — invoiced or not, since the report is a GST
+     * filing aid over everything sold, not a re-statement of invoices already
+     * issued. {@code from}/{@code to} are store-day boundaries computed by the
+     * caller (see {@code OrderServiceImpl#startOfStoreDay}, mirrored in
+     * {@code SalesReportServiceImpl}), not raw calendar dates.
+     *
+     * <p>One row per line rather than per order because HSN code and GST rate
+     * are snapshotted per line and can differ within one order. Ordered by
+     * placement so an order's own lines stay adjacent in the export.
+     */
+    @Query(value = """
+            SELECT o.placed_at        AS "placedAt",
+                   o.invoice_number   AS "invoiceNumber",
+                   o.public_code      AS "publicCode",
+                   o.customer_name    AS "customerName",
+                   o.phone            AS "phone",
+                   oi.hsn_code        AS "hsnCode",
+                   oi.product_name    AS "productName",
+                   oi.label           AS "label",
+                   oi.qty             AS "qty",
+                   oi.unit_price      AS "unitPrice",
+                   oi.taxable_value   AS "taxableValue",
+                   oi.gst_rate        AS "gstRate",
+                   oi.cgst            AS "cgst",
+                   oi.sgst            AS "sgst",
+                   oi.line_total      AS "lineTotal",
+                   o.payment_method   AS "paymentMethod",
+                   o.payment_status   AS "paymentStatus",
+                   o.status           AS "status"
+            FROM orders.orders o
+            JOIN orders.order_items oi ON oi.order_id = o.id
+            WHERE o.placed_at >= :from
+              AND o.placed_at <  :to
+              AND o.status <> 'CANCELLED'
+            ORDER BY o.placed_at ASC, o.id ASC, oi.id ASC
+            """, nativeQuery = true)
+    List<SalesReportRow> salesReportRows(@Param("from") Instant from, @Param("to") Instant to);
+
     Optional<OrderEntity> findByIdempotencyKey(String idempotencyKey);
 
     Optional<OrderEntity> findByPublicToken(UUID publicToken);

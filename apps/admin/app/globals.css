@@ -255,6 +255,51 @@ a {
   color: var(--on-primary);
   border-color: var(--green);
 }
+
+/* "⋮" overflow menu for rarely-used sections (e.g. Analytics) tucked out of
+   the main tab strip — the trigger reuses .queue-tab so it matches the pill
+   look; the menu is its own small dropdown card. */
+.section-overflow {
+  position: relative;
+  display: inline-flex;
+}
+.section-overflow-trigger {
+  min-width: 2.25rem;
+  text-align: center;
+  line-height: 1;
+}
+.section-overflow-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 20;
+  min-width: 9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 0.3rem;
+}
+.section-overflow-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.section-overflow-item:hover {
+  background: var(--bg);
+}
+.section-overflow-item.active {
+  background: var(--green);
+  color: var(--on-primary);
+}
 .queue-empty {
   text-align: center;
   color: var(--muted);
@@ -1131,6 +1176,37 @@ a {
   gap: 1.25rem;
 }
 
+/* GST sales-report export toolbar — date range + xlsx/pdf buttons. */
+.analytics-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-top: -0.5rem;
+}
+.analytics-export-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  padding-bottom: 0.5rem;
+}
+.analytics-export-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.analytics-export-field input[type='date'] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1297,6 +1373,12 @@ a {
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 0.85rem;
+}
+.inv-panel-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 .inv-row-low td {
   background: #fff7e6;
