@@ -1,6 +1,8 @@
 package com.townbasket.orders.internal;
 
 import com.townbasket.orders.SalesReportService;
+import com.townbasket.serviceability.ServiceabilityService;
+import com.townbasket.serviceability.StoreDto;
 import com.townbasket.shared.BusinessRuleException;
 import java.time.Clock;
 import java.time.Instant;
@@ -21,13 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 class SalesReportServiceImpl implements SalesReportService {
 
     private final OrderRepository orders;
+    private final ServiceabilityService serviceability;
     private final SalesReportXlsxGenerator xlsxGenerator;
     private final SalesReportPdfGenerator pdfGenerator;
     private final Clock clock;
 
-    SalesReportServiceImpl(OrderRepository orders, SalesReportXlsxGenerator xlsxGenerator,
+    SalesReportServiceImpl(OrderRepository orders, ServiceabilityService serviceability,
+                            SalesReportXlsxGenerator xlsxGenerator,
                             SalesReportPdfGenerator pdfGenerator, Clock clock) {
         this.orders = orders;
+        this.serviceability = serviceability;
         this.xlsxGenerator = xlsxGenerator;
         this.pdfGenerator = pdfGenerator;
         this.clock = clock;
@@ -36,13 +41,23 @@ class SalesReportServiceImpl implements SalesReportService {
     @Override
     @Transactional(readOnly = true)
     public byte[] renderSalesReportXlsx(LocalDate from, LocalDate to) {
-        return xlsxGenerator.render(rows(from, to), from, to);
+        return xlsxGenerator.render(rows(from, to), from, to, currentGstin());
     }
 
     @Override
     @Transactional(readOnly = true)
     public byte[] renderSalesReportPdf(LocalDate from, LocalDate to) {
-        return pdfGenerator.render(rows(from, to), from, to);
+        return pdfGenerator.render(rows(from, to), from, to, currentGstin());
+    }
+
+    /**
+     * The store's GSTIN as of right now — not the historical value pinned on
+     * any one order. A report spans a whole date range, so it shows the
+     * registration filing against it applies today, the same way the store
+     * settings card and the storefront footer do.
+     */
+    private String currentGstin() {
+        return serviceability.activeStore().map(StoreDto::gstin).orElse(null);
     }
 
     /**

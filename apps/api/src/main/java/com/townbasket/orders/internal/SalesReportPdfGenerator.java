@@ -63,14 +63,14 @@ class SalesReportPdfGenerator {
         this.store = store;
     }
 
-    byte[] render(List<OrderRepository.SalesReportRow> rows, LocalDate from, LocalDate to) {
+    byte[] render(List<OrderRepository.SalesReportRow> rows, LocalDate from, LocalDate to, String gstin) {
         Document doc = new Document(PageSize.A4.rotate(), 28, 28, 40, 36);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
             PdfWriter.getInstance(doc, out);
             doc.open();
 
-            doc.add(header(from, to));
+            doc.add(header(from, to, gstin));
             doc.add(rule());
             doc.add(table(rows));
             doc.add(footer());
@@ -83,15 +83,15 @@ class SalesReportPdfGenerator {
     }
 
     /** Two-column masthead: store identity (left) + report title/date range (right). */
-    private PdfPTable header(LocalDate from, LocalDate to) {
+    private PdfPTable header(LocalDate from, LocalDate to, String gstin) {
         PdfPTable table = fullWidth(new float[] {3f, 2f});
 
         PdfPCell left = borderless();
         left.addElement(text(store.name(), font(18, Font.BOLD, BRAND)));
         left.addElement(text(store.address(), font(9, Font.NORMAL, MUTED)));
         left.addElement(text(store.contact(), font(9, Font.NORMAL, MUTED)));
-        if (!store.gstin().isEmpty()) {
-            left.addElement(text("GSTIN: " + store.gstin(), font(9, Font.NORMAL, MUTED)));
+        if (gstin != null && !gstin.isBlank()) {
+            left.addElement(text("GSTIN: " + gstin, font(9, Font.NORMAL, MUTED)));
         }
         table.addCell(left);
 

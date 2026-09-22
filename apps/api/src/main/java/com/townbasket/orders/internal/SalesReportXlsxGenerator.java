@@ -59,7 +59,7 @@ class SalesReportXlsxGenerator {
         this.store = store;
     }
 
-    byte[] render(List<OrderRepository.SalesReportRow> rows, LocalDate from, LocalDate to) {
+    byte[] render(List<OrderRepository.SalesReportRow> rows, LocalDate from, LocalDate to, String gstin) {
         try (XSSFWorkbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Sales Report");
 
@@ -97,7 +97,7 @@ class SalesReportXlsxGenerator {
             }
 
             int r = 0;
-            r = header(sheet, titleStyle, boldStyle, from, to, r);
+            r = header(sheet, titleStyle, boldStyle, from, to, gstin, r);
             r++; // blank separator row
 
             Row headerRow = sheet.createRow(r++);
@@ -170,12 +170,13 @@ class SalesReportXlsxGenerator {
     }
 
     /** Store identity + report title + date range, above the column headers. */
-    private int header(Sheet sheet, CellStyle titleStyle, CellStyle boldStyle, LocalDate from, LocalDate to, int r) {
+    private int header(Sheet sheet, CellStyle titleStyle, CellStyle boldStyle, LocalDate from, LocalDate to,
+                        String gstin, int r) {
         sheet.createRow(r++).createCell(0).setCellValue(store.name());
         sheet.getRow(r - 1).getCell(0).setCellStyle(titleStyle);
         sheet.createRow(r++).createCell(0).setCellValue(store.address());
-        if (!store.gstin().isEmpty()) {
-            sheet.createRow(r++).createCell(0).setCellValue("GSTIN: " + store.gstin());
+        if (gstin != null && !gstin.isBlank()) {
+            sheet.createRow(r++).createCell(0).setCellValue("GSTIN: " + gstin);
         }
         r++; // blank
         Row titleRow = sheet.createRow(r++);
