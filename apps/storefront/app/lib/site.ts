@@ -15,7 +15,7 @@
  * running container was given.
  *
  * <ul>
- *   <li>{@code SITE_URL} — the canonical origin, e.g. https://town-basket.com.
+ *   <li>{@code SITE_URL} — the canonical origin, e.g. https://shop.town-basket.com.
  *       Must be the ONE hostname the shop answers on; every other host should
  *       redirect to it, or search engines split the site in two.</li>
  *   <li>{@code SEO_NOINDEX} — set to "true" on any non-production deployment.
@@ -25,7 +25,7 @@
  */
 
 /** Used when SITE_URL is unset, so a misconfigured deploy still emits sane absolute URLs. */
-export const DEFAULT_SITE_URL = 'https://town-basket.com';
+export const DEFAULT_SITE_URL = 'https://shop.town-basket.com';
 
 /** The canonical origin, with any trailing slash removed. */
 export function siteUrl(): string {

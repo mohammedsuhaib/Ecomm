@@ -9,11 +9,11 @@
  * Bump CACHE_VERSION on any breaking change; old caches are dropped on
  * activate.
  */
-const CACHE_VERSION = 'tb-holding-v3';
+const CACHE_VERSION = 'tb-holding-v4';
 
+// No '/' or '/index.html': both now redirect to the shop, and addAll() fails
+// the whole install on a cross-origin redirect.
 const PRECACHE = [
-  '/',
-  '/index.html',
   '/terms.html',
   '/privacy.html',
   '/refund.html',
@@ -56,17 +56,19 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        // Refresh the cache with the fresh copy (clone before the body is used).
-        const copy = response.clone();
-        caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+        // Only real pages are cached — never the redirect to the shop, which
+        // would replay offline as a dead end.
+        if (response.ok && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+        }
         return response;
       })
       .catch(() =>
         caches.match(request).then(
           (cached) =>
             cached ??
-            // Offline navigation to an uncached URL: fall back to the home page.
-            (request.mode === 'navigate' ? caches.match('/index.html') : Response.error()),
+            (request.mode === 'navigate' ? caches.match('/contact.html') : Response.error()),
         ),
       ),
   );
