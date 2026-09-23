@@ -123,7 +123,7 @@ services:
       # want in search results — every other host should 301 to it. A runtime
       # value on purpose (not NEXT_PUBLIC_*): the same image serves QA and
       # production, and the public hostname is a property of the deployment.
-      SITE_URL: ${SITE_URL:-https://town-basket.com}
+      SITE_URL: ${SITE_URL:-https://shop.town-basket.com}
       # Set to "true" on any deployment that must stay out of search results.
       SEO_NOINDEX: ${SEO_NOINDEX:-false}
       # NOTE: every NEXT_PUBLIC_* value (API base URL, FIREBASE_*, GOOGLE_MAPS)
