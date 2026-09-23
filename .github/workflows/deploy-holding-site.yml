@@ -84,3 +84,8 @@ jobs:
                  https://town-basket.com/shipping.html || echo 000)
           echo "shipping.html -> HTTP $code"
           [ "$code" = "200" ] || { echo "::error::Site not responding with 200 after deploy"; exit 1; }
+          # Everything that is not a policy page belongs to the shop.
+          loc=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --resolve town-basket.com:443:"$HOST" \
+                https://town-basket.com/ || echo 000)
+          echo "/ -> $loc"
+          [ "$loc" = "301 https://shop.town-basket.com/" ] || { echo "::error::town-basket.com/ is not redirecting to the shop"; exit 1; }

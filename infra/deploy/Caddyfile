@@ -1,10 +1,6 @@
 # Town Basket reverse proxy + automatic TLS (Let's Encrypt).
 # Three subdomains front the three containers. Finalised in M6.
 
-town-basket.com {
-	redir https://shop.town-basket.com{uri} permanent
-}
-
 shop.town-basket.com {
 	encode gzip zstd
 	reverse_proxy storefront:3000
