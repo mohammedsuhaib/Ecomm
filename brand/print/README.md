@@ -1,15 +1,21 @@
 # Town Basket carry bag — print artwork
 
 For **EcoPact**, size **13 × 16 in (330 × 406 mm)**, certified compostable film.
-Release 8. **Two sides, one colour, one plate.**
+Release 9. **Vest cut, two sides, one colour, one plate.**
 
 | File | Trim |
 |---|---|
-| `tb-bag-13x16-front.svg` | 330 × 406 mm — logo, address, statutory footer |
-| `tb-bag-13x16-back.svg` | 330 × 406 mm — kitchen card, inside a cut line |
+| `tb-bag-13x16-vest-front.svg` | 330 × 406 mm — logo, address, statutory footer |
+| `tb-bag-13x16-vest-back.svg` | 330 × 406 mm — kitchen card, inside a cut line |
 
 Both are trim **+ 5 mm bleed** all round. 1 SVG user unit = 1 mm at 100 %.
-Handle drawn as a **U-cut**, 140 × 70 mm, centred — see question 2 below.
+**Handle: vest / W-cut.** Scoop **210 mm wide × 110 mm deep**, straps **60 mm**
+each. The scoop is one elliptical sweep tangent to the inside of each strap —
+deliberately **no corner at the shoulder**, because that is where a vest tears.
+Nominal dimensions: replace with EcoPact's die drawing.
+
+The straps take the top 110 mm, so the **printable body is 296 mm, not 406**.
+Everything on both faces is fitted to that.
 
 This is EcoPact's **2 Side 1 Colour** line: ₹280/kg Natural, 150 pcs/kg,
 **₹1.86 a bag**. The whole back face costs ₹67 per 1,000 bags over a one-sided
@@ -22,7 +28,7 @@ bag, which is the cheapest thing on this job.
 No second ink, no tint, no gradient, no halftone, nothing reversed out: every
 shape is 100 % ink or bare film. Nothing can mis-register and nothing can band.
 
-**Coverage is 6.9 % of the bag's area** — front 8.2 %, back 5.6 % — and that is
+**Coverage is 5.7 % of the bag's area** — front 6.7 %, back 4.6 % — and that is
 deliberate. On a certified compostable article the ink is part of the article:
 its mass counts toward the additive fraction the certificate has to cover.
 **Ask what your certifier allows and keep the answer in writing.**
@@ -33,7 +39,7 @@ EcoPact's to prove on their own film.
 
 ## Before you output
 
-1. **Delete the `<g id="dieline">` layer.** Trim, bleed, safe area and the U-cut,
+1. **Delete the `<g id="dieline">` layer.** Trim, bleed, safe area, the shoulder line and the vest scoop,
    in magenta. None of it prints. The dashed rectangle on the back is **not**
    dieline — it is printed, and it is the cut line for the card.
 2. **Nothing draws the substrate.** Every filled shape is ink.
@@ -48,13 +54,15 @@ EcoPact's to prove on their own film.
    they price by side, not panel — so everything is on two faces and the
    statutory block sits on the foot of the front. If it is gusseted and the
    gussets print, the earlier five-panel set is in the repository history.
-2. **Which die?** Their samples show vest / W-cut and D-cut bags; this is drawn
-   for a U-cut. Send the die drawing of whatever they actually run and the
-   artwork can be matched to it — a stock die is cheaper than a new one.
+2. **Die dimensions.** This is drawn as a vest — their shape — but to nominal
+   numbers. Send the real die drawing and it gets matched exactly. Ask
+   specifically: **does the quoted 16 in height include the straps, or is it
+   body only?** The whole layout hangs off that one answer — if the 16 in is
+   body-only, the bag is 110 mm taller than drawn and everything can breathe.
 3. **Micron and load rating per grade, plus a loaded drop test** at the weight
    you actually pack. Their sheet gives grams, not microns and not strength:
    150 pcs/kg is 6.7 g a bag, 90 pcs/kg is 11.1 g — roughly 25 and 41 g/m² over
-   two faces. Both are thin for 8–10 kg through a U-cut. **This is the question
+   two faces. Both are thin for 8–10 kg through two vest straps. **This is the question
    that decides whether the bag works.**
 4. **Do they apply their own compliance strip?** Their sample bags carry a small
    ECOPACT mark at the foot. If the CPCB marking comes from them, delete ours —
@@ -66,10 +74,11 @@ goes on the bag.
 
 ## Non-negotiables
 
-- **Handle bottom is a true constant-radius semicircle** — depth exactly half
-  the width. Do not square it off with small corner radii: that corner is a
-  stress raiser and it is where the bag tears.
-- **82 mm clear at the top** — the whole handle zone carries no artwork.
+- **No corner at the shoulder.** The scoop meets each strap tangentially. A
+  squared or small-radius shoulder is a stress raiser exactly where a vest bag
+  fails under load.
+- **122 mm clear at the top** — 110 mm of handle plus 12. The straps carry no
+  artwork: they fold, they crease, and they are the part under load.
 - **Logo minimum sizes, outline versions:** lockup **80 mm** wide, trolley alone
   **50 mm**. Below that the linework drops under 0.5 mm and fills in.
 - **Shelf life.** Compostable film ages — it loses strength in heat and humidity.
@@ -80,11 +89,11 @@ goes on the bag.
 
 ## What's on each face
 
-**Front** — outline lockup at 196 mm, the Kannada lockup, `town-basket.com`
+**Front** — outline lockup at 172 mm, the Kannada lockup, `town-basket.com`
 with the QR, and the statutory footer at the bottom (4 mm type, already at the
 floor — nothing more can be added to it).
 
-**Back** — the whole face is a kitchen card, sixteen groceries sorted fridge /
+**Back** — the whole face is a kitchen card, fourteen groceries sorted fridge /
 not-fridge plus three storage facts, drawn **inside a dashed cut line** so the
 useful part comes off the bag and stays on the wall. No offer, no price and no
 code: print is permanent and margins are not. Rotate the card's copy between
