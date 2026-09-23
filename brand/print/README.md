@@ -1,6 +1,6 @@
 # Town Basket carry bag — print artwork
 
-Size M (330 × 405 mm, 80 mm gussets). Release 5. **One ink, one plate, every
+Size M (330 × 405 mm, 80 mm gussets). Release 6. **One ink, one plate, every
 panel.** Send `tb-bag-M-flat.svg` to the printer; the individual panels are
 there for editing and for deriving the other sizes.
 
@@ -78,6 +78,15 @@ untouched; it was already solid.
 - **QR:** both are error-correction H with a 4-module quiet zone, printed in the
   ink on unprinted film. Test-scan the draw-down in poor light and on a crumpled
   sample — not the PDF.
+
+## What's on the back
+
+The whole back panel is a kitchen card — sixteen groceries sorted fridge /
+not-fridge, plus three storage facts — and nothing else. There is no offer, no
+price and no code on this bag, by design: print is permanent and margins are
+not. Rotate the card's copy between runs (seasonal produce, monsoon storage,
+cooking times) and keep the plate geometry; a household that has two different
+cards keeps both bags.
 
 ## Fill these in before plating
 
