@@ -10,13 +10,14 @@ artifacts. Full provisioning/runbook polish lands in **M6**.
 | File | Purpose |
 |---|---|
 | `docker-compose.prod.yml` | Production compose: Caddy + api + storefront + admin + delivery (+ optional Postgres). Pulls pre-built images from the registry. |
-| `Caddyfile` | Reverse proxy + auto-TLS for `shop.`, `admin.`, `api.`, `delivery.town-basket.com`. |
+| `Caddyfile` | Reverse proxy + auto-TLS for `shop.`, `admin.`, `api.`, `delivery.town-basket.com`, plus `town-basket.com` (policy pages from `holding-site/`, everything else 301 to `shop.`) and `www.`. The only web server on the droplet. |
 | `backup/nightly-backup.sh` | `pg_dump` → gzip → upload to DO Spaces; retention pruning. Run nightly via cron/systemd timer. |
 
 ## Topology
 
 ```
 Internet ──▶ Caddy (:80/:443, auto-TLS)
+               ├── town-basket.com          ──▶ policy pages, else 301 → shop.
                ├── shop.town-basket.com     ──▶ storefront:3000
                ├── admin.town-basket.com    ──▶ admin:3001
                ├── api.town-basket.com      ──▶ api:8080
@@ -46,8 +47,8 @@ Deploys are **automatic** — `.github/workflows/deploy-app.yml`:
 4. Post-deploy health checks hit all four subdomains against the droplet IP
    (API via `/actuator/health`), with retries while containers start.
 
-Doc-only merges (README, `holding-site/` — which has its own workflow —,
-`brand/`) skip the deploy. The workflow can also be run manually from the
+Doc-only merges (README, `brand/`) skip the deploy; `holding-site/` changes
+deploy with the app. The workflow can also be run manually from the
 Actions tab (`workflow_dispatch`).
 
 **Rollback:** on the droplet, re-run compose pinned to a previous commit's tag:
@@ -59,7 +60,7 @@ REGISTRY=ghcr.io/<owner> TAG=sha-<old-commit> docker compose -f docker-compose.p
 
 ### GitHub Actions secrets (repo Settings → Secrets and variables → Actions)
 
-Same secrets the holding-site deploy already uses: `DROPLET_SSH_KEY`,
+Secrets: `DROPLET_SSH_KEY`,
 `DROPLET_HOST`; optional `DROPLET_USER` (default `root`) and
 `DROPLET_REPO_DIR` (default `Ecomm` under `$HOME`; absolute paths are honored
 as-is). The workflow fails fast with a clear message when they are missing.
