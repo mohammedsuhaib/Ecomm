@@ -1,11 +1,8 @@
-# town-basket.com now belongs to the shop: every URL 301s to
-# shop.town-basket.com, path and query kept. The exception is the published
-# policy pages (and the files they load), which stay served here because they
-# are cited by URL outside our control — the storefront footer, the Play Store
-# listing's privacy URL, and the Razorpay KYC review. Redirecting those would
-# land on storefront 404s.
+town-basket.com, www.town-basket.com {
+	encode gzip zstd
+	root * /srv
 
-(security_headers) {
+	# Security headers
 	header {
 		# Force HTTPS for a year, including subdomains
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -22,37 +19,14 @@
 		# Don't advertise the server software
 		-Server
 	}
-}
-
-town-basket.com {
-	encode gzip zstd
-	root * /srv
-	import security_headers
 
 	# Correct MIME for the PWA manifest (alpine's mime db may not know it)
 	@manifest path /manifest.webmanifest
 	header @manifest Content-Type application/manifest+json
 
-	# An allowlist, so nothing else in the mounted folder (README, deploy/) is
-	# reachable. index.html is deliberately absent: the pages' own "home" link
-	# should take people to the shop.
-	@kept path /terms.html /privacy.html /refund.html /shipping.html /contact.html /styles.css /sw.js /sw-register.js /install.js /manifest.webmanifest /icons/*
-	handle @kept {
-		file_server
-	}
-	handle {
-		redir https://shop.town-basket.com{uri} permanent
-	}
-}
+	# Don't serve repo/deploy files — only the static site
+	@hidden path /deploy/* /README.md /*.py
+	respond @hidden 404
 
-www.town-basket.com {
-	import security_headers
-
-	@policy path /terms.html /privacy.html /refund.html /shipping.html /contact.html
-	handle @policy {
-		redir https://town-basket.com{uri} permanent
-	}
-	handle {
-		redir https://shop.town-basket.com{uri} permanent
-	}
+	file_server
 }
