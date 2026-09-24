@@ -1,5 +1,54 @@
 # Town Basket reverse proxy + automatic TLS (Let's Encrypt).
-# Three subdomains front the three containers. Finalised in M6.
+# The ONLY web server on the droplet: every *.town-basket.com name resolves
+# here, so a second Caddy (the old holding-site stack) would fight this one for
+# ports 80/443 — and both used to share the compose project name "deploy",
+# which let each deploy replace the other's container.
+
+(policy_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+	}
+}
+
+# The apex belongs to the shop: everything 301s to shop.town-basket.com, path
+# and query kept. The published policy pages (and the files they load) stay
+# here, because the storefront footer, the Play Store listing and the Razorpay
+# KYC review cite them by URL.
+town-basket.com {
+	encode gzip zstd
+	import policy_headers
+	root * /srv/holding
+
+	@manifest path /manifest.webmanifest
+	header @manifest Content-Type application/manifest+json
+
+	# An allowlist: nothing else in holding-site/ (README, deploy/) is served.
+	@kept path /terms.html /privacy.html /refund.html /shipping.html /contact.html /styles.css /sw.js /sw-register.js /install.js /manifest.webmanifest /icons/*
+	handle @kept {
+		file_server
+	}
+	handle {
+		redir https://shop.town-basket.com{uri} permanent
+	}
+}
+
+www.town-basket.com {
+	import policy_headers
+
+	@policy path /terms.html /privacy.html /refund.html /shipping.html /contact.html
+	handle @policy {
+		redir https://town-basket.com{uri} permanent
+	}
+	handle {
+		redir https://shop.town-basket.com{uri} permanent
+	}
+}
 
 shop.town-basket.com {
 	encode gzip zstd

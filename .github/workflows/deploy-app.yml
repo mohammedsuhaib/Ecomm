@@ -6,8 +6,7 @@
 #   images → pushes them to GHCR → SSHes to the droplet → compose pull +
 #   up -d pinned to this commit's sha tag → health-checks the four subdomains.
 #
-# Required repository secrets (Settings → Secrets and variables → Actions) —
-# the same ones the holding-site deploy already uses:
+# Required repository secrets (Settings → Secrets and variables → Actions):
 #   DROPLET_SSH_KEY  — private key with SSH access to the droplet (PEM/OpenSSH)
 #   DROPLET_HOST     — droplet public IP or hostname
 # Optional:
@@ -78,7 +77,7 @@ jobs:
           fi
           echo "Changed files:"
           echo "$changed"
-          if echo "$changed" | grep -qE '^(apps/|infra/deploy/|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.github/workflows/deploy-app\.yml)'; then
+          if echo "$changed" | grep -qE '^(apps/|infra/deploy/|holding-site/|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.github/workflows/deploy-app\.yml)'; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "No app/deploy files changed — skipping deploy."
@@ -256,7 +255,13 @@ jobs:
             # REGISTRY and TAG from the environment take precedence over the
             # .env file, pinning this deploy to the exact commit CI built.
             docker compose -f docker-compose.prod.yml pull
+            # The retired holding-site Caddy, if it is still around, holds
+            # 80/443 and would keep this stack's Caddy from serving.
+            docker rm -f town-basket-holding >/dev/null 2>&1 || true
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            # Compose does not recreate Caddy when only the bind-mounted
+            # Caddyfile changed; a restart re-mounts and re-reads it.
+            docker compose -f docker-compose.prod.yml restart caddy
             docker image prune -f >/dev/null
             echo "Deployed $REGISTRY/*:$TAG ($(git rev-parse --short HEAD))"
           REMOTE
@@ -292,3 +297,8 @@ jobs:
           check shop.town-basket.com /
           check admin.town-basket.com /
           check delivery.town-basket.com /
+          check town-basket.com /terms.html
+          loc=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 \
+                --connect-to "town-basket.com:443:$HOST:443" https://town-basket.com/ || true)
+          echo "town-basket.com/ -> $loc"
+          [ "$loc" = "301 https://shop.town-basket.com/" ] || { echo "::error::town-basket.com/ is not redirecting to the shop"; exit 1; }

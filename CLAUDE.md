@@ -24,7 +24,9 @@ This is a **hybrid monorepo with two independent build systems**:
   `packages/*`. Driven by **pnpm** from the repo root.
 - `infra/` — `docker-compose.yml` (local: postgres + api + both frontends) and
   `infra/deploy/` (prod: Caddy auto-TLS, `docker-compose.prod.yml`, nightly backups).
-- `holding-site/` — a standalone static "coming soon" site; unrelated to the app.
+- `holding-site/` — the static policy pages (terms, privacy, refund, shipping,
+  contact). The production Caddy serves them on `town-basket.com` and 301s
+  everything else there to `shop.town-basket.com`; it has no server of its own.
 - `brand/` — logos and icon assets.
 
 ## Commands
