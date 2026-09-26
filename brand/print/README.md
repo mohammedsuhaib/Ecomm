@@ -1,12 +1,12 @@
 # Town Basket carry bag — print artwork
 
 For **EcoPact**, size **13 × 16 in (330 × 406 mm)**, certified compostable film.
-Release 9. **Vest cut, two sides, one colour, one plate.**
+Release 10. **Vest cut, two sides, one colour, one plate.**
 
 | File | Trim |
 |---|---|
 | `tb-bag-13x16-vest-front.svg` | 330 × 406 mm — logo, address, statutory footer |
-| `tb-bag-13x16-vest-back.svg` | 330 × 406 mm — kitchen card, inside a cut line |
+| `tb-bag-13x16-vest-back.svg` | 330 × 406 mm — the brand face, logo at 190 mm |
 
 Both are trim **+ 5 mm bleed** all round. 1 SVG user unit = 1 mm at 100 %.
 **Handle: vest / W-cut.** Scoop **210 mm wide × 110 mm deep**, straps **60 mm**
@@ -28,7 +28,7 @@ bag, which is the cheapest thing on this job.
 No second ink, no tint, no gradient, no halftone, nothing reversed out: every
 shape is 100 % ink or bare film. Nothing can mis-register and nothing can band.
 
-**Coverage is 5.7 % of the bag's area** — front 6.7 %, back 4.6 % — and that is
+**Coverage is 6.7 % of the bag's area** — front 6.7 %, back 6.7 % — and that is
 deliberate. On a certified compostable article the ink is part of the article:
 its mass counts toward the additive fraction the certificate has to cover.
 **Ask what your certifier allows and keep the answer in writing.**
@@ -39,14 +39,15 @@ EcoPact's to prove on their own film.
 
 ## Before you output
 
-1. **Delete the `<g id="dieline">` layer.** Trim, bleed, safe area, the shoulder line and the vest scoop,
-   in magenta. None of it prints. The dashed rectangle on the back is **not**
-   dieline — it is printed, and it is the cut line for the card.
+1. **Delete the `<g id="dieline">` layer.** Trim, bleed, safe area, the shoulder
+   line and the vest scoop, in magenta. None of it prints; everything outside
+   that layer does.
 2. **Nothing draws the substrate.** Every filled shape is ink.
 3. **Type is already outlined.** A RIP without Noto Sans Kannada silently breaks
    the conjunct clusters in ಬಾಸ್ಕೆಟ್, and it reads as a spelling mistake rather
    than a font error.
-4. **No strokes anywhere.** Rules, dashes and the cut line are filled shapes.
+4. **No strokes anywhere.** Rules and dashes are filled shapes, so nothing
+   changes weight if the file is scaled.
 
 ## Four things to settle with EcoPact first
 
@@ -89,21 +90,29 @@ goes on the bag.
 
 ## What's on each face
 
+Both faces carry the logo. A vest bag shows whichever side it was picked up by,
+so the identity goes on both and the small print on one.
+
 **Front** — outline lockup at 172 mm, the Kannada lockup, `town-basket.com`
 with the QR, and the statutory footer at the bottom (4 mm type, already at the
 floor — nothing more can be added to it).
 
-**Back** — the whole face is a kitchen card, fourteen groceries sorted fridge /
-not-fridge plus three storage facts, drawn **inside a dashed cut line** so the
-useful part comes off the bag and stays on the wall. No offer, no price and no
-code: print is permanent and margins are not. Rotate the card's copy between
-runs and keep the geometry.
+**Back** — the brand face. Lockup at 190 mm, centred, with the Kannada lockup
+and the address beneath and nothing else. Larger than the front because it has
+no statutory footer to carry. No QR: a second one would pull a centred
+composition off its axis for a convenience the front already provides, and the
+typed address works from either side.
+
+No kitchen card on this bag any more. That is the right call for compostable
+film — a bag headed for the wet waste in a week or two is not where you put
+something meant to be pinned to a wall. If the card is worth having, it belongs
+on the non-woven tote, which lasts a year.
 
 ## Fill in before plating
 
 - EcoPact's legal name and address — front footer.
 - **CPCB certificate number** — front footer.
-- Store WhatsApp number — back face.
+- Store WhatsApp number — not on the bag at present; say if you want it back.
 
 Have a native Kannada reader sign off every Kannada string.
 
