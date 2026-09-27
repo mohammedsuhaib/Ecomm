@@ -4,7 +4,7 @@
   Trim 330 x 406 mm. Document is trim + 5 mm bleed all round.
   1 user unit = 1 mm at 100%.
 
-  Handle: U-cut, 140 x 70 mm, semicircular bottom. Artwork clears y=122 mm.
+  Handle: VEST / W-cut, scoop 210 x 110 mm, straps 60 mm, tangent shoulders (no corner). Artwork clears y=122 mm.
   DO NOT OUTPUT the <g id="dieline"> layer. Delete it before platemaking.
   No substrate is drawn: every filled shape in #artwork is ink.
   Reversed-out type is a hole (fill-rule evenodd), not white ink.

@@ -1,7 +1,7 @@
 # Town Basket carry bag — print artwork
 
 For **EcoPact**, size **13 × 16 in (330 × 406 mm)**, certified compostable film.
-Release 11. **Vest cut, two sides, one colour, one plate.**
+Release 12. **Vest cut, two sides, one colour, one plate.**
 
 | File | Trim |
 |---|---|
@@ -28,8 +28,8 @@ bag, which is the cheapest thing on this job.
 No second ink, no tint, no gradient, no halftone, nothing reversed out: every
 shape is 100 % ink or bare film. Nothing can mis-register and nothing can band.
 
-**Coverage is 6.7 % of the bag's area** — front 6.7 %, back 6.7 % — and that is
-deliberate. On a certified compostable article the ink is part of the article:
+**Coverage is 7.0 % of the bag's area** — front 7.6 %, back 6.5 %, measured off
+these files at 4 px/mm — and that is deliberate. On a certified compostable article the ink is part of the article:
 its mass counts toward the additive fraction the certificate has to cover.
 **Ask what your certifier allows and keep the answer in writing.**
 
@@ -95,14 +95,23 @@ goes on the bag.
 Both faces carry the logo at 172 mm. A vest bag shows whichever side it was
 picked up by, so the identity is on both and the small print on one.
 
-**Front** — lockup, the Kannada lockup, `town-basket.com` with the QR and
-ಸ್ಕ್ಯಾನ್ ಮಾಡಿ · SCAN TO ORDER under it, then the statutory footer:
+**Front** — lockup, the Kannada lockup, `town-basket.com` with the QR beside
+it, then the ask in the words people already know from every other bag and
+hoarding — **ಆ್ಯಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ · DOWNLOAD THE APP** at 7.5 mm bold, with a
+download glyph in front of it — and under that, at 4.8 mm, how it actually
+works: ಸ್ಕ್ಯಾನ್ ಮಾಡಿ · SCAN · OPENS IN YOUR BROWSER, NO APP STORE · ಮನೆ ಬಾಗಿಲಿಗೆ ·
+HOME DELIVERY. Town Basket is a PWA: it installs from the browser, not from a
+store, so there are **no Play / App Store badges** — a badge for a listing that
+does not exist would be the first false thing on the bag. Then the statutory
+footer:
 
 - `COMPOSTABLE · IS/ISO 17088 · CPCB-UPC-II/<CONVERTER>/KARNATAKA/<No.>`
 - `Marketed by Town Basket, T. Narasipura 571 124 · Mfd. by <CONVERTER>, <ADDRESS>`
 - safety line · ಹಸಿ ಕಸದೊಂದಿಗೆ ಹಾಕಿ · with wet waste, never with plastic recycling
 
-The footer is 3.9–4.8 mm — at the floor. Nothing more can be added to it.
+The footer is 3.9–4.8 mm — at the floor. Nothing more can be added to it, and
+the how-it-works line above it is at 4.8 mm for the same reason: the download
+ask got the size, the explanation got what was left.
 
 **Back** — lockup, the Kannada lockup, then the case for the bag at a size
 people read: **ನಾನು ಮಣ್ಣಾಗುತ್ತೇನೆ · I turn into soil.** over three facts with
