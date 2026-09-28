@@ -1,7 +1,7 @@
 # Town Basket carry bag — print artwork
 
 For **EcoPact**, size **13 × 16 in (330 × 406 mm)**, certified compostable film.
-Release 13. **Vest cut, two sides, one colour, one plate.**
+Release 14. **Vest cut, two sides, one colour, one plate.**
 
 | File | Trim |
 |---|---|
@@ -28,7 +28,7 @@ bag, which is the cheapest thing on this job.
 No second ink, no tint, no gradient, no halftone, nothing reversed out: every
 shape is 100 % ink or bare film. Nothing can mis-register and nothing can band.
 
-**Coverage is 7.2 % of the bag's area** — front 8.0 %, back 6.5 %, measured off
+**Coverage is 7.8 % of the bag's area** — front 7.9 %, back 7.7 %, measured off
 these files at 4 px/mm — and that is deliberate. On a certified compostable article the ink is part of the article:
 its mass counts toward the additive fraction the certificate has to cover.
 **Ask what your certifier allows and keep the answer in writing.**
@@ -86,40 +86,40 @@ goes on the bag.
   **50 mm**. Below that the linework drops under 0.5 mm and fills in.
 - **Shelf life.** Compostable film ages — it loses strength in heat and humidity.
   **Do not print a year's supply.** Order quarterly, store cool and dry.
-- **QR:** front only, **58 mm** including its quiet zone — error-correction H,
+- **QR:** one on each face, **58 mm** including its quiet zone — error-correction H,
   4-module quiet zone, **1.41 mm modules** — printed
   in the ink on unprinted film. Test-scan the draw-down in poor light and on a
   crumpled sample — not the PDF.
 
 ## What's on each face
 
-Both faces carry the logo at 172 mm. A vest bag shows whichever side it was
-picked up by, so the identity is on both and the small print on one.
+Both faces carry the logo at 150 mm and the **same download block**: a 58 mm
+QR on the right and **SCAN TO / DOWNLOAD** stacked in Poppins ExtraBold at
+22 mm (capitals about 15 mm tall) on the left, with ಸ್ಕ್ಯಾನ್ ಮಾಡಿ · ಆ್ಯಪ್ ಡೌನ್‌ಲೋಡ್
+ಮಾಡಿ and `town-basket.com · opens in your browser, no app store · home delivery`
+under it. A vest bag shows whichever side it was picked up by, so the ask is
+on both and the small print on one. Town Basket is a PWA: it installs from the
+browser, not from a store, so there are **no Play / App Store badges** — a badge
+for a listing that does not exist would be the first false thing on the bag.
 
-**Front** — lockup, the Kannada lockup, `town-basket.com` with a 58 mm QR in
-the corner beside it, then the ask in the words people already know from every other bag and
-hoarding — **ಆ್ಯಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ · DOWNLOAD THE APP** at 7.5 mm bold, with a
-download glyph in front of it — and under that, at 4.8 mm, how it actually
-works: ಸ್ಕ್ಯಾನ್ ಮಾಡಿ · SCAN · OPENS IN YOUR BROWSER, NO APP STORE · ಮನೆ ಬಾಗಿಲಿಗೆ ·
-HOME DELIVERY. Town Basket is a PWA: it installs from the browser, not from a
-store, so there are **no Play / App Store badges** — a badge for a listing that
-does not exist would be the first false thing on the bag. Then the statutory
-footer:
+**Front** — lockup, Kannada lockup, download block, then the statutory footer:
 
 - `COMPOSTABLE · IS/ISO 17088 · CPCB-UPC-II/<CONVERTER>/KARNATAKA/<No.>`
 - `Marketed by Town Basket, T. Narasipura 571 124 · Mfd. by <CONVERTER>, <ADDRESS>`
 - safety line · ಹಸಿ ಕಸದೊಂದಿಗೆ ಹಾಕಿ · with wet waste, never with plastic recycling
 
-The footer is 3.9–4.8 mm — at the floor. Nothing more can be added to it, and
-the how-it-works line above it is at 4.8 mm for the same reason: the download
-ask got the size, the explanation got what was left.
+The footer is 3.9–4.8 mm — at the floor. Nothing more can be added to it.
 
-**Back** — lockup, the Kannada lockup, then the case for the bag at a size
-people read: **ನಾನು ಮಣ್ಣಾಗುತ್ತೇನೆ · I turn into soil.** over three facts with
-icons — 100 % compostable (IS/ISO 17088) · goes in the wet waste · composts in
-180 days — and the address. No QR here; the front's is enough.
+**Back** — lockup, Kannada lockup, the same download block, then three facts
+with icons in one row — 100 % compostable (IS/ISO 17088) · goes in the wet
+waste · composts in 180 days — and **ನಾನು ಮಣ್ಣಾಗುತ್ತೇನೆ · I turn into soil.** at
+the foot.
 
-### Claims: what is on the bag and what is deliberately not
+Both QRs encode the same `https://town-basket.com/b`. To tell the faces apart
+in analytics, give the back its own short path (say `/b2`) once the site
+redirects it.
+
+## Claims: what is on the bag and what is deliberately not
 
 Everything printed is something IS/ISO 17088 certification stands behind:
 certified compostable, disposal with wet waste, 90 % biodegradation within 180
