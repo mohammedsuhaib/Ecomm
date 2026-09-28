@@ -1,7 +1,7 @@
 # Town Basket carry bag — print artwork
 
 For **EcoPact**, size **13 × 16 in (330 × 406 mm)**, certified compostable film.
-Release 12. **Vest cut, two sides, one colour, one plate.**
+Release 13. **Vest cut, two sides, one colour, one plate.**
 
 | File | Trim |
 |---|---|
@@ -28,7 +28,7 @@ bag, which is the cheapest thing on this job.
 No second ink, no tint, no gradient, no halftone, nothing reversed out: every
 shape is 100 % ink or bare film. Nothing can mis-register and nothing can band.
 
-**Coverage is 7.0 % of the bag's area** — front 7.6 %, back 6.5 %, measured off
+**Coverage is 7.2 % of the bag's area** — front 8.0 %, back 6.5 %, measured off
 these files at 4 px/mm — and that is deliberate. On a certified compostable article the ink is part of the article:
 its mass counts toward the additive fraction the certificate has to cover.
 **Ask what your certifier allows and keep the answer in writing.**
@@ -86,7 +86,8 @@ goes on the bag.
   **50 mm**. Below that the linework drops under 0.5 mm and fills in.
 - **Shelf life.** Compostable film ages — it loses strength in heat and humidity.
   **Do not print a year's supply.** Order quarterly, store cool and dry.
-- **QR:** both error-correction H, 4-module quiet zone, 1.02 mm modules, printed
+- **QR:** front only, **58 mm** including its quiet zone — error-correction H,
+  4-module quiet zone, **1.41 mm modules** — printed
   in the ink on unprinted film. Test-scan the draw-down in poor light and on a
   crumpled sample — not the PDF.
 
@@ -95,8 +96,8 @@ goes on the bag.
 Both faces carry the logo at 172 mm. A vest bag shows whichever side it was
 picked up by, so the identity is on both and the small print on one.
 
-**Front** — lockup, the Kannada lockup, `town-basket.com` with the QR beside
-it, then the ask in the words people already know from every other bag and
+**Front** — lockup, the Kannada lockup, `town-basket.com` with a 58 mm QR in
+the corner beside it, then the ask in the words people already know from every other bag and
 hoarding — **ಆ್ಯಪ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ · DOWNLOAD THE APP** at 7.5 mm bold, with a
 download glyph in front of it — and under that, at 4.8 mm, how it actually
 works: ಸ್ಕ್ಯಾನ್ ಮಾಡಿ · SCAN · OPENS IN YOUR BROWSER, NO APP STORE · ಮನೆ ಬಾಗಿಲಿಗೆ ·
