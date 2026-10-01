@@ -143,6 +143,9 @@ export default function ProductForm({
   // Product fields.
   const [name, setName] = useState('');
   const [nameKn, setNameKn] = useState('');
+  // The Kannada name as loaded, so an untouched field can be told apart from
+  // one staff actually edited (see the update call).
+  const loadedNameKn = useRef('');
   const [slug, setSlug] = useState('');
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [description, setDescription] = useState('');
@@ -227,6 +230,7 @@ export default function ProductForm({
         if (cancelled) return;
         setName(p.name);
         setNameKn(p.nameKn ?? '');
+        loadedNameKn.current = p.nameKn ?? '';
         setSlug(p.slug);
         setCategoryId(p.categoryId);
         setDescription(p.description ?? '');
@@ -358,7 +362,13 @@ export default function ProductForm({
         // 1) Product's own fields (idempotent PUT — safe to repeat).
         await updateProduct(id, {
           name: name.trim(),
-          nameKn: nameKn.trim() === '' ? null : nameKn.trim(),
+          // Only an edited value counts as hand-written. Echoing back the
+          // stored name would read as explicit and stop the server
+          // re-transliterating it when the English name changes.
+          nameKn:
+            nameKn.trim() === '' || nameKn.trim() === loadedNameKn.current.trim()
+              ? null
+              : nameKn.trim(),
           categoryId,
           description: description.trim() === '' ? null : description.trim(),
           vegMarker,
@@ -453,7 +463,8 @@ export default function ProductForm({
                 placeholder="ಆಟೋ-ಭರ್ತಿ"
               />
               <span className="field-hint neutral">
-                Leave blank to auto-fill by transliteration.
+                Leave as it is to auto-fill by transliteration, refreshed
+                whenever the English name changes.
               </span>
             </label>
 
