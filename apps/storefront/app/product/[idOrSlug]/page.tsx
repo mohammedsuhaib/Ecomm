@@ -1,20 +1,39 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { getProduct } from '@/app/lib/api';
+import { getProduct, getProducts } from '@/app/lib/api';
 import { productDisplayName } from '@/app/lib/productName';
+import { cheapestBuyableVariant } from '@/app/lib/variants';
 import VegMarker from '@/app/components/VegMarker';
 import PriceTag from '@/app/components/PriceTag';
 import AddToCartButton from '@/app/components/AddToCartButton';
 import JsonLd from '@/app/components/JsonLd';
+import ProductCard from '@/app/components/ProductCard';
 import ProductThumb from '@/app/components/ProductThumb';
 import { absoluteUrl } from '@/app/lib/site';
 import { breadcrumbJsonLd, productJsonLd } from '@/app/lib/structuredData';
+import type { Product } from '@/app/lib/types';
 
 export const revalidate = 60;
 
 interface Params {
   params: { idOrSlug: string };
+}
+
+const SIMILAR_COUNT = 8;
+
+/**
+ * Other products from the same category, for the "Similar items" row. Only ones
+ * that can be bought right now: pointing someone who is looking at an
+ * out-of-stock item at more out-of-stock items is not a suggestion. The
+ * fetch is a little larger than the row so filtering still leaves it full, and
+ * it is best-effort — a failure just means no row, never a broken product page.
+ */
+async function similarProducts(product: Product): Promise<Product[]> {
+  const page = await getProducts(product.categoryId, 0, SIMILAR_COUNT * 2).catch(() => null);
+  return (page?.content ?? [])
+    .filter((p) => p.id !== product.id && cheapestBuyableVariant(p) !== null)
+    .slice(0, SIMILAR_COUNT);
 }
 
 export async function generateMetadata({ params }: Params) {
@@ -50,6 +69,7 @@ export default async function ProductPage({ params }: Params) {
   const tc = await getTranslations('common');
   const locale = await getLocale();
   const displayName = productDisplayName(product, locale);
+  const similar = await similarProducts(product);
   // Product is on and has variants, but none are sellable right now.
   const outOfStock =
     product.available &&
@@ -114,6 +134,17 @@ export default async function ProductPage({ params }: Params) {
           )}
         </div>
       </article>
+
+      {similar.length > 0 && (
+        <section>
+          <h2 className="section-title">{t('similarItems')}</h2>
+          <div className="product-grid">
+            {similar.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }
