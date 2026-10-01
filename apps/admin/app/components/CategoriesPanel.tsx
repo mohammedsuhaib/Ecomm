@@ -301,7 +301,11 @@ function CategoryForm({
     const parsedSort = sortOrder.trim() === '' ? undefined : Number(sortOrder);
     void onSubmit({
       name: name.trim(),
-      nameKn: nameKn.trim(),
+      // Only an edited value counts as hand-written. Echoing back the stored
+      // name would read as explicit and stop the server regenerating it when
+      // the English name changes.
+      nameKn:
+        nameKn.trim() === (initial?.nameKn ?? '').trim() ? '' : nameKn.trim(),
       slug: slug.trim(),
       sortOrder:
         parsedSort !== undefined && Number.isFinite(parsedSort)
@@ -335,8 +339,8 @@ function CategoryForm({
             placeholder="ಉದಾ: ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆಗಳು"
           />
           <span className="field-hint neutral">
-            Write a translation here. Left blank, it is filled in by sound
-            (transliteration).
+            Write a translation here. Left as it is, it is refilled by sound
+            (transliteration) whenever the English name changes.
           </span>
         </label>
 
