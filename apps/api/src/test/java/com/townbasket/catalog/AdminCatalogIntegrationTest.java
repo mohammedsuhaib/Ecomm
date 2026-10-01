@@ -36,15 +36,19 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
         assertThat(created.nameKn()).isEqualTo("ಅಕ್ಕಿ");
 
         // A re-save that leaves the Kannada field blank keeps the translation.
+        // (Sort order stays high: the database is shared across test classes,
+        // and others assert the seeded categories come first.)
         CategoryDto resorted = catalogService.updateCategory(
-                created.id(), new UpdateCategoryRequest("Kn Test Rice", 5, null, null));
+                created.id(), new UpdateCategoryRequest("Kn Test Rice", 9_990, null, null));
         assertThat(resorted.nameKn()).isEqualTo("ಅಕ್ಕಿ");
-        assertThat(resorted.sortOrder()).isEqualTo(5);
+        assertThat(resorted.sortOrder()).isEqualTo(9_990);
 
         // An explicit new value replaces it.
         CategoryDto edited = catalogService.updateCategory(
                 created.id(), new UpdateCategoryRequest("Kn Test Rice", null, null, "  ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆ  "));
         assertThat(edited.nameKn()).isEqualTo("ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆ");
+
+        catalogService.deleteCategory(created.id());
     }
 
     @Test
