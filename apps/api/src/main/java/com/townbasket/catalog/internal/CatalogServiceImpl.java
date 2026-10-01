@@ -304,7 +304,14 @@ class CatalogServiceImpl implements CatalogService {
             category.setSortOrder(request.sortOrder());
         }
         if (request.imageUrl() != null) {
-            category.setImageUrl(trimToNull(request.imageUrl()));
+            // Same rule as a product photo: drop the old object only once the
+            // value actually changes, or an unchanged re-save would delete it.
+            String replacement = trimToNull(request.imageUrl());
+            String previous = category.getImageUrl();
+            category.setImageUrl(replacement);
+            if (previous != null && !previous.equals(replacement)) {
+                imageStorage.deleteByUrl(previous);
+            }
         }
         // Slug is immutable — intentionally not touched.
         return toCategoryDto(categoryRepository.save(category));
@@ -321,7 +328,9 @@ class CatalogServiceImpl implements CatalogService {
                     "Category still has products and cannot be deleted. "
                             + "Move or delete its products first.");
         }
+        String imageUrl = category.getImageUrl();
         categoryRepository.delete(category);
+        imageStorage.deleteByUrl(imageUrl);
     }
 
     @Override

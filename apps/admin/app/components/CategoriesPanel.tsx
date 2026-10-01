@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   ApiError,
   AuthRequiredError,
@@ -8,6 +8,7 @@ import {
   deleteCategory,
   serverMessage,
   updateCategory,
+  uploadCatalogImage,
 } from '@/app/lib/api';
 import type { Category } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
@@ -256,8 +257,36 @@ function CategoryForm({
     initial ? String(initial.sortOrder) : '',
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? '');
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canSubmit = !busy && name.trim().length > 0;
+  // Saving mid-upload would store the old URL and strand the new object.
+  const canSubmit = !busy && !imageBusy && name.trim().length > 0;
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      const { url } = await uploadCatalogImage(file);
+      setImageUrl(url);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        setImageError('Session expired — please log in again.');
+      } else {
+        // The server's message names the actual problem (not a JPEG/PNG, too
+        // large, uploads not configured), and each needs a different fix.
+        setImageError(
+          serverMessage(err) ?? 'Could not upload that image. Please try again.',
+        );
+      }
+    } finally {
+      setImageBusy(false);
+      // Lets the same file be picked again after a failure.
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  }
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -312,13 +341,45 @@ function CategoryForm({
         </label>
 
         <label className="login-field cat-form-wide" htmlFor="cat-image">
-          Image URL (optional)
+          Category image (optional)
           <input
             id="cat-image"
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://…"
+            placeholder="Upload below, or paste an image URL"
           />
+          <div className="image-upload-row">
+            <input
+              ref={imageInputRef}
+              id="cat-image-file"
+              type="file"
+              accept="image/jpeg,image/png"
+              aria-label="Upload category image"
+              disabled={busy || imageBusy}
+              onChange={(e) => void onPickImage(e.target.files?.[0])}
+            />
+            {imageBusy && <span className="field-hint neutral">Uploading…</span>}
+          </div>
+          {imageUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={imageUrl}
+              src={imageUrl}
+              alt=""
+              className="image-upload-preview"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
+          {imageError ? (
+            <span className="field-hint error">{imageError}</span>
+          ) : (
+            <span className="field-hint neutral">
+              JPEG or PNG, resized automatically. The old picture is removed
+              when you replace it or delete the category.
+            </span>
+          )}
         </label>
       </div>
 
