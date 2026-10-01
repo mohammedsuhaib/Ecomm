@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getCategories, getProducts } from '@/app/lib/api';
 import JsonLd from '@/app/components/JsonLd';
 import ProductCard from '@/app/components/ProductCard';
 import SortControl from '@/app/components/SortControl';
+import { categoryDisplayName } from '@/app/lib/productName';
 import { parseSort } from '@/app/lib/sort';
 import { breadcrumbJsonLd } from '@/app/lib/structuredData';
 import type { Category } from '@/app/lib/types';
@@ -26,10 +27,11 @@ export async function generateMetadata({ params, searchParams }: Params) {
   // re-ordered list of the same products is the same page — that is the one
   // duplicate this catalogue can actually generate.
   const canonical = `/category/${params.slug}${page > 0 ? `?page=${page}` : ''}`;
-  const title = cat ? t('categoryTitle', { name: cat.name }) : t('categoryFallback');
+  const name = cat ? categoryDisplayName(cat, await getLocale()) : null;
+  const title = name ? t('categoryTitle', { name }) : t('categoryFallback');
   return {
     title,
-    ...(cat ? { description: t('categoryDescription', { name: cat.name }) } : {}),
+    ...(name ? { description: t('categoryDescription', { name }) } : {}),
     alternates: { canonical },
     openGraph: { title, url: canonical },
   };
@@ -46,6 +48,7 @@ export default async function CategoryPage({ params, searchParams }: Params) {
   const categories = await getCategories().catch(() => [] as Category[]);
   const category = categories.find((c) => c.slug === params.slug);
   if (!category) notFound();
+  const displayName = categoryDisplayName(category, await getLocale());
 
   const productsPage = await getProducts(category.id, page, 24, { sort }).catch(
     () => null,
@@ -60,15 +63,15 @@ export default async function CategoryPage({ params, searchParams }: Params) {
       <JsonLd
         data={breadcrumbJsonLd([
           { name: tc('home'), path: '/' },
-          { name: category.name, path: `/category/${category.slug}` },
+          { name: displayName, path: `/category/${category.slug}` },
         ])}
       />
 
       <nav className="breadcrumb">
-        <Link href="/">{tc('home')}</Link> / <span>{category.name}</span>
+        <Link href="/">{tc('home')}</Link> / <span>{displayName}</span>
       </nav>
       <div className="listing-head">
-        <h1 className="section-title">{category.name}</h1>
+        <h1 className="section-title">{displayName}</h1>
         <SortControl basePath={`/category/${category.slug}`} sort={sort} />
       </div>
 

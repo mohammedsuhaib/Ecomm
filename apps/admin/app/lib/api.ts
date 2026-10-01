@@ -542,6 +542,8 @@ export interface CategoryCreateRequest {
   slug?: string;
   sortOrder?: number;
   imageUrl?: string | null;
+  /** Blank/null: auto-filled by transliteration. */
+  nameKn?: string | null;
 }
 
 /** Request body for updating a category (slug is immutable after create). */
@@ -549,6 +551,8 @@ export interface CategoryUpdateRequest {
   name: string;
   sortOrder?: number;
   imageUrl?: string | null;
+  /** An explicit value always wins; blank keeps the stored one unless `name` changed. */
+  nameKn?: string | null;
 }
 
 /** A variant payload sent when creating a product (inline) or a variant. */

@@ -139,6 +139,7 @@ export default function CategoriesPanel({
                 slug: payload.slug || undefined,
                 sortOrder: payload.sortOrder,
                 imageUrl: payload.imageUrl || null,
+                nameKn: payload.nameKn || null,
               });
               setAdding(false);
               await onChanged();
@@ -174,6 +175,7 @@ export default function CategoriesPanel({
                         name: payload.name,
                         sortOrder: payload.sortOrder,
                         imageUrl: payload.imageUrl || null,
+                        nameKn: payload.nameKn || null,
                       });
                       setEditingId(null);
                       await onChanged();
@@ -189,7 +191,10 @@ export default function CategoriesPanel({
             ) : (
               <li key={cat.id} className="cat-row">
                 <div className="cat-row-main">
-                  <span className="cat-name">{cat.name}</span>
+                  <span className="cat-name">
+                    {cat.name}
+                    {cat.nameKn ? <span className="muted"> · {cat.nameKn}</span> : null}
+                  </span>
                   <span className="cat-meta muted">
                     sort {cat.sortOrder} · /{cat.slug}
                   </span>
@@ -232,6 +237,7 @@ export default function CategoriesPanel({
 
 interface CategoryFormValues {
   name: string;
+  nameKn: string;
   slug: string;
   sortOrder: number | undefined;
   imageUrl: string;
@@ -252,6 +258,7 @@ function CategoryForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? '');
+  const [nameKn, setNameKn] = useState(initial?.nameKn ?? '');
   const [slug, setSlug] = useState(initial?.slug ?? '');
   const [sortOrder, setSortOrder] = useState(
     initial ? String(initial.sortOrder) : '',
@@ -294,6 +301,7 @@ function CategoryForm({
     const parsedSort = sortOrder.trim() === '' ? undefined : Number(sortOrder);
     void onSubmit({
       name: name.trim(),
+      nameKn: nameKn.trim(),
       slug: slug.trim(),
       sortOrder:
         parsedSort !== undefined && Number.isFinite(parsedSort)
@@ -315,6 +323,21 @@ function CategoryForm({
             required
             autoFocus
           />
+        </label>
+
+        <label className="login-field" htmlFor="cat-namekn">
+          Kannada name (optional)
+          <input
+            id="cat-namekn"
+            lang="kn"
+            value={nameKn}
+            onChange={(e) => setNameKn(e.target.value)}
+            placeholder="ಉದಾ: ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆಗಳು"
+          />
+          <span className="field-hint neutral">
+            Write a translation here. Left blank, it is filled in by sound
+            (transliteration).
+          </span>
         </label>
 
         {mode === 'create' && (

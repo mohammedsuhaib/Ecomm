@@ -191,6 +191,8 @@ export interface Category {
   slug: string;
   imageUrl: string | null;
   sortOrder: number;
+  /** Kannada name shown to customers browsing in Kannada; null until filled. */
+  nameKn: string | null;
 }
 
 // ---- Analytics (admin) -------------------------------------------------------
