@@ -53,16 +53,17 @@ class AdminCatalogController {
     }
 
     /**
-     * Store a product photo and hand back its URL for the caller to save on the
-     * product. Not bound to a product id — see {@link ImageUploadResult} — so
-     * the same call serves both creating a product and re-imaging one.
+     * Store a product or category photo and hand back its URL for the caller to
+     * save as that item's {@code imageUrl}. Not bound to an id — see
+     * {@link ImageUploadResult} — so the same call serves creating an item and
+     * re-imaging one.
      *
      * <p>The upload is re-encoded before it is stored: scaled down, stripped of
      * EXIF, and admitted only if the bytes really are a JPEG or PNG. Anything
      * else is refused with a message the staff member can act on.
      */
     @PostMapping(value = "/images", consumes = "multipart/form-data")
-    @Operation(summary = "Upload a product image; returns the stored URL to save as imageUrl.")
+    @Operation(summary = "Upload a product or category image; returns the stored URL to save as imageUrl.")
     ImageUploadResult uploadImage(@RequestParam("file") MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("A file is required");

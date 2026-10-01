@@ -9,10 +9,13 @@ package com.townbasket.catalog;
  * @param slug      optional — auto-generated from {@code name} when blank
  * @param sortOrder optional — defaults to {@code max(sortOrder)+10} (or 0 if none)
  * @param imageUrl  optional
+ * @param nameKn    optional Kannada name — when blank and transliteration is
+ *                  enabled, it is best-effort auto-filled from {@code name}
  */
 public record CreateCategoryRequest(
         String name,
         String slug,
         Integer sortOrder,
-        String imageUrl) {
+        String imageUrl,
+        String nameKn) {
 }

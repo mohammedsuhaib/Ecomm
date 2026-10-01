@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import {
   ApiError,
   AuthRequiredError,
@@ -8,6 +8,7 @@ import {
   deleteCategory,
   serverMessage,
   updateCategory,
+  uploadCatalogImage,
 } from '@/app/lib/api';
 import type { Category } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
@@ -138,6 +139,7 @@ export default function CategoriesPanel({
                 slug: payload.slug || undefined,
                 sortOrder: payload.sortOrder,
                 imageUrl: payload.imageUrl || null,
+                nameKn: payload.nameKn || null,
               });
               setAdding(false);
               await onChanged();
@@ -173,6 +175,7 @@ export default function CategoriesPanel({
                         name: payload.name,
                         sortOrder: payload.sortOrder,
                         imageUrl: payload.imageUrl || null,
+                        nameKn: payload.nameKn || null,
                       });
                       setEditingId(null);
                       await onChanged();
@@ -188,7 +191,10 @@ export default function CategoriesPanel({
             ) : (
               <li key={cat.id} className="cat-row">
                 <div className="cat-row-main">
-                  <span className="cat-name">{cat.name}</span>
+                  <span className="cat-name">
+                    {cat.name}
+                    {cat.nameKn ? <span className="muted"> · {cat.nameKn}</span> : null}
+                  </span>
                   <span className="cat-meta muted">
                     sort {cat.sortOrder} · /{cat.slug}
                   </span>
@@ -231,6 +237,7 @@ export default function CategoriesPanel({
 
 interface CategoryFormValues {
   name: string;
+  nameKn: string;
   slug: string;
   sortOrder: number | undefined;
   imageUrl: string;
@@ -251,13 +258,42 @@ function CategoryForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? '');
+  const [nameKn, setNameKn] = useState(initial?.nameKn ?? '');
   const [slug, setSlug] = useState(initial?.slug ?? '');
   const [sortOrder, setSortOrder] = useState(
     initial ? String(initial.sortOrder) : '',
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? '');
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const canSubmit = !busy && name.trim().length > 0;
+  // Saving mid-upload would store the old URL and strand the new object.
+  const canSubmit = !busy && !imageBusy && name.trim().length > 0;
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      const { url } = await uploadCatalogImage(file);
+      setImageUrl(url);
+    } catch (err) {
+      if (err instanceof AuthRequiredError) {
+        setImageError('Session expired — please log in again.');
+      } else {
+        // The server's message names the actual problem (not a JPEG/PNG, too
+        // large, uploads not configured), and each needs a different fix.
+        setImageError(
+          serverMessage(err) ?? 'Could not upload that image. Please try again.',
+        );
+      }
+    } finally {
+      setImageBusy(false);
+      // Lets the same file be picked again after a failure.
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  }
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -265,6 +301,11 @@ function CategoryForm({
     const parsedSort = sortOrder.trim() === '' ? undefined : Number(sortOrder);
     void onSubmit({
       name: name.trim(),
+      // Only an edited value counts as hand-written. Echoing back the stored
+      // name would read as explicit and stop the server regenerating it when
+      // the English name changes.
+      nameKn:
+        nameKn.trim() === (initial?.nameKn ?? '').trim() ? '' : nameKn.trim(),
       slug: slug.trim(),
       sortOrder:
         parsedSort !== undefined && Number.isFinite(parsedSort)
@@ -286,6 +327,21 @@ function CategoryForm({
             required
             autoFocus
           />
+        </label>
+
+        <label className="login-field" htmlFor="cat-namekn">
+          Kannada name (optional)
+          <input
+            id="cat-namekn"
+            lang="kn"
+            value={nameKn}
+            onChange={(e) => setNameKn(e.target.value)}
+            placeholder="ಉದಾ: ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆಗಳು"
+          />
+          <span className="field-hint neutral">
+            Write a translation here. Left as it is, it is refilled by sound
+            (transliteration) whenever the English name changes.
+          </span>
         </label>
 
         {mode === 'create' && (
@@ -312,13 +368,45 @@ function CategoryForm({
         </label>
 
         <label className="login-field cat-form-wide" htmlFor="cat-image">
-          Image URL (optional)
+          Category image (optional)
           <input
             id="cat-image"
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://…"
+            placeholder="Upload below, or paste an image URL"
           />
+          <div className="image-upload-row">
+            <input
+              ref={imageInputRef}
+              id="cat-image-file"
+              type="file"
+              accept="image/jpeg,image/png"
+              aria-label="Upload category image"
+              disabled={busy || imageBusy}
+              onChange={(e) => void onPickImage(e.target.files?.[0])}
+            />
+            {imageBusy && <span className="field-hint neutral">Uploading…</span>}
+          </div>
+          {imageUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              key={imageUrl}
+              src={imageUrl}
+              alt=""
+              className="image-upload-preview"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          ) : null}
+          {imageError ? (
+            <span className="field-hint error">{imageError}</span>
+          ) : (
+            <span className="field-hint neutral">
+              JPEG or PNG, resized automatically. The old picture is removed
+              when you replace it or delete the category.
+            </span>
+          )}
         </label>
       </div>
 

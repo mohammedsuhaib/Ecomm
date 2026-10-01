@@ -7,9 +7,12 @@ package com.townbasket.catalog;
  * @param name      required, non-blank
  * @param sortOrder optional — when {@code null}, the existing value is kept
  * @param imageUrl  optional — when {@code null}, the existing value is kept
+ * @param nameKn    optional Kannada name — an explicit value always wins; when
+ *                  blank, it is re-transliterated only if {@code name} changed
  */
 public record UpdateCategoryRequest(
         String name,
         Integer sortOrder,
-        String imageUrl) {
+        String imageUrl,
+        String nameKn) {
 }

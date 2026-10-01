@@ -286,7 +286,9 @@ class CatalogServiceImpl implements CatalogService {
         String slug = resolveSlug(request.slug(), name, this::categorySlugExists);
         int sortOrder = request.sortOrder() != null ? request.sortOrder() : nextCategorySortOrder();
         CategoryEntity category = CategoryEntity.create(name, slug, sortOrder, trimToNull(request.imageUrl()));
-        transliterateCategory(category, name);
+        // name_kn: explicit value wins; otherwise best-effort transliterate.
+        String nameKn = trimToNull(request.nameKn());
+        category.setNameKn(nameKn != null ? nameKn : transliterate(name));
         CategoryEntity saved = categoryRepository.save(category);
         return toCategoryDto(saved);
     }
@@ -298,13 +300,32 @@ class CatalogServiceImpl implements CatalogService {
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> categoryNotFound(id));
         String newName = requireText(request.name(), "Category name must not be blank.");
+        boolean nameChanged = !newName.equals(category.getName());
         category.setName(newName);
-        transliterateCategory(category, newName);
+        // Same rule as products: an explicit Kannada name always wins, and a
+        // blank one is regenerated only when the English name changed — so a
+        // hand-written translation survives every later save.
+        String explicitKn = trimToNull(request.nameKn());
+        if (explicitKn != null) {
+            category.setNameKn(explicitKn);
+        } else if (nameChanged) {
+            String generated = transliterate(newName);
+            if (generated != null) {
+                category.setNameKn(generated);
+            }
+        }
         if (request.sortOrder() != null) {
             category.setSortOrder(request.sortOrder());
         }
         if (request.imageUrl() != null) {
-            category.setImageUrl(trimToNull(request.imageUrl()));
+            // Same rule as a product photo: drop the old object only once the
+            // value actually changes, or an unchanged re-save would delete it.
+            String replacement = trimToNull(request.imageUrl());
+            String previous = category.getImageUrl();
+            category.setImageUrl(replacement);
+            if (previous != null && !previous.equals(replacement)) {
+                imageStorage.deleteByUrl(previous);
+            }
         }
         // Slug is immutable — intentionally not touched.
         return toCategoryDto(categoryRepository.save(category));
@@ -321,7 +342,9 @@ class CatalogServiceImpl implements CatalogService {
                     "Category still has products and cannot be deleted. "
                             + "Move or delete its products first.");
         }
+        String imageUrl = category.getImageUrl();
         categoryRepository.delete(category);
+        imageStorage.deleteByUrl(imageUrl);
     }
 
     @Override
@@ -682,12 +705,6 @@ class CatalogServiceImpl implements CatalogService {
 
     private static CategoryDto toCategoryDto(CategoryEntity e) {
         return new CategoryDto(e.getId(), e.getName(), e.getSlug(), e.getImageUrl(), e.getSortOrder(), e.getNameKn());
-    }
-
-    private void transliterateCategory(CategoryEntity category, String englishName) {
-        if (transliterator.isPresent()) {
-            transliterator.get().toKannada(englishName).ifPresent(category::setNameKn);
-        }
     }
 
     /**

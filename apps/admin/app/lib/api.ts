@@ -345,8 +345,8 @@ export function transitionOrder(
 }
 
 /**
- * POST /admin/catalog/images — upload a product photo, returning the stored
- * URL to save as the product's `imageUrl`.
+ * POST /admin/catalog/images — upload a product or category photo, returning
+ * the stored URL to save as that item's `imageUrl`.
  *
  * Sends multipart rather than JSON, so this cannot go through `apiMutate`: the
  * Content-Type header must be left unset for `fetch` to add the multipart
@@ -354,7 +354,7 @@ export function transitionOrder(
  * rotating-refresh retry — an upload is slow enough that a token expiring
  * mid-request is a realistic way to lose one.
  */
-export async function uploadProductImage(file: File): Promise<{ url: string }> {
+export async function uploadCatalogImage(file: File): Promise<{ url: string }> {
   const url = buildUrl('/admin/catalog/images');
 
   const run = async (): Promise<Response> => {
@@ -405,7 +405,7 @@ function saveBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** GET a binary export and return it as a Blob, with the same auth-retry dance as `uploadProductImage`. */
+/** GET a binary export and return it as a Blob, with the same auth-retry dance as `uploadCatalogImage`. */
 async function fetchBlob(path: string, query?: Record<string, unknown>): Promise<Blob> {
   const url = buildUrl(path, query);
 
@@ -542,6 +542,8 @@ export interface CategoryCreateRequest {
   slug?: string;
   sortOrder?: number;
   imageUrl?: string | null;
+  /** Blank/null: auto-filled by transliteration. */
+  nameKn?: string | null;
 }
 
 /** Request body for updating a category (slug is immutable after create). */
@@ -549,6 +551,8 @@ export interface CategoryUpdateRequest {
   name: string;
   sortOrder?: number;
   imageUrl?: string | null;
+  /** An explicit value always wins; blank keeps the stored one unless `name` changed. */
+  nameKn?: string | null;
 }
 
 /** A variant payload sent when creating a product (inline) or a variant. */

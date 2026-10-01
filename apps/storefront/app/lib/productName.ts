@@ -1,5 +1,5 @@
 import type { Locale } from '@/i18n/config';
-import type { Product } from './types';
+import type { Category, Product } from './types';
 
 // Product names are catalogue data. The backend stores a Kannada transliteration
 // in `nameKn` (catalog.products.name_kn); when browsing in Kannada we show it,
@@ -27,4 +27,13 @@ export function lineDisplayName(
 ): string {
   if (locale === 'kn' && line.productNameKn) return line.productNameKn;
   return line.productName;
+}
+
+/** The same choice for a category tile, heading or breadcrumb. */
+export function categoryDisplayName(
+  category: Pick<Category, 'name' | 'nameKn'>,
+  locale: Locale,
+): string {
+  if (locale === 'kn' && category.nameKn) return category.nameKn;
+  return category.name;
 }

@@ -9,8 +9,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Fills in missing Kannada product names ({@code catalog.products.name_kn}) on a
- * periodic sweep. This is the population mechanism for transliterations: it
+ * Fills in missing Kannada product and category names ({@code name_kn}) on a
+ * periodic sweep. Categories are swept too because they get a name only when
+ * created or saved with transliteration on, so any that existed before it was
+ * enabled would otherwise stay blank. This is the population mechanism for transliterations: it
  * drains the go-live catalogue in batches and picks up any products added later
  * (e.g. via bulk import) without a write path of its own. Idempotent — once a
  * product has a Kannada name it is never re-fetched; a sweep that finds nothing
@@ -34,6 +36,7 @@ class ProductNameBackfillJob {
     private static final int MAX_SWEEPS_TO_SKIP = 15;
 
     private final ProductRepository products;
+    private final CategoryRepository categories;
     private final ProductNameTransliterator transliterator;
     private final ProductNameWriter writer;
     private final TransliterationProperties props;
@@ -44,10 +47,12 @@ class ProductNameBackfillJob {
     private int sweepsToSkip = 0;
 
     ProductNameBackfillJob(ProductRepository products,
+                           CategoryRepository categories,
                            ProductNameTransliterator transliterator,
                            ProductNameWriter writer,
                            TransliterationProperties props) {
         this.products = products;
+        this.categories = categories;
         this.transliterator = transliterator;
         this.writer = writer;
         this.props = props;
@@ -62,7 +67,10 @@ class ProductNameBackfillJob {
             return;
         }
         List<ProductEntity> batch = products.findByNameKnIsNull(PageRequest.of(0, props.batchSize()));
-        if (batch.isEmpty()) {
+        List<CategoryEntity> categoryBatch =
+                categories.findByNameKnIsNull(PageRequest.of(0, props.batchSize()));
+        int pending = batch.size() + categoryBatch.size();
+        if (pending == 0) {
             return;
         }
         int filled = 0;
@@ -74,6 +82,13 @@ class ProductNameBackfillJob {
                 filled++;
             }
         }
+        for (CategoryEntity category : categoryBatch) {
+            var kannada = transliterator.toKannada(category.getName());
+            if (kannada.isPresent()) {
+                writer.saveCategory(category.getId(), kannada.get());
+                filled++;
+            }
+        }
         if (filled == 0) {
             // Whole sweep produced nothing — the endpoint is almost certainly
             // unreachable/blocked (e.g. TLS not trusted). Back off so we neither
@@ -82,10 +97,11 @@ class ProductNameBackfillJob {
             sweepsToSkip = Math.min(consecutiveFailedSweeps, MAX_SWEEPS_TO_SKIP);
             log.warn("Transliteration backfill: 0 of {} pending name(s) filled; "
                     + "transliteration endpoint appears unavailable — backing off {} sweep(s)",
-                    batch.size(), sweepsToSkip);
+                    pending, sweepsToSkip);
         } else {
             consecutiveFailedSweeps = 0;
-            log.info("Transliteration backfill: filled {} of {} pending product name(s)", filled, batch.size());
+            log.info("Transliteration backfill: filled {} of {} pending product/category name(s)",
+                    filled, pending);
         }
     }
 }

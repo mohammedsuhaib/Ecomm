@@ -30,10 +30,41 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
     CatalogService catalogService;
 
     @Test
+    void handWrittenKannadaCategoryNameSurvivesLaterSaves() {
+        CategoryDto created = catalogService.createCategory(
+                new CreateCategoryRequest("Kn Test Rice", null, null, null, "ಅಕ್ಕಿ"));
+        assertThat(created.nameKn()).isEqualTo("ಅಕ್ಕಿ");
+
+        // A re-save that leaves the Kannada field blank keeps the translation.
+        // (Sort order stays high: the database is shared across test classes,
+        // and others assert the seeded categories come first.)
+        CategoryDto resorted = catalogService.updateCategory(
+                created.id(), new UpdateCategoryRequest("Kn Test Rice", 9_990, null, null));
+        assertThat(resorted.nameKn()).isEqualTo("ಅಕ್ಕಿ");
+        assertThat(resorted.sortOrder()).isEqualTo(9_990);
+
+        // An explicit new value replaces it.
+        CategoryDto edited = catalogService.updateCategory(
+                created.id(), new UpdateCategoryRequest("Kn Test Rice", null, null, "  ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆ  "));
+        assertThat(edited.nameKn()).isEqualTo("ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆ");
+
+        catalogService.deleteCategory(created.id());
+    }
+
+    @Test
+    void launchCategoriesCarryTranslatedKannadaNames() {
+        // V3_13 translates the seeded categories rather than transliterating them.
+        assertThat(catalogService.adminListCategories())
+                .filteredOn(c -> "rice-dals".equals(c.slug()))
+                .extracting(CategoryDto::nameKn)
+                .containsExactly("ಅಕ್ಕಿ ಮತ್ತು ಬೇಳೆಗಳು");
+    }
+
+    @Test
     void fullCategoryAndProductLifecycle() {
         // --- create category (slug auto-generated from name) ---
         CategoryDto category = catalogService.createCategory(
-                new CreateCategoryRequest("Test Snacks & Treats", null, null, "http://img/cat.png"));
+                new CreateCategoryRequest("Test Snacks & Treats", null, null, "http://img/cat.png", null));
         assertThat(category.id()).isNotNull();
         assertThat(category.slug()).isEqualTo("test-snacks-treats");
         assertThat(category.imageUrl()).isEqualTo("http://img/cat.png");
@@ -165,9 +196,9 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
     @Test
     void slugCollisionsAreSuffixed() {
         CategoryDto first = catalogService.createCategory(
-                new CreateCategoryRequest("Dupe Cat", null, null, null));
+                new CreateCategoryRequest("Dupe Cat", null, null, null, null));
         CategoryDto second = catalogService.createCategory(
-                new CreateCategoryRequest("Dupe Cat", null, null, null));
+                new CreateCategoryRequest("Dupe Cat", null, null, null, null));
         assertThat(first.slug()).isEqualTo("dupe-cat");
         assertThat(second.slug()).isEqualTo("dupe-cat-2");
 
@@ -180,7 +211,7 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
     void validationRejectsBadInput() {
         // Blank name -> 422.
         assertThatThrownBy(() -> catalogService.createCategory(
-                new CreateCategoryRequest("  ", null, null, null)))
+                new CreateCategoryRequest("  ", null, null, null, null)))
                 .isInstanceOf(BusinessRuleException.class);
 
         // Unknown category -> 404.
@@ -189,7 +220,7 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         CategoryDto cat = catalogService.createCategory(
-                new CreateCategoryRequest("Valid Cat", null, null, null));
+                new CreateCategoryRequest("Valid Cat", null, null, null, null));
         // Negative selling price -> 422.
         assertThatThrownBy(() -> catalogService.createProduct(new CreateProductRequest(
                 "Bad Variant", null, null, cat.id(), null, null, null, null, null, null, null,
@@ -209,7 +240,7 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
     @Test
     void rejectsMrpBelowSellingPrice() {
         CategoryDto cat = catalogService.createCategory(
-                new CreateCategoryRequest("Pricing Cat", null, null, null));
+                new CreateCategoryRequest("Pricing Cat", null, null, null, null));
 
         // MRP (40) below selling price (50) is a data error (negative discount /
         // broken strikethrough) -> 422 on create.

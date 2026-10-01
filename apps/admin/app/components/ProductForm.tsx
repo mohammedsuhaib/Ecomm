@@ -11,7 +11,7 @@ import {
   getHsnSuggestions,
   updateProduct,
   updateVariant,
-  uploadProductImage,
+  uploadCatalogImage,
   serverMessage,
   type VariantWriteRequest,
 } from '@/app/lib/api';
@@ -161,7 +161,7 @@ export default function ProductForm({
     setImageBusy(true);
     setImageError(null);
     try {
-      const { url } = await uploadProductImage(file);
+      const { url } = await uploadCatalogImage(file);
       setImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {

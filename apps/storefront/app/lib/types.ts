@@ -28,6 +28,7 @@ export interface Product {
 export interface Category {
   id: string;
   name: string;
+  nameKn?: string | null; // Kannada name (catalog name_kn); null until filled — see lib/productName.ts
   slug: string;
   imageUrl: string | null;
   sortOrder: number;
