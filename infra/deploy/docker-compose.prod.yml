@@ -107,6 +107,10 @@ services:
       # Online UPI stays OFF until a real gateway replaces the fake provider,
       # which auto-succeeds and would mark orders PAID with no money received.
       UPI_ENABLED: ${UPI_ENABLED:-false}
+      # Kannada product/category names, filled in from Google Input Tools by a
+      # background sweep. ON here because application.yml defaults it off (so
+      # tests make no external calls) and nothing else would turn it on.
+      CATALOG_TRANSLITERATION_ENABLED: ${CATALOG_TRANSLITERATION_ENABLED:-true}
     expose:
       - "8080"
 

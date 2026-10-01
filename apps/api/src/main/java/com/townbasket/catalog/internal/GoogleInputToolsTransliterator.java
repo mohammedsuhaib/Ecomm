@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * {@link ProductNameTransliterator} backed by Google Input Tools (free, no API
@@ -76,7 +77,10 @@ class GoogleInputToolsTransliterator implements ProductNameTransliterator {
             if (!candidates.isArray() || candidates.isEmpty()) {
                 return Optional.empty();
             }
-            String transliterated = candidates.get(0).asText();
+            // The endpoint HTML-escapes its output ("&" comes back as "&amp;",
+            // an apostrophe as "&#39;"), and the storefront renders text, not
+            // HTML — stored as-is the customer would read the entity itself.
+            String transliterated = HtmlUtils.htmlUnescape(candidates.get(0).asText());
             return transliterated.isBlank() ? Optional.empty() : Optional.of(transliterated);
         } catch (Exception e) {
             // Per-item at debug to avoid flooding the log when the endpoint is
