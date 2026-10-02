@@ -21,16 +21,28 @@ interface Params {
 }
 
 const SIMILAR_COUNT = 8;
+// How many of the category's products to look through. Much larger than the row
+// because unavailable ones are filtered out, and a run of them at the start of
+// the list would otherwise leave the row short or empty.
+const SIMILAR_WINDOW = 48;
+// The row is a nicety, so it must never hold up the product itself.
+const SIMILAR_TIMEOUT_MS = 2500;
 
 /**
  * Other products from the same category, for the "Similar items" row. Only ones
  * that can be bought right now: pointing someone who is looking at an
- * out-of-stock item at more out-of-stock items is not a suggestion. The
- * fetch is a little larger than the row so filtering still leaves it full, and
- * it is best-effort — a failure just means no row, never a broken product page.
+ * out-of-stock item at more out-of-stock items is not a suggestion. It is
+ * best-effort and time-boxed: a failure OR a slow API just means no row, never
+ * a broken or delayed product page.
  */
 async function similarProducts(product: Product): Promise<Product[]> {
-  const page = await getProducts(product.categoryId, 0, SIMILAR_COUNT * 2).catch(() => null);
+  const page = await getProducts(
+    product.categoryId,
+    0,
+    SIMILAR_WINDOW,
+    {},
+    { signal: AbortSignal.timeout(SIMILAR_TIMEOUT_MS) },
+  ).catch(() => null);
   return (page?.content ?? [])
     .filter((p) => p.id !== product.id && cheapestBuyableVariant(p) !== null)
     .slice(0, SIMILAR_COUNT);
