@@ -145,6 +145,11 @@ internet, publishing every endpoint, parameter and DTO shape.
 `.requestMatchers("/swagger-ui/**", "/v3/api-docs/**").hasRole("ADMIN")` rule.
 Disabling is simpler and CI still generates the spec from source.
 
+**Closed.** `springdoc.*.enabled` now defaults to off in `application.yml`
+(`SPRINGDOC_ENABLED=true` turns it on; local and QA compose set it), and the
+production Caddyfile also answers 404 for `/swagger-ui*` and `/v3/api-docs*`.
+`ProductionConfigDefaultsTest` pins the default.
+
 ### A6. `/actuator/metrics` is publicly reachable 🟠
 
 `management.endpoints.web.exposure.include: health,info,metrics` plus the same
@@ -161,6 +166,11 @@ Docker network and is reachable for internal health checks but not from
 outside. Alternative: drop `metrics` from the exposure list and keep
 `health,info`. Note `deploy-app.yml` health-checks `/actuator/health` through
 the public hostname, so if you move the port, that check moves with it.
+
+**Closed** by the "drop `metrics`" option: the exposure list is now
+`health,info`, and the production Caddyfile only proxies `/actuator/health*`
+(everything else under `/actuator` is a 404 at the edge). The management port is
+unchanged, so the deploy health check still works.
 
 ### A7. Invoices ship without a GSTIN — now a setting, still unset
 
