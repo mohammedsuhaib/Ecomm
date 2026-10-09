@@ -15,6 +15,17 @@
 (qa_common) {
 	encode gzip zstd
 	header X-Robots-Tag "noindex, nofollow"
+	# The same response hardening production's Caddyfile applies, so QA surfaces
+	# anything it would break (geolocation stays allowed for the page itself).
+	# No HSTS here: QA is reached over the tailnet and is not worth pinning.
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+		-Server
+		-X-Powered-By
+	}
 }
 
 qa.town-basket.com {

@@ -42,6 +42,8 @@ services:
       # Auto-transliterate product names to Kannada (name_kn) for the storefront's
       # Kannada mode. Needs outbound internet (Google Input Tools). A quicker
       # sweep is used locally so the seeded catalogue fills in soon after startup.
+      # Swagger UI + /v3/api-docs are off by default (production); local dev keeps them.
+      SPRINGDOC_ENABLED: "true"
       CATALOG_TRANSLITERATION_ENABLED: ${CATALOG_TRANSLITERATION_ENABLED:-true}
       CATALOG_TRANSLITERATION_INTERVAL_MS: ${CATALOG_TRANSLITERATION_INTERVAL_MS:-60000}
       CATALOG_TRANSLITERATION_BATCH_SIZE: ${CATALOG_TRANSLITERATION_BATCH_SIZE:-50}

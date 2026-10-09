@@ -109,11 +109,26 @@ modulith:
         enabled: false   # Schema is created by Flyway (see shared migration).
     republish-outstanding-events-on-restart: true
 
+# API docs are DEV/QA tooling, not a production surface. SecurityConfig ends in
+# anyRequest().permitAll() and Caddy proxies api.<domain> to the container
+# wholesale, so leaving these on published every endpoint, parameter and DTO
+# shape on the public internet. SECURE DEFAULT: off. Enable per environment with
+# SPRINGDOC_ENABLED=true (infra/docker-compose.yml and the QA compose set it).
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        # `metrics` is deliberately absent. Actuator sits behind SecurityConfig's
+        # permitAll catch-all and Caddy proxies the API host wholesale, so exposing
+        # it published http.server.requests counters, from which order throughput
+        # is readable per endpoint. Health is what the deploy check needs.
+        include: health,info
   endpoint:
     health:
       probes:
