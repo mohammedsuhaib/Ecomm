@@ -16,6 +16,31 @@
 	}
 }
 
+# Response hardening for every proxied app host. The Next.js apps and the API send
+# none of this themselves, so the proxy is the one place that can. HSTS is
+# deliberately without includeSubDomains here: each host answers for itself.
+(app_security) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+		-X-Powered-By
+	}
+}
+
+# Extra for hosts that serve pages people look at (shop, admin, rider app).
+# geolocation stays allowed for the page itself: the storefront's "use my
+# location" and the rider app's live position both need it. There is no
+# Content-Security-Policy yet on purpose: these apps load Firebase, reCAPTCHA and
+# Google Maps and use inline scripts, so a CSP needs its own careful pass.
+(page_security) {
+	header {
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+	}
+}
+
 # The apex belongs to the shop: everything 301s to shop.town-basket.com, path
 # and query kept. The published policy pages (and the files they load) stay
 # here, because the storefront footer, the Play Store listing and the Razorpay
@@ -52,24 +77,45 @@ www.town-basket.com {
 
 shop.town-basket.com {
 	encode gzip zstd
+	import app_security
+	import page_security
 	reverse_proxy storefront:3000
 }
 
 admin.town-basket.com {
 	encode gzip zstd
+	import app_security
+	import page_security
 	reverse_proxy admin:3001
 }
 
 api.town-basket.com {
 	encode gzip zstd
-	# SSE (live order tracking + admin queue) needs unbuffered, long-lived
-	# responses — disable flush buffering on the API upstream.
-	reverse_proxy api:8080 {
-		flush_interval -1
+	import app_security
+
+	# `route` keeps the order written here (`handle` would reorder by specificity).
+	route {
+		# The deploy workflow's health check needs this one publicly.
+		reverse_proxy /actuator/health* api:8080
+
+		# Defence in depth: the API's own config already keeps these closed, but
+		# the proxy is what faces the internet, so a future config slip cannot
+		# re-expose the docs, the spec or the rest of actuator by accident.
+		respond /actuator/* 404
+		respond /swagger-ui* 404
+		respond /v3/api-docs* 404
+
+		# Normal API traffic. SSE (live order tracking + admin queue) needs
+		# unbuffered, long-lived responses — disable flush buffering.
+		reverse_proxy api:8080 {
+			flush_interval -1
+		}
 	}
 }
 
 delivery.town-basket.com {
 	encode gzip zstd
+	import app_security
+	import page_security
 	reverse_proxy delivery:3002
 }
