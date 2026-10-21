@@ -215,7 +215,9 @@ export type ProductSort =
   | 'name_desc'
   | 'price_asc'
   | 'price_desc'
-  | 'discount';
+  | 'discount'
+  /** Most delivered first. Not offered in the dropdown; the home page asks for it. */
+  | 'popular';
 
 /** Optional product-list filters layered on top of paging. */
 export interface ProductListOpts {

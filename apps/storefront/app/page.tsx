@@ -29,6 +29,9 @@ export async function generateMetadata() {
   };
 }
 
+/** How many "Popular picks" the home page shows above the categories. */
+const FEATURED_COUNT = 12;
+
 export default async function Home({
   searchParams,
 }: {
@@ -41,13 +44,18 @@ export default async function Home({
   // shell still renders rather than throwing.
   const [categories, productsPage, featuredPage, store] = await Promise.all([
     getCategories().catch(() => [] as Category[]),
-    getProducts(undefined, 0, 12, { sort }).catch(() => null),
-    getProducts(undefined, 0, 12, { featured: true }).catch(() => null),
+    // Unsorted, the lower block is the best sellers. Fetch a few extra so the
+    // ones already shown above as "Popular picks" can be dropped and still
+    // leave a full row.
+    getProducts(undefined, 0, sort ? 12 : 12 + FEATURED_COUNT, { sort: sort ?? 'popular' }).catch(() => null),
+    getProducts(undefined, 0, FEATURED_COUNT, { featured: true }).catch(() => null),
     getStore().catch(() => null as Store | null),
   ]);
 
-  const products: Product[] = productsPage?.content ?? [];
   const featured: Product[] = featuredPage?.content ?? [];
+  const shownAbove = new Set(featured.map((p) => p.id));
+  const listed: Product[] = productsPage?.content ?? [];
+  const products: Product[] = (sort ? listed : listed.filter((p) => !shownAbove.has(p.id))).slice(0, 12);
 
   return (
     <>

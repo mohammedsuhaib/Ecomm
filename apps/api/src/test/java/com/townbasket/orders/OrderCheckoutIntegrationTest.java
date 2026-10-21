@@ -8,6 +8,7 @@ import com.townbasket.cart.CartDto;
 import com.townbasket.cart.CartService;
 import com.townbasket.catalog.CatalogService;
 import com.townbasket.catalog.ProductDto;
+import com.townbasket.catalog.ProductSort;
 import com.townbasket.catalog.ProductVariantDto;
 import com.townbasket.identity.AuthService;
 import com.townbasket.identity.CreateDeliveryAgentRequest;
@@ -271,6 +272,21 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
         // OrderDelivered is consumed by inventory (async, after commit) to COMMIT
         // the reservation: on_hand drops, so available stays reduced by 5.
         eventually(() -> assertThat(inventoryService.availability(variant.id())).isEqualTo(before - 5));
+
+        // catalog counts the same event: what was delivered now outranks the
+        // products nobody has bought. (Position, not an exact count — other
+        // tests in the shared database deliver too.)
+        eventually(() -> {
+            var popular = catalogService.listProducts(null, false, ProductSort.POPULAR, PageRequest.of(0, 200))
+                    .content();
+            int at = -1;
+            for (int i = 0; i < popular.size(); i++) {
+                if (popular.get(i).variants().stream().anyMatch(v -> v.id().equals(variant.id()))) {
+                    at = i;
+                }
+            }
+            assertThat(at).isGreaterThanOrEqualTo(0).isLessThan(popular.size() - 1);
+        });
 
         // The delivery shows up in the per-agent date-wise stats, with the
         // order's value summed in (>= because other tests may add deliveries).

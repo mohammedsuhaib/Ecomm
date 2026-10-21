@@ -1,7 +1,7 @@
 import type { ProductSort } from './api';
 
 /** Sort options exposed in the listing dropdown, in display order (labels come from i18n). */
-export const SORT_OPTIONS: readonly ProductSort[] = [
+export const SORT_OPTIONS: readonly Exclude<ProductSort, 'popular'>[] = [
   'name',
   'name_desc',
   'price_asc',

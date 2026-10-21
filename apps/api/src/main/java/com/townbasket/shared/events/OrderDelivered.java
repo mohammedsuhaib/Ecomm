@@ -15,5 +15,15 @@ public record OrderDelivered(
          * the outbox before this field existed — consumers fall back.
          */
         String publicCode,
-        Long storeId) {
+        Long storeId,
+        /**
+         * What was sold, by variant id and unit count, so {@code catalog} can
+         * rank products by how much of them has actually been delivered. Null
+         * on an event serialised into the outbox before this field existed.
+         */
+        java.util.List<Line> lines) {
+
+    /** One delivered order line; the variant is a plain id, as everywhere across modules. */
+    public record Line(Long variantId, int qty) {
+    }
 }

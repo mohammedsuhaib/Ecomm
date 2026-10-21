@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -99,6 +100,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
               CASE WHEN :sort = 'PRICE_ASC'  THEN agg.min_price    END ASC  NULLS LAST,
               CASE WHEN :sort = 'PRICE_DESC' THEN agg.min_price    END DESC NULLS LAST,
               CASE WHEN :sort = 'DISCOUNT'   THEN agg.max_discount END DESC NULLS LAST,
+              CASE WHEN :sort = 'POPULAR'    THEN p.sold_count     END DESC NULLS LAST,
               CASE WHEN :sort = 'NAME'       THEN LOWER(p.name)    END ASC  NULLS LAST,
               CASE WHEN :sort = 'NAME_DESC'  THEN LOWER(p.name)    END DESC NULLS LAST,
               p.id ASC
@@ -137,6 +139,7 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
               CASE WHEN :sort = 'PRICE_ASC'  THEN agg.min_price    END ASC  NULLS LAST,
               CASE WHEN :sort = 'PRICE_DESC' THEN agg.min_price    END DESC NULLS LAST,
               CASE WHEN :sort = 'DISCOUNT'   THEN agg.max_discount END DESC NULLS LAST,
+              CASE WHEN :sort = 'POPULAR'    THEN p.sold_count     END DESC NULLS LAST,
               CASE WHEN :sort = 'NAME'       THEN LOWER(p.name)    END ASC  NULLS LAST,
               CASE WHEN :sort = 'NAME_DESC'  THEN LOWER(p.name)    END DESC NULLS LAST,
               p.id ASC
@@ -191,4 +194,15 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
             """,
             nativeQuery = true)
     Page<ProductEntity> search(@Param("q") String q, Pageable pageable);
+
+    /**
+     * Adds delivered units to the product that owns a variant. A single
+     * statement, so concurrent deliveries add up instead of overwriting.
+     */
+    @Modifying
+    @Query(value = """
+            UPDATE catalog.products p SET sold_count = p.sold_count + :qty
+            WHERE p.id = (SELECT v.product_id FROM catalog.product_variants v WHERE v.id = :variantId)
+            """, nativeQuery = true)
+    void addSold(@Param("variantId") Long variantId, @Param("qty") int qty);
 }

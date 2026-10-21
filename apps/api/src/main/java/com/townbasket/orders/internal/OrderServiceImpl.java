@@ -542,7 +542,10 @@ class OrderServiceImpl implements OrderService {
         if (to == OrderStatus.CONFIRMED) {
             events.publishEvent(new OrderConfirmed(order.getId(), order.getPublicCode(), order.getStoreId()));
         } else if (to == OrderStatus.DELIVERED) {
-            events.publishEvent(new OrderDelivered(order.getId(), order.getPublicCode(), order.getStoreId()));
+            events.publishEvent(new OrderDelivered(order.getId(), order.getPublicCode(), order.getStoreId(),
+                    order.getItems().stream()
+                            .map(i -> new OrderDelivered.Line(i.getVariantId(), i.getQty()))
+                            .toList()));
         } else if (to == OrderStatus.CANCELLED) {
             events.publishEvent(new OrderCancelled(
                     order.getId(), order.getPublicCode(), order.getStoreId(), request.reason()));
