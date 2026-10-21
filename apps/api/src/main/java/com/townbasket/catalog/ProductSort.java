@@ -13,6 +13,7 @@ import java.util.Optional;
  *   <li>{@link #PRICE_DESC} — descending by that same lowest available variant selling price.</li>
  *   <li>{@link #DISCOUNT} — descending by the product's MAX variant discount
  *       ({@code mrp - sellingPrice}; a null mrp counts as zero discount).</li>
+ *   <li>{@link #POPULAR} — descending by units delivered, most-bought first.</li>
  * </ul>
  *
  * <p>An absent or unrecognised {@code sort} query value maps to {@link Optional#empty()}, which
@@ -23,7 +24,8 @@ public enum ProductSort {
     NAME_DESC,
     PRICE_ASC,
     PRICE_DESC,
-    DISCOUNT;
+    DISCOUNT,
+    POPULAR;
 
     /** Symmetric spelling of {@link #NAME}, to pair with {@code name_desc}. */
     private static final String NAME_ASC_ALIAS = "NAME_ASC";
