@@ -684,6 +684,24 @@ a:hover {
 .site-footer a {
   color: #eafaf0;
 }
+.site-footer .footer-install {
+  margin-bottom: 0.6rem;
+}
+.site-footer .footer-install-btn {
+  background: none;
+  border: 1px solid #5d7a68;
+  border-radius: 999px;
+  color: #eafaf0;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.35rem 0.9rem;
+}
+.site-footer .footer-install-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.site-footer .install-steps {
+  color: #cdd8d1;
+}
 .site-footer .copyright {
   color: #94a79c;
 }

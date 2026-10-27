@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { getStore } from '@/app/lib/api';
 import type { Store } from '@/app/lib/types';
+import InstallLink from './InstallLink';
 
 /** Where the published policy pages are served (see holding-site/). */
 const POLICY_BASE = 'https://town-basket.com';
@@ -45,6 +46,7 @@ export default async function Footer() {
             </a>
           )}
         </nav>
+        <InstallLink />
         {/* The shop's published policies. They have always existed on
             town-basket.com but nothing in the app linked them, while the
             cancellation copy cited the refund policy by name — so a customer

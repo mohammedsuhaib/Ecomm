@@ -410,6 +410,7 @@
   },
   "install": {
     "title": "Install Town Basket.",
+    "footerLink": "Install app",
     "body": "Add it to your home screen for one-tap shopping and order updates.",
     "install": "Install",
     "showHow": "How?",
