@@ -29,8 +29,8 @@ export async function generateMetadata() {
   };
 }
 
-/** How many "Popular picks" the home page shows above the categories. */
-const FEATURED_COUNT = 12;
+/** How many "Popular picks" the home page shows above the categories: the 20 best-selling featured products. */
+const FEATURED_COUNT = 20;
 
 export default async function Home({
   searchParams,
@@ -48,7 +48,7 @@ export default async function Home({
     // ones already shown above as "Popular picks" can be dropped and still
     // leave a full row.
     getProducts(undefined, 0, sort ? 12 : 12 + FEATURED_COUNT, { sort: sort ?? 'popular' }).catch(() => null),
-    getProducts(undefined, 0, FEATURED_COUNT, { featured: true }).catch(() => null),
+    getProducts(undefined, 0, FEATURED_COUNT, { featured: true, sort: 'popular' }).catch(() => null),
     getStore().catch(() => null as Store | null),
   ]);
 
