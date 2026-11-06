@@ -34,7 +34,7 @@
              compatibility. Daemons that enforce a minimum Docker API version
              also need ~/.docker-java.properties with api.version=1.44 (the
              shaded client requests /v1.32/ by default). -->
-        <testcontainers.version>1.21.3</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
         <!-- Web Push (RFC 8291 payload encryption + VAPID) for the push channel. -->
         <web-push.version>5.1.1</web-push.version>
         <bouncycastle.version>1.78.1</bouncycastle.version>
