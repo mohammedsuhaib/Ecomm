@@ -118,7 +118,7 @@ export default async function RootLayout({
                     rather than letting the customer discover it at checkout. */}
                 <StoreClosedBanner />
                 {/* Offers the home-screen install where the browser can do
-                    one. Renders nothing on a first visit, once dismissed, or
+                    one. Renders nothing once dismissed, or
                     when already installed — see the component. Below the
                     closed banner on purpose: trading hours outrank it. */}
                 <InstallPrompt />
