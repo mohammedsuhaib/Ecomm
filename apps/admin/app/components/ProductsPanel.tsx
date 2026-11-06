@@ -79,7 +79,7 @@ export default function ProductsPanel({
     } catch (err) {
       if (err instanceof AuthRequiredError) onAuthExpired();
       else if (err instanceof ApiError) setImportError(err.message);
-      else setImportError('Could not read that file.');
+      else setImportError('Couldn’t read that file.');
     } finally {
       setImportBusy(false);
     }
@@ -96,7 +96,7 @@ export default function ProductsPanel({
       await load();
     } catch (err) {
       if (err instanceof AuthRequiredError) onAuthExpired();
-      else setImportError('Import failed. Nothing may have been written — retry.');
+      else setImportError('Import failed. Nothing may have been written. Try again.');
     } finally {
       setImportBusy(false);
     }
@@ -131,7 +131,7 @@ export default function ProductsPanel({
       if (err instanceof AuthRequiredError) {
         onAuthExpired();
       } else {
-        setError('Could not load products. Check the connection and retry.');
+        setError('Couldn’t load products. Check the connection and retry.');
       }
     } finally {
       if (seq === reqSeq.current) setLoading(false);
@@ -162,7 +162,7 @@ export default function ProductsPanel({
       await load();
     } catch (err) {
       if (err instanceof AuthRequiredError) onAuthExpired();
-      else setError('Could not update availability. Please try again.');
+      else setError('Couldn’t update availability. Try again.');
     } finally {
       setRowBusyId(null);
     }
@@ -186,7 +186,7 @@ export default function ProductsPanel({
       else if (err instanceof ApiError && err.status === 422) {
         setError('This product can’t be deleted right now (it may be in use).');
       } else {
-        setError('Could not delete the product. Please try again.');
+        setError('Couldn’t delete the product. Try again.');
       }
     } finally {
       setRowBusyId(null);
@@ -304,7 +304,7 @@ export default function ProductsPanel({
           Imported {importDone.created} product
           {importDone.created === 1 ? '' : 's'} ({importDone.skipped} skipped
           {importDone.errors.length > 0
-            ? `, ${importDone.errors.length} errors — fix and re-run; existing products are skipped`
+            ? `, ${importDone.errors.length} errors. Fix them and run it again; existing products are skipped`
             : ''}
           ).
         </p>

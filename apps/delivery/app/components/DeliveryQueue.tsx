@@ -85,7 +85,7 @@ export default function DeliveryQueue() {
       setError(null);
     } catch (err) {
       if (err instanceof AuthRequiredError) { refresh(); return; }
-      setError('Could not load orders. Retrying…');
+      setError('Couldn’t load orders. Retrying…');
     } finally {
       setLoading(false);
     }
@@ -145,8 +145,8 @@ export default function DeliveryQueue() {
                 disabled={dutyBusy}
                 aria-pressed={onDuty}
                 title={onDuty
-                  ? 'On duty — you can be assigned new deliveries. Tap to go off duty.'
-                  : 'Off duty — no new deliveries will be assigned to you. Tap to go on duty.'}
+                  ? 'On duty: you can be assigned new deliveries. Tap to go off duty.'
+                  : 'Off duty: no new deliveries will be assigned to you. Tap to go on duty.'}
               >
                 <span className="duty-dot" aria-hidden />
                 {dutyBusy ? '…' : onDuty ? 'On duty' : 'Off duty'}

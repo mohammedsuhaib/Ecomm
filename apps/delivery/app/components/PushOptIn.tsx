@@ -95,7 +95,7 @@ export default function PushOptIn() {
       );
       setSubscribed(true);
     } catch {
-      setError('Could not turn on alerts. Please try again.');
+      setError('Couldn’t turn on alerts. Try again.');
     } finally {
       setBusy(false);
     }
@@ -115,7 +115,7 @@ export default function PushOptIn() {
       }
       setSubscribed(false);
     } catch {
-      setError('Could not turn off alerts. Please try again.');
+      setError('Couldn’t turn off alerts. Try again.');
     } finally {
       setBusy(false);
     }
@@ -142,7 +142,7 @@ export default function PushOptIn() {
         aria-pressed={subscribed}
       >
         {busy
-          ? 'Just a moment…'
+          ? 'Working…'
           : subscribed
             ? '🔔 Alerts on'
             : '🔕 Turn on new-delivery alerts'}

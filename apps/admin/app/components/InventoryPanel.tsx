@@ -39,13 +39,13 @@ interface EditState {
  */
 function correctionError(err: unknown): string {
   if (err instanceof AuthRequiredError) {
-    return 'Session expired — please log in again.';
+    return 'Your session expired. Log in again.';
   }
   if (err instanceof ApiError && err.status === 0) {
-    return 'Could not reach the server. Check your connection.';
+    return 'Couldn’t reach the server. Check your connection.';
   }
   return (
-    serverMessage(err) ?? 'Could not save the correction. Please try again.'
+    serverMessage(err) ?? 'Couldn’t save the correction. Try again.'
   );
 }
 
@@ -87,7 +87,7 @@ export default function InventoryPanel() {
         if (err instanceof AuthRequiredError) {
           refreshAuth();
         } else {
-          setError('Could not load stock levels.');
+          setError('Couldn’t load stock levels.');
         }
       } finally {
         if (seq === reqSeq.current) setLoading(false);
@@ -159,7 +159,7 @@ export default function InventoryPanel() {
       if (err instanceof AuthRequiredError) {
         void refreshAuth();
       } else {
-        setExportError('Could not generate the inventory valuation. Please try again.');
+        setExportError('Couldn’t generate the inventory valuation. Try again.');
       }
     } finally {
       setExporting(false);
@@ -260,7 +260,7 @@ export default function InventoryPanel() {
                               min={edit.reserved}
                               title={
                                 edit.reserved > 0
-                                  ? `At least ${edit.reserved} — that many are reserved for open orders`
+                                  ? `At least ${edit.reserved}, since that many are reserved for open orders`
                                   : undefined
                               }
                               className="inv-count-input"

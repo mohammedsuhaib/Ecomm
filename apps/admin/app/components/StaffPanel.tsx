@@ -30,7 +30,7 @@ export default function StaffPanel() {
       if (err instanceof AuthRequiredError) { refreshAuth(); return; }
       setError(err instanceof ApiError && err.status === 403
         ? 'Only an admin can see staff accounts.'
-        : 'Could not load staff accounts.');
+        : 'Couldn’t load staff accounts.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export default function StaffPanel() {
       if (err instanceof AuthRequiredError) { refreshAuth(); return; }
       setError(err instanceof ApiError && err.status === 403
         ? 'You are not allowed to reset this account.'
-        : 'Could not reset the password. Please try again.');
+        : 'Couldn’t reset the password. Try again.');
     } finally {
       setResettingId(null);
     }

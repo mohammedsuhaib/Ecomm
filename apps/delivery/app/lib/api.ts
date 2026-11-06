@@ -22,7 +22,7 @@ export class ApiError extends Error {
 
 export class AuthRequiredError extends Error {
   constructor() {
-    super('Session expired — please log in again.');
+    super('Your session expired. Log in again.');
     this.name = 'AuthRequiredError';
   }
 }

@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Town Basket Delivery',
     short_name: 'TB Delivery',
     description:
-      'Delivery agent app for Town Basket — your assigned orders and handover confirmation.',
+      'Delivery agent app for Town Basket: your assigned orders and handover confirmation.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

@@ -23,7 +23,7 @@ function agentLabel(a: DeliveryAgent): string {
  * it — which is why the API refuses rather than accepting it quietly.
  */
 const NO_RIDER_FOR_DELIVERY =
-  'Assign a rider before marking this delivered — the delivery and any cash '
+  'Assign a rider before marking this delivered. The delivery and any cash '
   + 'collected are recorded against them. Pick one from Rider above.';
 
 /**
@@ -90,7 +90,7 @@ export default function OrderCard({
       onUpdated(updated);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        setError('Session expired — please log in again.');
+        setError('Your session expired. Log in again.');
       } else {
         // The server says WHY the rider can't take it — deactivated, or gone
         // off duty since the list loaded — and "try again" would be wrong
@@ -98,7 +98,7 @@ export default function OrderCard({
         // roster so the name that was just refused stops being offered.
         const reason = serverMessage(err);
         if (reason) onAgentsStale?.();
-        setError(reason ?? 'Could not update the assignment. Please try again.');
+        setError(reason ?? 'Couldn’t update the assignment. Try again.');
       }
     } finally {
       setBusy(false);
@@ -119,7 +119,7 @@ export default function OrderCard({
       setOtp('');
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        setError('Session expired — please log in again.');
+        setError('Your session expired. Log in again.');
       } else if (
         err instanceof ApiError &&
         (err.status === 400 || err.status === 422)
@@ -138,11 +138,11 @@ export default function OrderCard({
           next === 'DELIVERED'
             ? order.assignedAgentId == null
               ? NO_RIDER_FOR_DELIVERY
-              : 'Incorrect delivery code. Please re-check with the customer.'
+              : 'Incorrect delivery code. Check with the customer again.'
             : 'That transition was rejected. Refresh and try again.',
         );
       } else {
-        setError('Could not update the order. Please try again.');
+        setError('Couldn’t update the order. Try again.');
       }
     } finally {
       setBusy(false);
@@ -188,9 +188,9 @@ export default function OrderCard({
       onUpdated(updated);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        setError('Session expired — please log in again.');
+        setError('Your session expired. Log in again.');
       } else {
-        setError('Could not cancel the order. Please try again.');
+        setError('Couldn’t cancel the order. Try again.');
       }
     } finally {
       setBusy(false);
@@ -218,7 +218,7 @@ export default function OrderCard({
       {failureReason && (
         <p className="order-fail-reason" role="status">
           <strong>Couldn&apos;t deliver:</strong> {failureReason}
-          <span className="muted"> — stock is still reserved; re-dispatch, or cancel once the goods are back.</span>
+          <span className="muted"> Stock is still reserved. Send it out again, or cancel once the goods are back.</span>
         </p>
       )}
 
@@ -233,7 +233,7 @@ export default function OrderCard({
           <span className="muted">
             {' '}
             {order.assignedAgentId == null
-              ? 'Assign a rider above — they pick it up from their own app.'
+              ? 'Assign a rider above. They pick it up from their own app.'
               : 'They mark it picked up in the delivery app; use the button below only if you are sending it out for them.'}
           </span>
         </p>

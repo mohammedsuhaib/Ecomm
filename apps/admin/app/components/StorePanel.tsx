@@ -75,7 +75,7 @@ export default function StorePanel() {
       hydrate(await getStoreSettings());
     } catch (err) {
       if (err instanceof AuthRequiredError) { refreshAuth(); return; }
-      setError('Could not load the store settings.');
+      setError('Couldn’t load the store settings.');
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,7 @@ export default function StorePanel() {
       hydrate(updated);
       setSuccess('Store settings saved. Customers see the new hours immediately.');
     } catch (err) {
-      fail(err, 'Could not save. Check the values and try again.');
+      fail(err, 'Couldn’t save. Check the values and try again.');
     } finally {
       setBusy(false);
     }
@@ -128,7 +128,7 @@ export default function StorePanel() {
       hydrate(await closeStoreForToday(reason.trim()));
       setSuccess('Closed for today. The storefront now shows the closed banner and checkout is blocked; it reopens automatically tomorrow.');
     } catch (err) {
-      fail(err, 'Could not close the store.');
+      fail(err, 'Couldn’t close the store.');
     } finally {
       setBusy(false);
     }
@@ -140,7 +140,7 @@ export default function StorePanel() {
       hydrate(await reopenStore());
       setSuccess('Reopened. Normal trading hours apply again.');
     } catch (err) {
-      fail(err, 'Could not reopen the store.');
+      fail(err, 'Couldn’t reopen the store.');
     } finally {
       setBusy(false);
     }
@@ -229,7 +229,7 @@ export default function StorePanel() {
           <input
             value={gstin}
             onChange={(e) => setGstin(e.target.value)}
-            placeholder="e.g. 29AAPFU0939F1ZV — leave blank until registered"
+            placeholder="e.g. 29AAPFU0939F1ZV (leave blank until registered)"
             autoCapitalize="characters"
             spellCheck={false}
             maxLength={20}

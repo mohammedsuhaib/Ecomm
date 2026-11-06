@@ -107,10 +107,10 @@ export default function ChangePassword() {
         return 'New password must be at least 8 characters.';
       }
       if (err.status === 0) {
-        return 'Could not reach the server. Check your connection.';
+        return 'Couldn’t reach the server. Check your connection.';
       }
     }
-    return 'Could not change your password. Please try again.';
+    return 'Couldn’t change your password. Try again.';
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
