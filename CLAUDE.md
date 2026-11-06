@@ -217,7 +217,7 @@ images use `output: 'standalone'`.
   `lib/install.ts` registers its capture listener at **module scope** — the event
   fires once and is never replayed, so a listener added in an effect can miss it
   outright. Both remember a dismissal for good; they differ only in *when* they
-  ask. The storefront waits for a second visit and stands down while the location
+  ask. The storefront asks on the first visit (`MIN_VISITS_BEFORE_PROMPT = 1`) and stands down while the location
   gate is up (`useLocationGate().blocking`); admin asks any **signed-in** staffer
   straight away, because getting through the login form is already a stronger
   signal than any visit count, and it keeps the ask off the public login screen.

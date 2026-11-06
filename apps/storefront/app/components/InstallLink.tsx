@@ -13,10 +13,10 @@ import {
 /**
  * A standing "Install app" entry in the footer.
  *
- * <p>The banner ({@link InstallPrompt}) asks once, on a second visit, and a
+ * <p>The banner ({@link InstallPrompt}) asks once, and a
  * dismissal is permanent — so a customer who tapped "No thanks", or simply never
  * saw it, had no way back. This is that way back: always there while the app is
- * installable, never nagging. It ignores the dismissal and the visit count on
+ * installable, never nagging. It ignores the dismissal on
  * purpose; the customer choosing to tap it is the strongest signal there is.
  *
  * <p>Renders nothing where there is nothing to offer: already installed, or a

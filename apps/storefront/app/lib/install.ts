@@ -51,16 +51,17 @@ const VISIT_COUNTED_KEY = 'tb.install.counted';
 /**
  * Visits before the banner may appear.
  *
- * <p>A first-time visitor is already meeting the location gate and an unfamiliar
- * shop; asking them to install on top of that converts badly and costs us the
- * one dismissal we get. Waiting for a second visit means we only ask people who
- * came back.
+ * <p>One: it is offered on the very first visit, as the holding site does. The
+ * banner already stands down while the location gate is up (see
+ * `InstallPrompt`), so a first-time visitor answers "where do you live?" before
+ * being asked anything else. Raise this to wait for a returning visitor — the
+ * counting below stays in place for that.
  *
  * <p>Chrome applies its own engagement heuristic before it will even fire
- * `beforeinstallprompt`, so there this is a second filter rather than the only
- * one. On iOS Safari, where no such heuristic exists, it is the only one.
+ * `beforeinstallprompt`, so there the banner may still take a moment to appear.
+ * On iOS Safari, where no such heuristic exists, this is the only filter.
  */
-export const MIN_VISITS_BEFORE_PROMPT = 2;
+export const MIN_VISITS_BEFORE_PROMPT = 1;
 
 // ---- Deferred prompt capture ---------------------------------------------
 //
@@ -207,7 +208,7 @@ export function rememberInstallDismissed(): void {
  * <p>"Visit" is a browsing session, not a page view: the storefront is a SPA
  * whose customer moves between category, product and cart pages constantly, and
  * counting those would clear any threshold within a minute of a first arrival —
- * precisely the visitor {@link MIN_VISITS_BEFORE_PROMPT} exists to leave alone.
+ * exactly what {@link MIN_VISITS_BEFORE_PROMPT} is meant to count.
  * sessionStorage is what draws the line, since it is per tab and dies with it.
  *
  * <p>Returns 0 when storage is unavailable, which keeps the banner hidden.
