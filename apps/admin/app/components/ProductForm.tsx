@@ -168,13 +168,13 @@ export default function ProductForm({
       setImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        setImageError('Session expired — please log in again.');
+        setImageError('Your session expired. Log in again.');
       } else {
         // The API explains precisely what it refused and why ("Only JPEG and
         // PNG…", "larger than 6 MB…", "upload isn't set up…"), and each needs a
         // different action from the person holding the file.
         setImageError(
-          serverMessage(err) ?? 'Could not upload that image. Please try again.',
+          serverMessage(err) ?? 'Couldn’t upload that image. Try again.',
         );
       }
     } finally {
@@ -247,7 +247,7 @@ export default function ProductForm({
       } catch (err) {
         if (cancelled) return;
         if (err instanceof AuthRequiredError) onAuthExpired();
-        else setLoadError('Could not load this product. Go back and retry.');
+        else setLoadError('Couldn’t load this product. Go back and retry.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -309,7 +309,7 @@ export default function ProductForm({
     !variants.some(mrpBelowSellingPrice);
 
   function mapError(err: unknown): string {
-    if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
+    if (err instanceof AuthRequiredError) return 'Your session expired. Log in again.';
     if (err instanceof ApiError) {
       if (err.status === 409) return 'A product with that name or slug already exists.';
       if (err.status === 400 || err.status === 422) {
@@ -322,9 +322,9 @@ export default function ProductForm({
           'Some fields were rejected by the server. Re-check and try again.'
         );
       }
-      if (err.status === 0) return 'Could not reach the server. Check your connection.';
+      if (err.status === 0) return 'Couldn’t reach the server. Check your connection.';
     }
-    return 'Could not save the product. Please try again.';
+    return 'Couldn’t save the product. Try again.';
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {

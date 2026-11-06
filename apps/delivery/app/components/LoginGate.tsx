@@ -25,7 +25,7 @@ export default function LoginGate({ children }: { children: ReactNode }) {
       } else if (err instanceof ApiError && err.status === 403) {
         // The password was right; an admin has switched this account off. Say
         // so — "wrong password" would send the rider to a reset that can't help.
-        setError('Your account has been deactivated. Please contact the store manager.');
+        setError('Your account has been deactivated. Contact the store manager.');
       } else if (err instanceof ApiError && err.status === 429) {
         // Failed passwords are throttled per account: waiting is the fix, so
         // don't tell a rider to try again straight away.
@@ -33,7 +33,7 @@ export default function LoginGate({ children }: { children: ReactNode }) {
       } else if (err instanceof ApiError && err.status === 0) {
         setError('Cannot reach server. Check your connection.');
       } else {
-        setError('Sign-in failed. Please try again.');
+        setError('Sign-in failed. Try again.');
       }
     } finally {
       setBusy(false);

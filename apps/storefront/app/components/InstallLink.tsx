@@ -50,7 +50,7 @@ export default function InstallLink() {
           else setShowSteps((open) => !open);
         }}
       >
-        📲 {t('footerLink')}
+        {t('footerLink')}
       </button>
       {mode === 'ios' && showSteps && (
         <ol className="install-steps">

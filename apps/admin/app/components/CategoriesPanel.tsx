@@ -59,7 +59,7 @@ export default function CategoriesPanel({
   }
 
   function mapError(err: unknown, action: 'delete' | 'save'): string {
-    if (err instanceof AuthRequiredError) return 'Session expired — please log in again.';
+    if (err instanceof AuthRequiredError) return 'Your session expired. Log in again.';
     if (err instanceof ApiError) {
       if (action === 'delete' && err.status === 422) {
         // The server names the rule it enforced; prefer its wording over a
@@ -72,11 +72,11 @@ export default function CategoriesPanel({
       if (err.status === 409) {
         return 'A category with that name or slug already exists.';
       }
-      if (err.status === 0) return 'Could not reach the server. Check your connection.';
+      if (err.status === 0) return 'Couldn’t reach the server. Check your connection.';
     }
     return action === 'delete'
-      ? 'Could not delete the category. Please try again.'
-      : 'Could not save the category. Please try again.';
+      ? 'Couldn’t delete the category. Try again.'
+      : 'Couldn’t save the category. Try again.';
   }
 
   async function handleAuth(err: unknown) {
@@ -280,12 +280,12 @@ function CategoryForm({
       setImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
-        setImageError('Session expired — please log in again.');
+        setImageError('Your session expired. Log in again.');
       } else {
         // The server's message names the actual problem (not a JPEG/PNG, too
         // large, uploads not configured), and each needs a different fix.
         setImageError(
-          serverMessage(err) ?? 'Could not upload that image. Please try again.',
+          serverMessage(err) ?? 'Couldn’t upload that image. Try again.',
         );
       }
     } finally {

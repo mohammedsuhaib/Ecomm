@@ -13,8 +13,8 @@ import {
 const COPY = {
   en: {
     updating: 'Updating to the latest version…',
-    title: 'Something went wrong',
-    body: 'Town Basket couldn’t finish loading. Reloading usually fixes it.',
+    title: 'That didn’t work',
+    body: 'Town Basket didn’t finish loading. Try reloading.',
     reload: 'Reload',
     reference: 'Reference',
   },

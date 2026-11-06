@@ -77,7 +77,7 @@ export class ApiError extends Error {
  * UI must drop to the login gate.
  */
 export class AuthRequiredError extends Error {
-  constructor(message = 'Session expired — please log in again.') {
+  constructor(message = 'Your session expired. Log in again.') {
     super(message);
     this.name = 'AuthRequiredError';
   }

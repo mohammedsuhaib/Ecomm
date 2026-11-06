@@ -62,7 +62,7 @@ export default function AnalyticsDashboard() {
         if (err instanceof AuthRequiredError) {
           refreshAuth();
         } else {
-          setExportError('Could not generate the report — check the date range and try again.');
+          setExportError('Couldn’t generate the report. Check the date range and try again.');
         }
       } finally {
         setExporting(null);
@@ -90,7 +90,7 @@ export default function AnalyticsDashboard() {
         if (err instanceof AuthRequiredError) {
           refreshAuth();
         } else {
-          setError('Could not load analytics. Check the API connection.');
+          setError('Couldn’t load analytics. Check the API connection.');
         }
       } finally {
         setLoading(false);
@@ -206,7 +206,7 @@ export default function AnalyticsDashboard() {
 
       {/* Daily revenue chart — full width */}
       <div className="analytics-card">
-        <h2 className="analytics-card-title">Revenue — last {period} days</h2>
+        <h2 className="analytics-card-title">Revenue, last {period} days</h2>
         {daily.length === 0 && !loading ? (
           <p className="muted" style={{ textAlign: 'center', padding: '1.5rem 0' }}>No orders in this period.</p>
         ) : (
@@ -237,7 +237,7 @@ export default function AnalyticsDashboard() {
             </div>
             {/* Screen-reader table alternative for the chart data. */}
             <table className="sr-only">
-              <caption>Daily revenue, orders and gross profit — last {period} days</caption>
+              <caption>Daily revenue, orders and gross profit for the last {period} days</caption>
               <thead>
                 <tr><th>Date</th><th>Revenue</th><th>Orders</th><th>Gross profit</th></tr>
               </thead>

@@ -181,7 +181,7 @@ export default function LocationSharing({ active }: { active: boolean }) {
         </>
       ) : (
         <>
-          <span>Location off — customers can&apos;t see you on the way</span>
+          <span>Location is off, so customers can&apos;t see you on the way</span>
           <button type="button" className="location-pill-btn" onClick={turnOn}>
             Turn on
           </button>
