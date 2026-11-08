@@ -520,6 +520,11 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             <span>{t('total')}</span>
             <strong>{formatRupees(order.total)}</strong>
           </div>
+          {(order.savings ?? 0) > 0 && (
+            <div className="cart-summary-row saved">
+              <span>{t('youSaved', { amount: formatRupees(order.savings ?? 0) })}</span>
+            </div>
+          )}
           {order.totalTax > 0 && (
             <div className="cart-summary-row">
               <span className="muted">

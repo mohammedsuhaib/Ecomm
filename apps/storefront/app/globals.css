@@ -866,6 +866,13 @@ a:hover {
   justify-content: space-between;
   align-items: baseline;
 }
+.cart-summary-row.saved {
+  color: var(--green-dark);
+  background: var(--green-light);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  font-weight: 700;
+}
 .cart-summary-row.total {
   font-size: 1.1rem;
   border-top: 1px solid var(--border);
