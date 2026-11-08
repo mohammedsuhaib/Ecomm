@@ -71,7 +71,7 @@ export default async function Home({
         style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}
       >
         <span>
-          🧺 <strong>{t('bannerTitle')}</strong>{' '}
+          <strong>{t('bannerTitle')}</strong>{' '}
           {t('bannerOrderWithin', { store: store?.name ?? t('storeFallback') })}
         </span>
         {store && (

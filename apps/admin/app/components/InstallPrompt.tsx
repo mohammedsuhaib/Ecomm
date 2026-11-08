@@ -98,7 +98,7 @@ export default function InstallPrompt() {
           <ol className="install-steps">
             <li>Tap the Share button in Safari’s toolbar.</li>
             <li>Scroll down and choose “Add to Home Screen”.</li>
-            <li>Tap “Add” — the dashboard appears with your apps.</li>
+            <li>Tap “Add”. The dashboard shows up with your other apps.</li>
           </ol>
         )}
       </div>

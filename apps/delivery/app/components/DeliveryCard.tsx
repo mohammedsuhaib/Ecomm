@@ -69,9 +69,9 @@ export default function DeliveryCard({ order, onDelivered, onPickedUp }: Props) 
       if (err instanceof ApiError && err.status === 422) {
         // Staff sent it out from the dashboard, or cancelled it, while the
         // rider was walking over. The next poll will show the truth.
-        setError('This order has already moved on — tap Refresh to see where it is.');
+        setError('This order has already moved on. Tap Refresh to see where it is.');
       } else {
-        setError('Could not mark this picked up. Check your connection and try again.');
+        setError('Couldn’t mark this picked up. Check your connection and try again.');
       }
     } finally {
       setBusy(false);
@@ -91,7 +91,7 @@ export default function DeliveryCard({ order, onDelivered, onPickedUp }: Props) 
       if (err instanceof ApiError && err.status === 422) {
         setError('Wrong OTP. Ask the customer to check their confirmation code.');
       } else {
-        setError('Could not confirm delivery. Try again.');
+        setError('Couldn’t confirm delivery. Try again.');
       }
     } finally {
       setBusy(false);
@@ -108,7 +108,7 @@ export default function DeliveryCard({ order, onDelivered, onPickedUp }: Props) 
       setTimeout(() => onDelivered(order.id), 1500); // same exit as a delivery: leaves the queue
     } catch (err) {
       if (err instanceof AuthRequiredError) { refresh(); return; }
-      setError('Could not report this. Check your connection and try again.');
+      setError('Couldn’t report this. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -124,7 +124,7 @@ export default function DeliveryCard({ order, onDelivered, onPickedUp }: Props) 
   if (reported) {
     return (
       <div className="dcard dcard-done dcard-reported">
-        <div className="dcard-done-msg">Reported #{order.publicCode} — bring it back to the store</div>
+        <div className="dcard-done-msg">Reported #{order.publicCode}. Bring it back to the store</div>
       </div>
     );
   }

@@ -27,22 +27,22 @@ export default function LoginGate({ children }: { children: ReactNode }) {
       await login(email.trim(), password);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setError('Incorrect email or password. Please try again.');
+        setError('Incorrect email or password. Try again.');
       } else if (err instanceof ApiError && err.status === 403) {
         // Right password, account switched off by an admin. The backend only
         // answers 403 once the password has been verified, so this is safe to say.
-        setError('Your account has been deactivated. Please contact the store manager.');
+        setError('Your account has been deactivated. Contact the store manager.');
       } else if (err instanceof ApiError && err.status === 429) {
         // The backend throttles repeated FAILED passwords per account, so
         // "try again" is exactly the wrong advice here: the next attempt is
         // refused too until the window passes.
         setError(
-          'Too many failed sign-in attempts. Please wait a few minutes before trying again.',
+          'Too many failed sign-in attempts. Wait a few minutes before trying again.',
         );
       } else if (err instanceof ApiError && err.status === 0) {
-        setError('Could not reach the server. Check your connection.');
+        setError('Couldn’t reach the server. Check your connection.');
       } else {
-        setError('Sign-in failed. Please try again.');
+        setError('Sign-in failed. Try again.');
       }
     } finally {
       setBusy(false);

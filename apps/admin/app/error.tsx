@@ -44,7 +44,7 @@ export default function Error({
 
   return (
     <div className="queue-empty">
-      <h1 style={{ fontSize: '1.15rem' }}>Something went wrong</h1>
+      <h1 style={{ fontSize: '1.15rem' }}>That didn’t work</h1>
       <p>That didn’t load properly. Trying again usually fixes it.</p>
       <p style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button type="button" className="btn" onClick={reset}>

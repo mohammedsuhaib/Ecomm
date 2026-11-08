@@ -31,7 +31,7 @@ export default function Catalogue() {
       if (err instanceof AuthRequiredError) {
         refreshAuth();
       } else {
-        setError('Could not load categories. Check the connection and retry.');
+        setError('Couldn’t load categories. Check the connection and retry.');
       }
     } finally {
       setLoading(false);

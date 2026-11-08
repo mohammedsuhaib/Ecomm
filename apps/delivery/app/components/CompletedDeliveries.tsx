@@ -73,7 +73,7 @@ export default function CompletedDeliveries() {
       setError(null);
     } catch (err) {
       if (err instanceof AuthRequiredError) { refresh(); return; }
-      setError('Could not load your completed deliveries. Check your connection and refresh.');
+      setError('Couldn’t load your completed deliveries. Check your connection and refresh.');
     } finally {
       setLoading(false);
     }
@@ -95,7 +95,7 @@ export default function CompletedDeliveries() {
       setTotal(next.totalElements);
     } catch (err) {
       if (err instanceof AuthRequiredError) { refresh(); return; }
-      setError('Could not load more. Try again.');
+      setError('Couldn’t load more. Try again.');
     } finally {
       setLoadingMore(false);
     }
@@ -146,8 +146,8 @@ export default function CompletedDeliveries() {
           </div>
           <p className="day-summary-hint">
             {isRider
-              ? 'Cash counts Pay on Delivery only — UPI orders were paid before you picked them up.'
-              : 'Every rider’s deliveries together. Cash counts Pay on Delivery only — UPI orders were paid before pickup.'}
+              ? 'Cash counts Pay on Delivery only. UPI orders were paid before you picked them up.'
+              : 'Every rider’s deliveries together. Cash counts Pay on Delivery only. UPI orders were paid before pickup.'}
           </p>
         </section>
       )}

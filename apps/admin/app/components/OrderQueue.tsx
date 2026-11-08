@@ -57,7 +57,7 @@ export default function OrderQueue() {
   // stored session; re-sync the auth context so <LoginGate> drops to the login
   // form (the queue then unmounts). Show a clear message on the way out.
   const onAuthExpired = useCallback(() => {
-    setError('Session expired — please log in again.');
+    setError('Your session expired. Log in again.');
     refreshAuth();
   }, [refreshAuth]);
 
@@ -72,7 +72,7 @@ export default function OrderQueue() {
         if (err instanceof AuthRequiredError) {
           onAuthExpired();
         } else {
-          setError('Could not load orders. Check the connection and retry.');
+          setError('Couldn’t load orders. Check the connection and retry.');
         }
       } finally {
         setLoading(false);
@@ -296,7 +296,7 @@ export default function OrderQueue() {
           onClick={() => void alert.toggle()}
           title={
             alert.enabled
-              ? 'Alerts are on for this browser — new, cancelled and delivered orders'
+              ? 'Alerts are on for this browser: new, cancelled and delivered orders'
               : 'Play a sound and show a notification when an order arrives, is cancelled or is delivered. Per browser: switch it on wherever staff watch the queue.'
           }
         >

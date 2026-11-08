@@ -101,7 +101,7 @@ export default function RidersPanel() {
       if (err instanceof AuthRequiredError) { refreshAuth(); return; }
       setError(err instanceof ApiError && err.status === 403
         ? 'You are not allowed to reset this account.'
-        : 'Could not reset the password. Please try again.');
+        : 'Couldn’t reset the password. Try again.');
     } finally {
       setResettingId(null);
     }
@@ -133,7 +133,7 @@ export default function RidersPanel() {
       setStats(deliveryStats);
     } catch (err) {
       if (err instanceof AuthRequiredError) refreshAuth();
-      else setError('Could not load riders.');
+      else setError('Couldn’t load riders.');
     } finally {
       setLoading(false);
     }
@@ -172,9 +172,9 @@ export default function RidersPanel() {
       } else if (err instanceof ApiError && err.status === 422) {
         setFormError('That email is already in use.');
       } else if (err instanceof ApiError && err.status === 400) {
-        setFormError('Check the details — name, a valid email, and an 8+ char password.');
+        setFormError('Check the details: a name, a valid email and a password of 8 or more characters.');
       } else {
-        setFormError('Could not add the rider. Please try again.');
+        setFormError('Couldn’t add the rider. Try again.');
       }
     } finally {
       setBusy(false);
@@ -189,7 +189,7 @@ export default function RidersPanel() {
       setAgents((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     } catch (err) {
       if (err instanceof AuthRequiredError) refreshAuth();
-      else setError('Could not update the rider. Please try again.');
+      else setError('Couldn’t update the rider. Try again.');
     } finally {
       setTogglingId(null);
     }
