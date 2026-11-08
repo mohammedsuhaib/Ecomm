@@ -51,7 +51,10 @@ function hueFor(seed: string): number {
   return h;
 }
 
-export default function ProductThumb({ product }: { product: Product }) {
+/** What the thumbnail needs, so a cart line (which is not a full Product) can use it too. */
+type Thumbable = Pick<Product, 'name' | 'imageUrl'> & { categoryId?: string };
+
+export default function ProductThumb({ product }: { product: Thumbable }) {
   if (product.imageUrl) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={product.imageUrl} alt={product.name} loading="lazy" />;

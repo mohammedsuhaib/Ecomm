@@ -12,7 +12,8 @@ import java.math.BigDecimal;
  * name so a cart line reads in whichever language the customer was browsing in —
  * the storefront picks, and falls back to {@code productName}.
  *
- * <p>{@code mrp} is the printed shelf price, {@code null} when none is recorded.
+ * <p>{@code mrp} is the printed shelf price, {@code null} when none is recorded;
+ * {@code imageUrl} is the product's picture, {@code null} when it has none.
  *
  * <p>{@code available} reflects the catalog availability flag (admin toggle).
  * {@code availableStock} is the live, sellable quantity ({@code on_hand -
@@ -28,6 +29,7 @@ public record CartItemDto(
         String label,
         BigDecimal unitPrice,
         BigDecimal mrp,
+        String imageUrl,
         int qty,
         BigDecimal lineTotal,
         boolean available,

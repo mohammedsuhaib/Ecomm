@@ -225,6 +225,7 @@ class CartServiceImpl implements CartService {
                     v != null ? v.label() : null,
                     unitPrice,
                     v != null ? v.mrp() : null,
+                    v != null ? v.imageUrl() : null,
                     item.getQty(),
                     lineTotal,
                     available,

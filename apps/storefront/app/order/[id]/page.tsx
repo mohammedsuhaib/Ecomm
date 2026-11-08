@@ -507,7 +507,18 @@ export default function OrderPage({ params }: { params: { id: string } }) {
                   {t('itemLine', { label: item.label, qty: item.qty })}
                 </span>
               </span>
-              <span>{formatRupees(item.lineTotal)}</span>
+              <span className="cart-row-price">
+                {item.mrp != null && item.mrp > item.unitPrice && (
+                  <s className="cart-row-mrp">
+                    {formatRupees(Math.round(item.mrp * item.qty * 100) / 100)}
+                  </s>
+                )}
+                <strong
+                  className={item.mrp != null && item.mrp > item.unitPrice ? 'deal' : undefined}
+                >
+                  {formatRupees(item.lineTotal)}
+                </strong>
+              </span>
             </li>
           ))}
         </ul>

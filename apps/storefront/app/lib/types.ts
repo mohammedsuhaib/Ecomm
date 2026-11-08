@@ -91,6 +91,7 @@ export interface CartItem {
   label: string; // variant label, e.g. "500 g"
   unitPrice: number; // decimal rupees
   mrp?: number | null; // printed shelf price; null when none is recorded
+  imageUrl?: string | null; // the product's picture; null when it has none
   qty: number;
   lineTotal: number; // decimal rupees
   available: boolean; // false => the item has been marked unavailable by the store
