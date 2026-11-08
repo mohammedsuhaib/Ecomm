@@ -84,6 +84,7 @@
     "nsRangeNoStore": "We deliver within 5 km of our store.",
     "nsDistance": " You’re about {distance} away, just outside our {radius} range.",
     "nsRetry": "Try a different location",
+    "savedTitle": "Or deliver to a saved address",
     "setLocation": "Set location",
     "delivering": "Delivering near you",
     "outOfRange": "Out of range",

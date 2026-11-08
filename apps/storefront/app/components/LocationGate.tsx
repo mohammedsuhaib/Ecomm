@@ -9,7 +9,8 @@ import {
   useState,
 } from 'react';
 import { useTranslations } from 'next-intl';
-import { checkServiceability } from '@/app/lib/api';
+import { checkServiceability, listAddresses } from '@/app/lib/api';
+import { loadAuth } from '@/app/lib/auth';
 import { formatDistance } from '@/app/lib/format';
 import {
   currentDevicePosition,
@@ -18,7 +19,7 @@ import {
   saveServiceability,
   type StoredServiceability,
 } from '@/app/lib/serviceability';
-import type { ServiceabilityResult } from '@/app/lib/types';
+import type { SavedAddress, ServiceabilityResult } from '@/app/lib/types';
 import LocationPicker from './LocationPickerLazy';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
@@ -75,6 +76,9 @@ export default function LocationGate({
   // The point chosen via the map pin-drop (LocationPicker), as strings.
   const [pickLat, setPickLat] = useState('');
   const [pickLng, setPickLng] = useState('');
+  // The signed-in customer's saved addresses, offered on the screens below so
+  // someone away from home can still deliver to one of them.
+  const [saved, setSaved] = useState<SavedAddress[]>([]);
 
   // Decide whether to show the popup, every time the app opens: look at where
   // the device is. In range means no popup; out of range, or no way to tell,
@@ -105,6 +109,27 @@ export default function LocationGate({
       window.dispatchEvent(new Event('tb:serviceability-changed'));
     };
 
+    // Away from home with nothing pinned on this phone: a signed-in customer's
+    // default saved address is where they want the order to go, so use it
+    // rather than asking again. True when it was in range and has been adopted.
+    const adoptSavedAddress = async (): Promise<boolean> => {
+      if (!loadAuth()) return false;
+      try {
+        const list = await listAddresses();
+        const home = list.find((a) => a.isDefault) ?? list[0];
+        if (!home || cancelled) return false;
+        const res = await checkServiceability(home.lat, home.lng);
+        if (cancelled || !res.serviceable) return false;
+        setPickLat(String(home.lat));
+        setPickLng(String(home.lng));
+        saveServiceability(res, home.lat, home.lng);
+        settle(res);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     (async () => {
       const here = await currentDevicePosition();
       if (cancelled) return;
@@ -118,8 +143,11 @@ export default function LocationGate({
             settle(storedOk ? stored.result : res);
             return;
           }
-          // Out of range here; a pinned in-range address still wins.
+          // Out of range here; a pinned in-range address still wins, and so
+          // does a saved one.
           if (storedOk) return;
+          if (await adoptSavedAddress()) return;
+          if (cancelled) return;
           saveServiceability(res, here.lat, here.lng);
           settle(res);
           return;
@@ -140,6 +168,8 @@ export default function LocationGate({
         }
         return;
       }
+      if (await adoptSavedAddress()) return;
+      if (cancelled) return;
       if (stored) {
         setResult(stored.result);
         setPhase('not-serviceable');
@@ -152,6 +182,19 @@ export default function LocationGate({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if ((phase !== 'prompt' && phase !== 'not-serviceable') || !loadAuth()) return;
+    let cancelled = false;
+    listAddresses()
+      .then((list) => {
+        if (!cancelled) setSaved(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [phase]);
 
   const runCheck = useCallback(async (lat: number, lng: number) => {
     setPhase('checking');
@@ -216,7 +259,12 @@ export default function LocationGate({
       {children}
 
       {phase === 'not-serviceable' && (
-        <NotServiceableScreen result={result} onRetry={reopen} />
+        <NotServiceableScreen
+          result={result}
+          onRetry={reopen}
+          saved={saved}
+          onPickSaved={(a) => runCheck(a.lat, a.lng)}
+        />
       )}
 
       {(phase === 'prompt' || phase === 'checking') && (
@@ -235,6 +283,16 @@ export default function LocationGate({
                 setPickLng(String(ln));
                 setError(null);
               }}
+            />
+
+            <SavedAddresses
+              addresses={saved}
+              onPick={(a) => {
+                setPickLat(String(a.lat));
+                setPickLng(String(a.lng));
+                runCheck(a.lat, a.lng);
+              }}
+              disabled={phase === 'checking'}
             />
 
             <div className="gate-actions">
@@ -261,12 +319,54 @@ export default function LocationGate({
   );
 }
 
+/**
+ * The customer's saved addresses as one-tap choices, for when they are not where
+ * they want the order delivered. Renders nothing for a guest or a customer with
+ * none saved.
+ */
+function SavedAddresses({
+  addresses,
+  onPick,
+  disabled,
+}: {
+  addresses: SavedAddress[];
+  onPick: (a: SavedAddress) => void;
+  disabled?: boolean;
+}) {
+  const t = useTranslations('location');
+  if (addresses.length === 0) return null;
+  return (
+    <div className="gate-saved">
+      <p className="gate-saved-title">{t('savedTitle')}</p>
+      <ul>
+        {addresses.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              className="gate-saved-btn"
+              disabled={disabled}
+              onClick={() => onPick(a)}
+            >
+              {a.label && <strong>{a.label}</strong>}
+              <span>{a.line}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function NotServiceableScreen({
   result,
   onRetry,
+  saved,
+  onPickSaved,
 }: {
   result: ServiceabilityResult | null;
   onRetry: () => void;
+  saved: SavedAddress[];
+  onPickSaved: (a: SavedAddress) => void;
 }) {
   const t = useTranslations('location');
   return (
@@ -286,6 +386,7 @@ function NotServiceableScreen({
               radius: formatDistance(result.radiusMeters),
             })}
         </p>
+        <SavedAddresses addresses={saved} onPick={onPickSaved} />
         <div className="gate-actions">
           <button type="button" className="btn btn-block" onClick={onRetry}>
             {t('nsRetry')}
