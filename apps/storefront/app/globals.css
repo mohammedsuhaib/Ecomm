@@ -1072,6 +1072,20 @@ a:hover {
   font-size: 0.8rem;
   margin: 0;
 }
+.save-address-label .saved-address-picks {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.save-address-label .address-chip {
+  width: auto;
+  min-width: 5.5rem;
+}
+.save-address-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
 .radio-row {
   display: flex;
   align-items: flex-start;
