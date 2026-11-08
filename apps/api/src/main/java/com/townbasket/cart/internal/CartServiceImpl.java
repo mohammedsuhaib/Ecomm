@@ -205,6 +205,7 @@ class CartServiceImpl implements CartService {
 
         List<CartItemDto> items = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal savings = BigDecimal.ZERO;
         int itemCount = 0;
         for (CartItemEntity item : cart.getItems()) {
             VariantView v = variants.get(item.getVariantId());
@@ -223,13 +224,17 @@ class CartServiceImpl implements CartService {
                     v != null ? v.productNameKn() : null,
                     v != null ? v.label() : null,
                     unitPrice,
+                    v != null ? v.mrp() : null,
                     item.getQty(),
                     lineTotal,
                     available,
                     availableStock));
             subtotal = subtotal.add(lineTotal);
+            if (v != null && v.mrp() != null && v.mrp().compareTo(unitPrice) > 0) {
+                savings = savings.add(v.mrp().subtract(unitPrice).multiply(BigDecimal.valueOf(item.getQty())));
+            }
             itemCount += item.getQty();
         }
-        return new CartDto(cart.getId(), items, subtotal, itemCount, cart.isCheckedOut());
+        return new CartDto(cart.getId(), items, subtotal, itemCount, cart.isCheckedOut(), savings);
     }
 }

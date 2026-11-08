@@ -75,6 +75,26 @@ class CartIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void theCartReportsWhatTheCustomerSavesAgainstShelfPrices() {
+        ProductVariantDto discounted = catalogService.listProducts(null, false, null, PageRequest.of(0, 200))
+                .content().stream()
+                .flatMap(p -> p.variants().stream())
+                .filter(v -> v.available() && v.mrp() != null && v.mrp().compareTo(v.sellingPrice()) > 0)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No seeded variant with a discount"));
+        UUID cartId = cartService.createCart().cartId();
+
+        CartDto cart = cartService.addItem(cartId, discounted.id(), 3);
+
+        assertThat(cart.items()).singleElement().satisfies(i ->
+                assertThat(i.mrp()).isEqualByComparingTo(discounted.mrp()));
+        assertThat(cart.savings()).isEqualByComparingTo(
+                discounted.mrp().subtract(discounted.sellingPrice()).multiply(BigDecimal.valueOf(3)));
+        // An empty cart saves nothing.
+        assertThat(cartService.createCart().savings()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
     void getCartIsEmptyForUnknownId() {
         assertThat(cartService.getCart(UUID.randomUUID())).isEmpty();
     }

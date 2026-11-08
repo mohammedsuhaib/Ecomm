@@ -9,12 +9,15 @@ import java.util.UUID;
  * {@code itemCount} is the total quantity across lines. Prices and availability
  * are resolved from the catalog public API at read time. {@code checkedOut} is
  * true once the cart has been turned into an order (it can no longer be ordered
- * again).
+ * again). {@code savings} is what the customer saves against the shelf prices:
+ * the sum of {@code (mrp - unitPrice) * qty} over lines whose MRP is above the
+ * price charged; zero when nothing is discounted.
  */
 public record CartDto(
         UUID cartId,
         List<CartItemDto> items,
         BigDecimal subtotal,
         int itemCount,
-        boolean checkedOut) {
+        boolean checkedOut,
+        BigDecimal savings) {
 }

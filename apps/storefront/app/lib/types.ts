@@ -90,6 +90,7 @@ export interface CartItem {
   productNameKn?: string | null; // Kannada name; null until backfilled — see lib/productName.ts
   label: string; // variant label, e.g. "500 g"
   unitPrice: number; // decimal rupees
+  mrp?: number | null; // printed shelf price; null when none is recorded
   qty: number;
   lineTotal: number; // decimal rupees
   available: boolean; // false => the item has been marked unavailable by the store
@@ -100,6 +101,8 @@ export interface Cart {
   cartId: string;
   items: CartItem[];
   subtotal: number; // decimal rupees
+  /** Saved against the shelf prices; 0 when nothing is discounted. */
+  savings?: number;
   itemCount: number; // total quantity across lines
   checkedOut: boolean; // true once this cart has been turned into an order
 }

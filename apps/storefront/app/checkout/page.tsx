@@ -578,6 +578,11 @@ export default function CheckoutPage() {
             <span>{t('subtotal')}</span>
             <strong>{formatRupees(subtotal)}</strong>
           </div>
+          {(cart?.savings ?? 0) > 0 && (
+            <div className="cart-summary-row saved">
+              <span>{t('youSaved', { amount: formatRupees(cart?.savings ?? 0) })}</span>
+            </div>
+          )}
           {belowMin && minOrderValue != null && (
             <p className="notice warn">
               {t('minOrderNotice', {
