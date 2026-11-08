@@ -6,10 +6,18 @@ import type { ServiceabilityResult } from './types';
 
 const SERVICEABILITY_KEY = 'tb.serviceability.v1';
 
-// Cached serviceable result is trusted for this long before we re-check. Kept
-// short so a customer who moves (or a store radius change) is re-validated soon;
-// checkout always re-checks against the submitted coordinates regardless.
-const TTL_MS = 1000 * 60 * 30; // 30 min
+// A saved result is trusted as-is for this long. Past it the location is still
+// remembered and shown, but re-checked quietly in the background (see
+// needsRefresh) so a radius change still reaches the customer. It used to be
+// the point where the location was forgotten, which put the "Where should we
+// deliver?" popup back in front of a returning customer every half hour.
+const FRESH_MS = 1000 * 60 * 30; // 30 min
+
+// How long a saved location is kept at all. A different address entirely is
+// the customer's to enter, via the header pill; checkout re-checks against the
+// submitted coordinates regardless.
+const KEEP_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
+
 
 export interface StoredServiceability {
   result: ServiceabilityResult;
@@ -32,11 +40,42 @@ export function loadServiceability(): StoredServiceability | null {
     ) {
       return null;
     }
-    if (Date.now() - parsed.checkedAt > TTL_MS) return null; // stale
+    if (Date.now() - parsed.checkedAt > KEEP_MS) return null; // long gone
     return parsed;
   } catch {
     return null;
   }
+}
+
+/** Whether a stored result is old enough to re-check in the background. */
+export function needsRefresh(stored: StoredServiceability): boolean {
+  return Date.now() - stored.checkedAt > FRESH_MS;
+}
+
+/**
+ * Where the device is right now, or null when we cannot tell (no geolocation
+ * API, permission blocked or refused, timeout, no fix).
+ *
+ * <p>A blocked permission is detected up front where the Permissions API exists,
+ * so a customer who said no is not shown the browser's prompt again on every
+ * page load. When permission has never been asked, this is what triggers the
+ * browser's own prompt.
+ */
+export async function currentDevicePosition(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
+  try {
+    const status = await navigator.permissions?.query({ name: 'geolocation' });
+    if (status?.state === 'denied') return null;
+  } catch {
+    /* Permissions API missing or refuses 'geolocation': just ask */
+  }
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
+    );
+  });
 }
 
 export function saveServiceability(
