@@ -9,6 +9,7 @@ import {
   checkServiceability,
   getPaymentMethods,
   getStore,
+  addAddress,
   listAddresses,
   placeOrder,
 } from '@/app/lib/api';
@@ -60,6 +61,14 @@ export default function CheckoutPage() {
   // below arrives from the network, so "the field is still empty" is not a
   // reliable test for "untouched"; this is.
   const addressTouched = useRef(false);
+  // "Save this address" for next time. Offered when the address on the form is
+  // not one already saved; ticked by default on a first order, when the
+  // customer has nothing saved yet. `saveChoiceMade` stops the default from
+  // overriding a tick the customer has made themselves.
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+  const [saveThis, setSaveThis] = useState(false);
+  const [saveLabel, setSaveLabel] = useState('');
+  const saveChoiceMade = useRef(false);
   // The map field, so a missing pin can be scrolled to like the other gates.
   // The picker renders no focusable control of its own.
   const locationFieldRef = useRef<HTMLDivElement | null>(null);
@@ -173,6 +182,11 @@ export default function CheckoutPage() {
     listAddresses()
       .then((list) => {
         setSavedAddresses(list);
+        setAddressesLoaded(true);
+        if (!saveChoiceMade.current && list.length === 0) {
+          setSaveThis(true);
+          setSaveLabel(t('saveLabelHome'));
+        }
         // Pre-pick the default address, line AND pin together.
         //
         // These must move as one: the LocationGate's coordinates are prefilled
@@ -193,6 +207,7 @@ export default function CheckoutPage() {
         }
       })
       .catch(() => setSavedAddresses([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   function pickAddress(a: SavedAddress) {
@@ -239,7 +254,24 @@ export default function CheckoutPage() {
 
   const nameValid = name.trim().length > 1;
   const lineValid = line.trim().length > 3;
-  const detailsValid = nameValid && phoneValid && lineValid && coordsValid;
+  // Only for a signed-in customer whose list has loaded (so a first order is
+  // not offered the choice before we know it is a first order), with an address
+  // on the form that is not already one of theirs.
+  const offerSave =
+    isAuthenticated &&
+    addressesLoaded &&
+    lineValid &&
+    coordsValid &&
+    !savedAddresses.some(
+      (a) =>
+        line.trim() === a.line.trim() &&
+        sameCoord(a.lat, latNum) &&
+        sameCoord(a.lng, lngNum),
+    );
+  const willSave = offerSave && saveThis;
+  const labelValid = !willSave || saveLabel.trim().length > 0;
+  const detailsValid =
+    nameValid && phoneValid && lineValid && coordsValid && labelValid;
 
   // A field's error appears once the customer has had a fair chance to fill it:
   // after they have typed in it, after they have left it, or as soon as they
@@ -271,8 +303,14 @@ export default function CheckoutPage() {
         block: 'center',
         behavior: 'smooth',
       });
+      return;
     }
-  }, [focusFirstInvalid, nameValid, phoneValid, lineValid, coordsValid]);
+    if (!labelValid) {
+      const el = document.getElementById('save-label');
+      el?.focus();
+      el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [focusFirstInvalid, nameValid, phoneValid, lineValid, coordsValid, labelValid]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -320,6 +358,23 @@ export default function CheckoutPage() {
       // and the cart/checkout empty states read the note so a Back press finds
       // "Your order is placed" rather than "Your cart is empty".
       rememberLastOrder(order);
+
+      // Keep the address for next time. The order is already placed, so a
+      // failure here must never surface as a failed order: the customer can
+      // still save it from their account.
+      if (willSave) {
+        try {
+          await addAddress({
+            label: saveLabel.trim(),
+            line: line.trim(),
+            lat: latNum,
+            lng: lngNum,
+            isDefault: savedAddresses.length === 0,
+          });
+        } catch {
+          /* best effort */
+        }
+      }
 
       // Track by the unguessable token (never the sequential id).
       router.push(`/order/${order.trackingToken}`);
@@ -536,6 +591,54 @@ export default function CheckoutPage() {
           <p className="muted" style={{ fontSize: '0.8rem' }}>
             {t('mapHint')}
           </p>
+          {offerSave && (
+            <div className="field save-address">
+              <label className="radio-row" style={{ alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={saveThis}
+                  onChange={(e) => {
+                    saveChoiceMade.current = true;
+                    setSaveThis(e.target.checked);
+                    if (e.target.checked && saveLabel.trim() === '') {
+                      setSaveLabel(t('saveLabelHome'));
+                    }
+                  }}
+                />
+                <span>{t('saveAddress')}</span>
+              </label>
+              {saveThis && (
+                <div className="save-address-label">
+                  <label htmlFor="save-label">{t('saveLabelHeading')}</label>
+                  <div className="saved-address-picks">
+                    {[t('saveLabelHome'), t('saveLabelWork')].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`address-chip ${
+                          saveLabel.trim() === preset ? 'active' : ''
+                        }`}
+                        onClick={() => setSaveLabel(preset)}
+                      >
+                        <span className="chip-label">{preset}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    id="save-label"
+                    value={saveLabel}
+                    maxLength={40}
+                    placeholder={t('saveLabelPlaceholder')}
+                    onChange={(e) => setSaveLabel(e.target.value)}
+                    aria-invalid={attempted && !labelValid}
+                  />
+                  {attempted && !labelValid && (
+                    <span className="add-error">{t('saveLabelError')}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </fieldset>
 
         <fieldset className="checkout-section" disabled={submitting}>
