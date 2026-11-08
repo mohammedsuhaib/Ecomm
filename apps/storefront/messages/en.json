@@ -346,6 +346,7 @@
     "itemLine": "({label}) × {qty}",
     "subtotal": "Subtotal",
     "total": "Total",
+    "youSaved": "You saved {amount}",
     "includesGst": "Includes GST of {amount}",
     "payment": "Payment",
     "deliveringTo": "Delivering to",

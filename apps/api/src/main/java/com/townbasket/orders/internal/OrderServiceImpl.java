@@ -241,7 +241,8 @@ class OrderServiceImpl implements OrderService {
             totalTax = totalTax.add(breakdown.totalTax());
             order.addItem(new OrderItemEntity(
                     item.variantId(), item.productName(), item.productNameKn(), item.label(),
-                    item.unitPrice(), costPrice, item.qty(), item.lineTotal(),
+                    item.unitPrice(), catalogService.mrp(item.variantId()).orElse(null),
+                    costPrice, item.qty(), item.lineTotal(),
                     tax.hsnCode(), tax.gstRatePercent(),
                     breakdown.taxableValue(), breakdown.cgst(), breakdown.sgst()));
         }
@@ -869,13 +870,20 @@ class OrderServiceImpl implements OrderService {
         List<OrderItemDto> items = o.getItems().stream()
                 // NOTE: cost price (COGS) is intentionally NOT mapped — internal only.
                 .map(i -> new OrderItemDto(i.getProductName(), i.getProductNameKn(), i.getLabel(),
-                        i.getUnitPrice(), i.getQty(), i.getLineTotal(),
+                        i.getUnitPrice(), i.getMrp(), i.getQty(), i.getLineTotal(),
                         i.getHsnCode(), i.getGstRate(),
                         i.getTaxableValue(), i.getCgst(), i.getSgst()))
                 .toList();
         List<OrderTimelineEntryDto> timeline = o.getEvents().stream()
                 .map(e -> new OrderTimelineEntryDto(e.getToStatus(), e.getAt(), e.getReason()))
                 .toList();
+        // What the customer saved against the printed price. Only lines whose
+        // recorded MRP is above what was charged count, so a missing MRP (older
+        // orders) or one below the price adds nothing rather than going negative.
+        BigDecimal savings = o.getItems().stream()
+                .filter(i -> i.getMrp() != null && i.getMrp().compareTo(i.getUnitPrice()) > 0)
+                .map(i -> i.getMrp().subtract(i.getUnitPrice()).multiply(BigDecimal.valueOf(i.getQty())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         // The delivery OTP is the proof-of-delivery / COD-fraud code. It is exposed
         // to the customer ONLY while the order is OUT_FOR_DELIVERY (staff collect it
         // at handover) and is NEVER returned on the admin surface (customerFacing ==
@@ -905,6 +913,7 @@ class OrderServiceImpl implements OrderService {
                 o.getInvoiceNumber(),
                 o.getInvoicedAt(),
                 o.getInvoiceGstin(),
-                riderLocation);
+                riderLocation,
+                savings);
     }
 }

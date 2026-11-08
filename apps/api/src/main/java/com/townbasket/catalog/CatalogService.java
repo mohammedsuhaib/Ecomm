@@ -64,6 +64,13 @@ public interface CatalogService {
     Optional<BigDecimal> costPrice(Long variantId);
 
     /**
+     * The printed shelf price (MRP) of a variant, for the orders module's
+     * per-line snapshot so an order can show what the customer saved. Empty if
+     * no such variant or no MRP is recorded.
+     */
+    Optional<BigDecimal> mrp(Long variantId);
+
+    /**
      * HSN code + GST rate for a variant (via its owning product), for the
      * orders module's per-line tax snapshot at checkout. Empty if no such
      * variant.

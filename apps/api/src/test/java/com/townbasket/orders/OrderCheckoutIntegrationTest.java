@@ -109,6 +109,27 @@ class OrderCheckoutIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void anOrderRecordsTheShelfPriceAndReportsWhatTheCustomerSaved() {
+        ProductVariantDto variant = catalogService.listProducts(null, false, null, PageRequest.of(0, 200))
+                .content().stream()
+                .flatMap(p -> p.variants().stream())
+                .filter(v -> v.available() && v.availableStock() >= QTY * 4
+                        && v.sellingPrice().compareTo(BigDecimal.valueOf(120)) >= 0
+                        && v.mrp() != null && v.mrp().compareTo(v.sellingPrice()) > 0)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No seeded variant with a discount and enough stock"));
+
+        CartDto cart = cartWithValue(variant, QTY);
+        OrderDto order = orderService.placeOrder(request(cart.cartId(), PaymentMethod.COD), "savings-key-1", null);
+
+        // The MRP is snapshotted per line, and the order adds the gaps up.
+        assertThat(order.items()).singleElement().satisfies(i ->
+                assertThat(i.mrp()).isEqualByComparingTo(variant.mrp()));
+        assertThat(order.savings()).isEqualByComparingTo(
+                variant.mrp().subtract(variant.sellingPrice()).multiply(BigDecimal.valueOf(QTY)));
+    }
+
+    @Test
     void codCheckoutReservesStockLeavesOrderPlacedAndHidesOtpAndCostPrice() {
         ProductVariantDto variant = pickPricyVariant();
         int before = inventoryService.availability(variant.id());

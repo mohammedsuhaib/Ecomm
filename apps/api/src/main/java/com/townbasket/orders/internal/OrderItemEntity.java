@@ -56,6 +56,11 @@ class OrderItemEntity {
     @Column(name = "cost_price", nullable = false)
     private BigDecimal costPrice;
 
+    // Shelf price at the time of sale, for "you saved". Null on orders placed
+    // before the column existed.
+    @Column(name = "mrp")
+    private BigDecimal mrp;
+
     @Column(nullable = false)
     private int qty;
 
@@ -84,7 +89,7 @@ class OrderItemEntity {
     }
 
     OrderItemEntity(Long variantId, String productName, String productNameKn, String label,
-                    BigDecimal unitPrice, BigDecimal costPrice, int qty, BigDecimal lineTotal,
+                    BigDecimal unitPrice, BigDecimal mrp, BigDecimal costPrice, int qty, BigDecimal lineTotal,
                     String hsnCode, BigDecimal gstRate,
                     BigDecimal taxableValue, BigDecimal cgst, BigDecimal sgst) {
         this.variantId = variantId;
@@ -92,6 +97,7 @@ class OrderItemEntity {
         this.productNameKn = productNameKn;
         this.label = label;
         this.unitPrice = unitPrice;
+        this.mrp = mrp;
         this.costPrice = costPrice;
         this.qty = qty;
         this.lineTotal = lineTotal;
@@ -120,6 +126,10 @@ class OrderItemEntity {
 
     String getLabel() {
         return label;
+    }
+
+    BigDecimal getMrp() {
+        return mrp;
     }
 
     BigDecimal getUnitPrice() {

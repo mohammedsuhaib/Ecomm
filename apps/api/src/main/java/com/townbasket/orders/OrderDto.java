@@ -27,6 +27,11 @@ import java.util.List;
  * earlier would defeat the control. Per-line {@code cost_price} (COGS) is NEVER
  * exposed — see {@link OrderItemDto}.
  *
+ * <p>{@code savings} is what the customer saved against the shelf price:
+ * the sum of {@code (mrp - unitPrice) * qty} over lines whose recorded MRP is
+ * above the price charged. Zero when nothing was discounted or the MRPs were
+ * not recorded (orders placed before they were); never negative.
+ *
  * <p>{@code riderLocation} is gated the same way and then some: it is set only
  * on the customer's tracking read, only while OUT_FOR_DELIVERY, only with a
  * rider assigned, and only while their last fix is recent (see
@@ -54,5 +59,6 @@ public record OrderDto(
         String invoiceNumber,
         Instant invoicedAt,
         String invoiceGstin,
-        RiderLocationDto riderLocation) {
+        RiderLocationDto riderLocation,
+        BigDecimal savings) {
 }

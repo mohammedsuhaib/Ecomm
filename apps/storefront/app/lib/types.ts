@@ -136,6 +136,8 @@ export interface OrderItem {
   productNameKn?: string | null;
   label: string;
   unitPrice: number;
+  /** Shelf price at the sale. Null on orders placed before it was recorded. */
+  mrp?: number | null;
   qty: number;
   lineTotal: number;
 }
@@ -176,6 +178,11 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   total: number;
+  /**
+   * What the customer saved against the shelf prices. 0 when nothing was
+   * discounted, or on orders placed before MRPs were recorded.
+   */
+  savings?: number;
   /** GST already contained in `total` (prices are tax-inclusive); informational. */
   totalTax: number;
   deliveryOtp: string | null; // present only while OUT_FOR_DELIVERY

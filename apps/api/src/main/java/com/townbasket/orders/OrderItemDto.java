@@ -12,6 +12,9 @@ import java.math.BigDecimal;
  * {@code productName}. The GST invoice always uses {@code productName} — a
  * statutory document stays in one language.
  *
+ * <p>{@code mrp} is the printed shelf price at the sale, {@code null} for orders
+ * placed before it was recorded; {@link OrderDto#savings()} is derived from it.
+ *
  * <p>The GST fields decompose {@code lineTotal} (prices are tax-inclusive):
  * {@code taxableValue + cgst + sgst == lineTotal}. They power the invoice's
  * statutory breakdown; {@code hsnCode} may be {@code null} until staff fill it
@@ -25,6 +28,7 @@ public record OrderItemDto(
         String productNameKn,
         String label,
         BigDecimal unitPrice,
+        BigDecimal mrp,
         int qty,
         BigDecimal lineTotal,
         String hsnCode,

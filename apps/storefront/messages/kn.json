@@ -346,6 +346,7 @@
     "itemLine": "({label}) × {qty}",
     "subtotal": "ಉಪಮೊತ್ತ",
     "total": "ಒಟ್ಟು",
+    "youSaved": "ನೀವು {amount} ಉಳಿಸಿದ್ದೀರಿ",
     "includesGst": "{amount} GST ಒಳಗೊಂಡಿದೆ",
     "payment": "ಪಾವತಿ",
     "deliveringTo": "ತಲುಪಿಸುವ ವಿಳಾಸ",

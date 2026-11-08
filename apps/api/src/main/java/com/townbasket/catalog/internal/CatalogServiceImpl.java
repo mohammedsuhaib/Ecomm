@@ -234,6 +234,14 @@ class CatalogServiceImpl implements CatalogService {
     }
 
     @Override
+    public Optional<BigDecimal> mrp(Long variantId) {
+        if (variantId == null) {
+            return Optional.empty();
+        }
+        return variantRepository.findById(variantId).map(ProductVariantEntity::getMrp);
+    }
+
+    @Override
     public Optional<BigDecimal> costPrice(Long variantId) {
         if (variantId == null) {
             return Optional.empty();
