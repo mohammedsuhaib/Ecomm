@@ -15,6 +15,7 @@ import {
   serverMessage,
   type VariantWriteRequest,
 } from '@/app/lib/api';
+import { IMAGE_URL_HINT, imageUrlRejected, safeImageUrl } from '@/app/lib/imageUrl';
 import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
 
@@ -290,7 +291,10 @@ export default function ProductForm({
     [variants],
   );
 
+  const imageRejected = imageUrlRejected(imageUrl);
+  const previewUrl = safeImageUrl(imageUrl);
   const canSubmit =
+    !imageRejected &&
     !busy &&
     !loading &&
     name.trim().length > 0 &&
@@ -510,10 +514,10 @@ export default function ProductForm({
                 />
                 {imageBusy && <span className="field-hint neutral">Uploading…</span>}
               </div>
-              {imageUrl ? (
+              {previewUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={imageUrl}
+                  src={previewUrl}
                   alt=""
                   className="image-upload-preview"
                   onError={(e) => {
@@ -523,8 +527,8 @@ export default function ProductForm({
                   }}
                 />
               ) : null}
-              {imageError ? (
-                <span className="field-hint error">{imageError}</span>
+              {imageError || imageRejected ? (
+                <span className="field-hint error">{imageError ?? IMAGE_URL_HINT}</span>
               ) : (
                 <span className="field-hint neutral">
                   JPEG or PNG. Large photos are resized automatically — upload

@@ -88,6 +88,7 @@ class CatalogServiceImpl implements CatalogService {
     private static final int SORT_ORDER_GAP = 10;
 
     /** Matches runs of non-alphanumeric characters for slug generation. */
+    private static final Pattern IMAGE_WEB_URL = Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE);
     private static final Pattern NON_ALNUM = Pattern.compile("[^a-z0-9]+");
 
     /** Strips diacritics during slug generation so "Café" -> "cafe". */
@@ -295,7 +296,7 @@ class CatalogServiceImpl implements CatalogService {
         String name = requireText(request.name(), "Category name must not be blank.");
         String slug = resolveSlug(request.slug(), name, this::categorySlugExists);
         int sortOrder = request.sortOrder() != null ? request.sortOrder() : nextCategorySortOrder();
-        CategoryEntity category = CategoryEntity.create(name, slug, sortOrder, trimToNull(request.imageUrl()));
+        CategoryEntity category = CategoryEntity.create(name, slug, sortOrder, imageUrlOrNull(request.imageUrl()));
         // name_kn: explicit value wins; otherwise best-effort transliterate.
         String nameKn = trimToNull(request.nameKn());
         category.setNameKn(nameKn != null ? nameKn : transliterate(name));
@@ -330,7 +331,7 @@ class CatalogServiceImpl implements CatalogService {
         if (request.imageUrl() != null) {
             // Same rule as a product photo: drop the old object only once the
             // value actually changes, or an unchanged re-save would delete it.
-            String replacement = trimToNull(request.imageUrl());
+            String replacement = imageUrlOrNull(request.imageUrl());
             String previous = category.getImageUrl();
             category.setImageUrl(replacement);
             if (previous != null && !previous.equals(replacement)) {
@@ -405,7 +406,7 @@ class CatalogServiceImpl implements CatalogService {
         ProductEntity product = ProductEntity.create(
                 categoryId, name, nameKn, slug,
                 trimToNull(request.description()), vegMarker,
-                trimToNull(request.imageUrl()), available, featured,
+                imageUrlOrNull(request.imageUrl()), available, featured,
                 trimToNull(request.hsnCode()), gstRate);
 
         if (request.variants() != null) {
@@ -442,7 +443,7 @@ class CatalogServiceImpl implements CatalogService {
             // Swapping the picture strands the old object, so drop it — but only
             // once the new value is actually different, or re-saving the form
             // unchanged would delete the image it is still pointing at.
-            String replacement = trimToNull(request.imageUrl());
+            String replacement = imageUrlOrNull(request.imageUrl());
             String previous = product.getImageUrl();
             product.setImageUrl(replacement);
             if (previous != null && !previous.equals(replacement)) {
@@ -633,6 +634,28 @@ class CatalogServiceImpl implements CatalogService {
             throw new BusinessRuleException(
                     "MRP must be greater than or equal to the selling price.");
         }
+    }
+
+    /**
+     * A product or category picture link, trimmed; null when blank. Only
+     * {@code http(s)://} links and paths on our own site ({@code /images/...})
+     * are accepted, so a {@code javascript:} or {@code data:} value can never be
+     * stored and then handed to every customer's browser. Uploads produce
+     * {@code https://} links and the seeded catalogue uses {@code /}-rooted ones,
+     * so neither is affected.
+     */
+    private static String imageUrlOrNull(String value) {
+        String url = trimToNull(value);
+        if (url == null) {
+            return null;
+        }
+        boolean web = IMAGE_WEB_URL.matcher(url).find();
+        boolean ownPath = url.startsWith("/") && !url.startsWith("//");
+        if (!web && !ownPath) {
+            throw new BusinessRuleException(
+                    "Image link must start with https:// (or http://), or be a path starting with /.");
+        }
+        return url;
     }
 
     private static String trimToNull(String value) {
