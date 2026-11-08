@@ -228,6 +228,8 @@ class CatalogServiceImpl implements CatalogService {
                     product != null ? product.getNameKn() : null,
                     v.getLabel(),
                     v.getSellingPrice(),
+                    v.getMrp(),
+                    product != null ? product.getImageUrl() : null,
                     available));
         }
         return byVariantId;

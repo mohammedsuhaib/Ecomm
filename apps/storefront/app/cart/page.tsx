@@ -9,6 +9,7 @@ import { lineDisplayName } from '@/app/lib/productName';
 import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
+import ProductThumb from '@/app/components/ProductThumb';
 import CartEmptyState from '@/app/components/CartEmptyState';
 
 export default function CartPage() {
@@ -103,12 +104,17 @@ export default function CartPage() {
           <ul className="cart-list">
             {items.map((item) => (
               <li key={item.itemId} className="cart-row">
+                <div className="cart-thumb">
+                  <ProductThumb
+                    product={{ name: item.productName, imageUrl: item.imageUrl ?? null }}
+                  />
+                </div>
                 <div className="cart-row-info">
                   <span className="cart-row-name">
                     {lineDisplayName(item, locale)}
                   </span>
                   <span className="muted cart-row-label">{item.label}</span>
-                  <span className="muted">
+                  <span className="muted cart-row-label">
                     {t('each', { price: formatRupees(item.unitPrice) })}
                   </span>
                   {!item.available ? (
@@ -123,7 +129,7 @@ export default function CartPage() {
                     </span>
                   ) : null}
                 </div>
-                <div className="cart-row-actions">
+                <div className="cart-row-side">
                   <div
                     className="qty-stepper"
                     aria-label={t('ariaQuantity', {
@@ -156,8 +162,19 @@ export default function CartPage() {
                       +
                     </button>
                   </div>
-                  <span className="cart-row-total">
-                    {formatRupees(item.lineTotal)}
+                  <span className="cart-row-price">
+                    {item.mrp != null && item.mrp > item.unitPrice && (
+                      <s className="cart-row-mrp">
+                        {formatRupees(Math.round(item.mrp * item.qty * 100) / 100)}
+                      </s>
+                    )}
+                    <strong
+                      className={
+                        item.mrp != null && item.mrp > item.unitPrice ? 'deal' : undefined
+                      }
+                    >
+                      {formatRupees(item.lineTotal)}
+                    </strong>
                   </span>
                   <button
                     type="button"
@@ -177,6 +194,11 @@ export default function CartPage() {
               <span>{t('subtotal')}</span>
               <strong>{formatRupees(subtotal)}</strong>
             </div>
+            {(cart?.savings ?? 0) > 0 && (
+              <div className="cart-summary-row saved">
+                <span>{t('youSaved', { amount: formatRupees(cart?.savings ?? 0) })}</span>
+              </div>
+            )}
 
             {belowMin && minOrderValue != null && (
               <p className="notice warn">

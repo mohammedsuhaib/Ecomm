@@ -13,6 +13,11 @@ import java.math.BigDecimal;
  * COGS is fetched separately via {@link CatalogService#costPrice(Long)} for the
  * orders snapshot and is never serialized to any client.
  *
+ * <p>{@code mrp} is the printed shelf price, {@code null} when none is recorded;
+ * the cart uses it to show what the customer saves. {@code imageUrl} is the
+ * owning product's picture, {@code null} when it has none, so a cart line can
+ * show a thumbnail without a second catalogue lookup.
+ *
  * <p>Both names travel together, and {@code productNameKn} may be {@code null}:
  * a cart line is the same product the customer was just browsing, so it has to
  * be nameable in the same language. Resolving the name per-request in the
@@ -26,5 +31,7 @@ public record VariantView(
         String productNameKn,
         String label,
         BigDecimal unitPrice,
+        BigDecimal mrp,
+        String imageUrl,
         boolean available) {
 }
