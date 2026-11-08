@@ -12,10 +12,9 @@ import { useTranslations } from 'next-intl';
 import { checkServiceability } from '@/app/lib/api';
 import { formatDistance } from '@/app/lib/format';
 import {
-  browseChoiceActive,
+  currentDevicePosition,
   loadServiceability,
   needsRefresh,
-  rememberBrowseChoice,
   saveServiceability,
   type StoredServiceability,
 } from '@/app/lib/serviceability';
@@ -77,39 +76,81 @@ export default function LocationGate({
   const [pickLat, setPickLat] = useState('');
   const [pickLng, setPickLng] = useState('');
 
-  // Decide initial phase from persisted result (runs client-side only).
+  // Decide whether to show the popup, every time the app opens: look at where
+  // the device is. In range means no popup; out of range, or no way to tell,
+  // means the popup.
+  //
+  // A location the customer pinned by hand earlier (and that is in range) still
+  // counts, so someone ordering to an address other than where they stand is not
+  // nagged, and so a phone with location off or blocked keeps working after one
+  // successful pin. It is also what is shown straight away, so a returning
+  // customer never waits on the GPS fix to see the catalogue.
   useEffect(() => {
+    let cancelled = false;
     const stored: StoredServiceability | null = loadServiceability();
     if (stored) {
       // Prefill the picker with the last-used point so re-opening shows it.
       setPickLat(String(stored.lat));
       setPickLng(String(stored.lng));
     }
-    if (stored?.result.serviceable) {
+    const storedOk = stored?.result.serviceable === true;
+    if (storedOk) {
       setResult(stored.result);
       setPhase('serviceable');
-    } else if (stored && !stored.result.serviceable) {
-      setResult(stored.result);
-      setPhase('not-serviceable');
-    } else if (browseChoiceActive()) {
-      setPhase('serviceable'); // chose "Just browse for now" recently
-    } else {
-      setPhase('prompt');
     }
 
-    // A remembered location past its freshness window is shown straight away
-    // and re-checked quietly, so a returning customer is never asked again just
-    // because time passed. A failed check keeps what we have.
-    if (stored && needsRefresh(stored)) {
-      checkServiceability(stored.lat, stored.lng)
-        .then((res) => {
-          saveServiceability(res, stored.lat, stored.lng);
-          setResult(res);
-          setPhase(res.serviceable ? 'serviceable' : 'not-serviceable');
-          window.dispatchEvent(new Event('tb:serviceability-changed'));
-        })
-        .catch(() => {});
-    }
+    const settle = (res: ServiceabilityResult) => {
+      setResult(res);
+      setPhase(res.serviceable ? 'serviceable' : 'not-serviceable');
+      window.dispatchEvent(new Event('tb:serviceability-changed'));
+    };
+
+    (async () => {
+      const here = await currentDevicePosition();
+      if (cancelled) return;
+      if (here) {
+        try {
+          const res = await checkServiceability(here.lat, here.lng);
+          if (cancelled) return;
+          if (res.serviceable) {
+            // Remember it unless a hand-pinned address is already on file.
+            if (!storedOk) saveServiceability(res, here.lat, here.lng);
+            settle(storedOk ? stored.result : res);
+            return;
+          }
+          // Out of range here; a pinned in-range address still wins.
+          if (storedOk) return;
+          saveServiceability(res, here.lat, here.lng);
+          settle(res);
+          return;
+        } catch {
+          /* fall through to the saved location */
+        }
+      }
+      // No usable fix. Keep what we have, re-checking a stale one quietly.
+      if (storedOk) {
+        if (needsRefresh(stored)) {
+          checkServiceability(stored.lat, stored.lng)
+            .then((res) => {
+              if (cancelled) return;
+              saveServiceability(res, stored.lat, stored.lng);
+              settle(res);
+            })
+            .catch(() => {});
+        }
+        return;
+      }
+      if (stored) {
+        setResult(stored.result);
+        setPhase('not-serviceable');
+      } else {
+        setPhase('prompt');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const runCheck = useCallback(async (lat: number, lng: number) => {
@@ -149,7 +190,6 @@ export default function LocationGate({
   // "Browse anyway" — let them into the catalogue without a serviceable
   // result. Checkout (M3) will re-verify, per the architecture.
   const browseAnyway = useCallback(() => {
-    rememberBrowseChoice();
     setPhase('serviceable');
   }, []);
 
@@ -158,10 +198,10 @@ export default function LocationGate({
     setPhase('prompt');
   }, []);
 
-  // 'idle' counts as blocking: it is the pre-decision phase, and it resolves in
-  // the mount effect above to 'prompt' for a first-time visitor. Treating it as
-  // clear would flash anything underneath onto the screen just before the
-  // overlay covers it.
+  // 'idle' counts as blocking: it is the pre-decision phase, while the device
+  // position is being read, and it resolves in the mount effect above to
+  // 'prompt' when there is nothing to go on. Treating it as clear would flash
+  // anything underneath onto the screen just before the overlay covers it.
   const blocking = phase !== 'serviceable';
 
   const ctx = useMemo<LocationGateContextValue>(
