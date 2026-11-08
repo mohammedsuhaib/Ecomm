@@ -9,9 +9,10 @@ import {
   useState,
 } from 'react';
 import { useTranslations } from 'next-intl';
-import { checkServiceability, listAddresses } from '@/app/lib/api';
+import { checkServiceability, getStore, listAddresses } from '@/app/lib/api';
 import { loadAuth } from '@/app/lib/auth';
 import { formatDistance } from '@/app/lib/format';
+import { distanceMeters } from '@/app/lib/geo';
 import {
   currentDevicePosition,
   loadServiceability,
@@ -19,7 +20,7 @@ import {
   saveServiceability,
   type StoredServiceability,
 } from '@/app/lib/serviceability';
-import type { SavedAddress, ServiceabilityResult } from '@/app/lib/types';
+import type { SavedAddress, ServiceabilityResult, Store } from '@/app/lib/types';
 import LocationPicker from './LocationPickerLazy';
 
 // ---- Context so any component (e.g. the header pill) can re-open the gate ----
@@ -79,6 +80,12 @@ export default function LocationGate({
   // The signed-in customer's saved addresses, offered on the screens below so
   // someone away from home can still deliver to one of them.
   const [saved, setSaved] = useState<SavedAddress[]>([]);
+  // Where the store is, so each saved address can show how far it is and whether
+  // we deliver there. Null until fetched (or if that fails): the rows then simply
+  // show no distance and none are greyed out.
+  const [store, setStore] = useState<Store | null>(null);
+  // A problem with the "use my current location" row on the out-of-range sheet.
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   // Decide whether to show the popup, every time the app opens: look at where
   // the device is. In range means no popup; out of range, or no way to tell,
@@ -186,9 +193,11 @@ export default function LocationGate({
   useEffect(() => {
     if ((phase !== 'prompt' && phase !== 'not-serviceable') || !loadAuth()) return;
     let cancelled = false;
-    listAddresses()
-      .then((list) => {
-        if (!cancelled) setSaved(list);
+    Promise.all([listAddresses(), getStore().catch(() => null)])
+      .then(([list, shop]) => {
+        if (cancelled) return;
+        setSaved(list);
+        setStore(shop);
       })
       .catch(() => {});
     return () => {
@@ -236,6 +245,20 @@ export default function LocationGate({
     setPhase('serviceable');
   }, []);
 
+  // The "Use my current location" row on the out-of-range sheet: look again,
+  // for someone who has just come home.
+  const useCurrentLocation = useCallback(async () => {
+    setSheetError(null);
+    const here = await currentDevicePosition();
+    if (!here) {
+      setSheetError(t('denied'));
+      return;
+    }
+    setPickLat(String(here.lat));
+    setPickLng(String(here.lng));
+    runCheck(here.lat, here.lng);
+  }, [runCheck, t]);
+
   const reopen = useCallback(() => {
     setError(null);
     setPhase('prompt');
@@ -261,9 +284,17 @@ export default function LocationGate({
       {phase === 'not-serviceable' && (
         <NotServiceableScreen
           result={result}
-          onRetry={reopen}
+          onAddNew={reopen}
+          onUseCurrent={useCurrentLocation}
+          error={sheetError}
           saved={saved}
-          onPickSaved={(a) => runCheck(a.lat, a.lng)}
+          store={store}
+          selected={{ lat: Number.parseFloat(pickLat), lng: Number.parseFloat(pickLng) }}
+          onPickSaved={(a) => {
+            setPickLat(String(a.lat));
+            setPickLng(String(a.lng));
+            runCheck(a.lat, a.lng);
+          }}
         />
       )}
 
@@ -286,7 +317,10 @@ export default function LocationGate({
             />
 
             <SavedAddresses
+              heading={t('savedTitle')}
               addresses={saved}
+              store={store}
+              selected={{ lat: Number.parseFloat(pickLat), lng: Number.parseFloat(pickLng) }}
               onPick={(a) => {
                 setPickLat(String(a.lat));
                 setPickLng(String(a.lng));
@@ -319,17 +353,29 @@ export default function LocationGate({
   );
 }
 
+function sameCoord(a: number, b: number): boolean {
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) < 1e-6;
+}
+
 /**
- * The customer's saved addresses as one-tap choices, for when they are not where
- * they want the order delivered. Renders nothing for a guest or a customer with
- * none saved.
+ * The customer's saved addresses, one row each: its name, how far it is from
+ * the store, a "Selected" tag on the one in use, and the address itself. An
+ * address outside the delivery range is tagged and cannot be chosen, since
+ * picking it would only bring this screen straight back. Renders nothing for a
+ * guest or a customer with none saved.
  */
 function SavedAddresses({
+  heading,
   addresses,
+  store,
+  selected,
   onPick,
   disabled,
 }: {
+  heading: string;
   addresses: SavedAddress[];
+  store: Store | null;
+  selected: { lat: number; lng: number };
   onPick: (a: SavedAddress) => void;
   disabled?: boolean;
 }) {
@@ -337,44 +383,68 @@ function SavedAddresses({
   if (addresses.length === 0) return null;
   return (
     <div className="gate-saved">
-      <p className="gate-saved-title">{t('savedTitle')}</p>
+      <h3 className="gate-saved-title">{heading}</h3>
       <ul>
-        {addresses.map((a) => (
-          <li key={a.id}>
-            <button
-              type="button"
-              className="gate-saved-btn"
-              disabled={disabled}
-              onClick={() => onPick(a)}
-            >
-              {a.label && <strong>{a.label}</strong>}
-              <span>{a.line}</span>
-            </button>
-          </li>
-        ))}
+        {addresses.map((a) => {
+          const meters = store ? distanceMeters(store, a) : null;
+          const out = store != null && meters != null && meters > store.deliveryRadiusMeters;
+          const isSelected = sameCoord(a.lat, selected.lat) && sameCoord(a.lng, selected.lng);
+          return (
+            <li key={a.id}>
+              <button
+                type="button"
+                className={`gate-saved-btn${out ? ' is-out' : ''}`}
+                disabled={disabled || out}
+                onClick={() => onPick(a)}
+              >
+                <span className="gate-saved-head">
+                  <strong>{a.label || t('addressFallback')}</strong>
+                  {meters != null && (
+                    <span className="gate-saved-dist">
+                      {t('fromStore', { distance: formatDistance(meters) })}
+                    </span>
+                  )}
+                  {isSelected && !out && <span className="gate-tag ok">{t('selected')}</span>}
+                  {out && <span className="gate-tag out">{t('outOfRangeTag')}</span>}
+                </span>
+                <span className="gate-saved-line">{a.line}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
+/**
+ * Shown when the chosen location is outside the delivery range: why, then a
+ * "Select location" list in the usual shape: look again from here, add a new
+ * address, or pick a saved one.
+ */
 function NotServiceableScreen({
   result,
-  onRetry,
+  onAddNew,
+  onUseCurrent,
+  error,
   saved,
+  store,
+  selected,
   onPickSaved,
 }: {
   result: ServiceabilityResult | null;
-  onRetry: () => void;
+  onAddNew: () => void;
+  onUseCurrent: () => void;
+  error: string | null;
   saved: SavedAddress[];
+  store: Store | null;
+  selected: { lat: number; lng: number };
   onPickSaved: (a: SavedAddress) => void;
 }) {
   const t = useTranslations('location');
   return (
     <div className="gate-overlay" role="dialog" aria-modal="true">
       <div className="gate-card not-serviceable">
-        <div className="big-emoji" aria-hidden>
-          🛵💨
-        </div>
         <h2>{t('nsTitle')}</h2>
         <p>
           {result
@@ -386,12 +456,28 @@ function NotServiceableScreen({
               radius: formatDistance(result.radiusMeters),
             })}
         </p>
-        <SavedAddresses addresses={saved} onPick={onPickSaved} />
-        <div className="gate-actions">
-          <button type="button" className="btn btn-block" onClick={onRetry}>
-            {t('nsRetry')}
+
+        <h3 className="gate-section-title">{t('selectTitle')}</h3>
+        {error && <p className="gate-error">{error}</p>}
+        <div className="gate-rows">
+          <button type="button" className="gate-row-btn" onClick={onUseCurrent}>
+            <span className="gate-row-icon" aria-hidden>◎</span>
+            {t('useCurrentPlain')}
+          </button>
+          <button type="button" className="gate-row-btn" onClick={onAddNew}>
+            <span className="gate-row-icon" aria-hidden>+</span>
+            {t('addNew')}
+            <span className="gate-row-chevron" aria-hidden>›</span>
           </button>
         </div>
+
+        <SavedAddresses
+          heading={t('savedHeading')}
+          addresses={saved}
+          store={store}
+          selected={selected}
+          onPick={onPickSaved}
+        />
       </div>
     </div>
   );
