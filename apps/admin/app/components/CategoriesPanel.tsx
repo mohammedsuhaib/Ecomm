@@ -10,6 +10,7 @@ import {
   updateCategory,
   uploadCatalogImage,
 } from '@/app/lib/api';
+import { IMAGE_URL_HINT, imageUrlRejected } from '@/app/lib/imageUrl';
 import type { Category } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
 
@@ -264,12 +265,19 @@ function CategoryForm({
     initial ? String(initial.sortOrder) : '',
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? '');
+  // The last picture our own server gave us (the saved category or an upload).
+  // The preview shows only this, never text typed or pasted into the field.
+  const [serverImageUrl, setServerImageUrl] = useState(initial?.imageUrl ?? '');
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Saving mid-upload would store the old URL and strand the new object.
-  const canSubmit = !busy && !imageBusy && name.trim().length > 0;
+  const imageRejected = imageUrlRejected(imageUrl);
+  const previewUrl =
+    serverImageUrl !== '' && imageUrl.trim() === serverImageUrl ? serverImageUrl : null;
+  const canSubmit =
+    !busy && !imageBusy && !imageRejected && name.trim().length > 0;
 
   async function onPickImage(file: File | undefined) {
     if (!file) return;
@@ -278,6 +286,7 @@ function CategoryForm({
     try {
       const { url } = await uploadCatalogImage(file);
       setImageUrl(url);
+      setServerImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
         setImageError('Your session expired. Log in again.');
@@ -387,11 +396,11 @@ function CategoryForm({
             />
             {imageBusy && <span className="field-hint neutral">Uploading…</span>}
           </div>
-          {imageUrl ? (
+          {previewUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              key={imageUrl}
-              src={imageUrl}
+              key={previewUrl}
+              src={previewUrl}
               alt=""
               className="image-upload-preview"
               onError={(e) => {
@@ -399,8 +408,8 @@ function CategoryForm({
               }}
             />
           ) : null}
-          {imageError ? (
-            <span className="field-hint error">{imageError}</span>
+          {imageError || imageRejected ? (
+            <span className="field-hint error">{imageError ?? IMAGE_URL_HINT}</span>
           ) : (
             <span className="field-hint neutral">
               JPEG or PNG, resized automatically. The old picture is removed

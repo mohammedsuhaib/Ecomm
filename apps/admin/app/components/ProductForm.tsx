@@ -15,6 +15,7 @@ import {
   serverMessage,
   type VariantWriteRequest,
 } from '@/app/lib/api';
+import { IMAGE_URL_HINT, imageUrlRejected } from '@/app/lib/imageUrl';
 import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
 
@@ -151,6 +152,11 @@ export default function ProductForm({
   const [description, setDescription] = useState('');
   const [vegMarker, setVegMarker] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
+  // The last picture our own server gave us (an upload, or the saved product).
+  // The preview shows only this, never text typed or pasted into the field, so
+  // nothing from the input reaches the <img> and a pasted link is previewed once
+  // it has been saved.
+  const [serverImageUrl, setServerImageUrl] = useState('');
   // Image upload runs on its own, before the product is saved: it returns a URL
   // that then travels with the form like any pasted one. That is what lets a
   // brand-new product carry a photo — there is no product id to attach it to
@@ -166,6 +172,7 @@ export default function ProductForm({
     try {
       const { url } = await uploadCatalogImage(file);
       setImageUrl(url);
+      setServerImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
         setImageError('Your session expired. Log in again.');
@@ -236,6 +243,7 @@ export default function ProductForm({
         setDescription(p.description ?? '');
         setVegMarker(p.vegMarker);
         setImageUrl(p.imageUrl ?? '');
+        setServerImageUrl(p.imageUrl ?? '');
         setAvailable(p.available);
         setFeatured(p.featured);
         setHsnCode(p.hsnCode ?? '');
@@ -290,7 +298,11 @@ export default function ProductForm({
     [variants],
   );
 
+  const imageRejected = imageUrlRejected(imageUrl);
+  const previewUrl =
+    serverImageUrl !== '' && imageUrl.trim() === serverImageUrl ? serverImageUrl : null;
   const canSubmit =
+    !imageRejected &&
     !busy &&
     !loading &&
     name.trim().length > 0 &&
@@ -510,10 +522,10 @@ export default function ProductForm({
                 />
                 {imageBusy && <span className="field-hint neutral">Uploading…</span>}
               </div>
-              {imageUrl ? (
+              {previewUrl ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={imageUrl}
+                  src={previewUrl}
                   alt=""
                   className="image-upload-preview"
                   onError={(e) => {
@@ -523,8 +535,8 @@ export default function ProductForm({
                   }}
                 />
               ) : null}
-              {imageError ? (
-                <span className="field-hint error">{imageError}</span>
+              {imageError || imageRejected ? (
+                <span className="field-hint error">{imageError ?? IMAGE_URL_HINT}</span>
               ) : (
                 <span className="field-hint neutral">
                   JPEG or PNG. Large photos are resized automatically — upload

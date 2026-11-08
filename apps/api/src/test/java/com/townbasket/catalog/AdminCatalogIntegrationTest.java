@@ -194,6 +194,35 @@ class AdminCatalogIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void imageLinksMustBeWebOrSitePathsNotScripts() {
+        for (String bad : new String[] {"javascript:alert(1)", "data:text/html,<script>x</script>",
+                "vbscript:x", "//evil.example/x.png", "not a link"}) {
+            assertThatThrownBy(() -> catalogService.createCategory(
+                    new CreateCategoryRequest("Bad Image " + bad.hashCode(), null, null, bad, null)))
+                    .as(bad)
+                    .isInstanceOf(BusinessRuleException.class);
+        }
+        // https, http and a /-rooted path (the seeded catalogue's style) are fine,
+        // and blank clears the picture. Created last in the order and removed
+        // again: the database is shared across test classes.
+        CategoryDto https = catalogService.createCategory(new CreateCategoryRequest(
+                "Good Image Https", null, 9_991, "https://cdn.example/x.png", null));
+        CategoryDto path = catalogService.createCategory(new CreateCategoryRequest(
+                "Good Image Path", null, 9_992, "/images/x.png", null));
+        CategoryDto blank = catalogService.createCategory(new CreateCategoryRequest(
+                "Good Image Blank", null, 9_993, "   ", null));
+        try {
+            assertThat(https.imageUrl()).isEqualTo("https://cdn.example/x.png");
+            assertThat(path.imageUrl()).isEqualTo("/images/x.png");
+            assertThat(blank.imageUrl()).isNull();
+        } finally {
+            catalogService.deleteCategory(https.id());
+            catalogService.deleteCategory(path.id());
+            catalogService.deleteCategory(blank.id());
+        }
+    }
+
+    @Test
     void slugCollisionsAreSuffixed() {
         CategoryDto first = catalogService.createCategory(
                 new CreateCategoryRequest("Dupe Cat", null, null, null, null));
