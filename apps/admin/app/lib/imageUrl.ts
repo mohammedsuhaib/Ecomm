@@ -11,8 +11,18 @@
  */
 export function safeImageUrl(raw: string): string | null {
   const url = raw.trim();
-  if (/^https?:\/\//i.test(url) || (url.startsWith('/') && !url.startsWith('//'))) {
+  // A path on our own site. Rooted, and not protocol-relative (`//host/...`).
+  if (url.startsWith('/') && !url.startsWith('//')) {
     return url;
+  }
+  // Anything else must parse as an absolute URL whose scheme is http or https.
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.href;
+    }
+  } catch {
+    /* not an absolute URL */
   }
   return null;
 }
