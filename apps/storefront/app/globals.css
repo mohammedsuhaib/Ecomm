@@ -912,13 +912,88 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 0.75rem;
 }
-.cart-summary-row.saved {
-  color: var(--green-dark);
+/* ---- Bill summary (cart, checkout, order) ---- */
+.bill-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 1rem 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.bill-title {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+}
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bill-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  color: var(--text);
+  font-weight: 600;
+}
+.bill-struck {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+.bill-free {
+  color: var(--green);
+}
+.bill-total {
+  color: var(--text);
+  font-size: 1.1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.7rem;
+}
+.savings-card {
   background: var(--green-light);
-  border-radius: 8px;
-  padding: 0.45rem 0.7rem;
+  border: 1px solid #cfe7d3;
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.savings-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+.savings-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+.savings-badge {
+  background: var(--green);
+  color: var(--on-primary);
   font-weight: 700;
+  border-radius: 8px;
+  padding: 0.3rem 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.savings-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  font-variant-numeric: tabular-nums;
 }
 .cart-summary-row.total {
   font-size: 1.1rem;

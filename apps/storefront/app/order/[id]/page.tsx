@@ -17,6 +17,7 @@ import { lineDisplayName } from '@/app/lib/productName';
 import { useAuth } from '@/app/components/AuthProvider';
 import { useCartActions } from '@/app/components/CartProvider';
 import { clearLastOrder, loadLastOrder } from '@/app/lib/lastOrder';
+import BillSummary from '@/app/components/BillSummary';
 import PushOptIn from '@/app/components/PushOptIn';
 import RiderLocation from '@/app/components/RiderLocation';
 import type { Order, OrderStatus } from '@/app/lib/types';
@@ -522,20 +523,12 @@ export default function OrderPage({ params }: { params: { id: string } }) {
             </li>
           ))}
         </ul>
+        <BillSummary
+          subtotal={order.subtotal}
+          savings={order.savings ?? 0}
+          total={order.total}
+        />
         <div className="cart-summary">
-          <div className="cart-summary-row">
-            <span>{t('subtotal')}</span>
-            <span>{formatRupees(order.subtotal)}</span>
-          </div>
-          <div className="cart-summary-row total">
-            <span>{t('total')}</span>
-            <strong>{formatRupees(order.total)}</strong>
-          </div>
-          {(order.savings ?? 0) > 0 && (
-            <div className="cart-summary-row saved">
-              <span>{t('youSaved', { amount: formatRupees(order.savings ?? 0) })}</span>
-            </div>
-          )}
           {order.totalTax > 0 && (
             <div className="cart-summary-row">
               <span className="muted">
