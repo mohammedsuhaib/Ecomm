@@ -15,7 +15,7 @@ import {
   serverMessage,
   type VariantWriteRequest,
 } from '@/app/lib/api';
-import { IMAGE_URL_HINT, imageUrlRejected, safeImageUrl } from '@/app/lib/imageUrl';
+import { IMAGE_URL_HINT, imageUrlRejected } from '@/app/lib/imageUrl';
 import type { AdminProduct, Category, HsnSuggestion } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
 
@@ -152,6 +152,11 @@ export default function ProductForm({
   const [description, setDescription] = useState('');
   const [vegMarker, setVegMarker] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
+  // The last picture our own server gave us (an upload, or the saved product).
+  // The preview shows only this, never text typed or pasted into the field, so
+  // nothing from the input reaches the <img> and a pasted link is previewed once
+  // it has been saved.
+  const [serverImageUrl, setServerImageUrl] = useState('');
   // Image upload runs on its own, before the product is saved: it returns a URL
   // that then travels with the form like any pasted one. That is what lets a
   // brand-new product carry a photo — there is no product id to attach it to
@@ -167,6 +172,7 @@ export default function ProductForm({
     try {
       const { url } = await uploadCatalogImage(file);
       setImageUrl(url);
+      setServerImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
         setImageError('Your session expired. Log in again.');
@@ -237,6 +243,7 @@ export default function ProductForm({
         setDescription(p.description ?? '');
         setVegMarker(p.vegMarker);
         setImageUrl(p.imageUrl ?? '');
+        setServerImageUrl(p.imageUrl ?? '');
         setAvailable(p.available);
         setFeatured(p.featured);
         setHsnCode(p.hsnCode ?? '');
@@ -292,7 +299,8 @@ export default function ProductForm({
   );
 
   const imageRejected = imageUrlRejected(imageUrl);
-  const previewUrl = safeImageUrl(imageUrl);
+  const previewUrl =
+    serverImageUrl !== '' && imageUrl.trim() === serverImageUrl ? serverImageUrl : null;
   const canSubmit =
     !imageRejected &&
     !busy &&

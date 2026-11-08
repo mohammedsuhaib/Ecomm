@@ -10,7 +10,7 @@ import {
   updateCategory,
   uploadCatalogImage,
 } from '@/app/lib/api';
-import { IMAGE_URL_HINT, imageUrlRejected, safeImageUrl } from '@/app/lib/imageUrl';
+import { IMAGE_URL_HINT, imageUrlRejected } from '@/app/lib/imageUrl';
 import type { Category } from '@/app/lib/types';
 import { ListSkeleton } from './Skeleton';
 
@@ -265,13 +265,17 @@ function CategoryForm({
     initial ? String(initial.sortOrder) : '',
   );
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? '');
+  // The last picture our own server gave us (the saved category or an upload).
+  // The preview shows only this, never text typed or pasted into the field.
+  const [serverImageUrl, setServerImageUrl] = useState(initial?.imageUrl ?? '');
   const [imageBusy, setImageBusy] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Saving mid-upload would store the old URL and strand the new object.
   const imageRejected = imageUrlRejected(imageUrl);
-  const previewUrl = safeImageUrl(imageUrl);
+  const previewUrl =
+    serverImageUrl !== '' && imageUrl.trim() === serverImageUrl ? serverImageUrl : null;
   const canSubmit =
     !busy && !imageBusy && !imageRejected && name.trim().length > 0;
 
@@ -282,6 +286,7 @@ function CategoryForm({
     try {
       const { url } = await uploadCatalogImage(file);
       setImageUrl(url);
+      setServerImageUrl(url);
     } catch (err) {
       if (err instanceof AuthRequiredError) {
         setImageError('Your session expired. Log in again.');
