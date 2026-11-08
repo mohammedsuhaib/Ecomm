@@ -10,6 +10,7 @@ import type { CartItem } from '@/app/lib/types';
 import { useCart } from '@/app/components/CartProvider';
 import PriceChangeNotice from '@/app/components/PriceChangeNotice';
 import ProductThumb from '@/app/components/ProductThumb';
+import BillSummary from '@/app/components/BillSummary';
 import CartEmptyState from '@/app/components/CartEmptyState';
 
 export default function CartPage() {
@@ -189,17 +190,9 @@ export default function CartPage() {
             ))}
           </ul>
 
-          <div className="cart-summary">
-            <div className="cart-summary-row">
-              <span>{t('subtotal')}</span>
-              <strong>{formatRupees(subtotal)}</strong>
-            </div>
-            {(cart?.savings ?? 0) > 0 && (
-              <div className="cart-summary-row saved">
-                <span>{t('youSaved', { amount: formatRupees(cart?.savings ?? 0) })}</span>
-              </div>
-            )}
+          <BillSummary subtotal={subtotal} savings={cart?.savings ?? 0} />
 
+          <div className="cart-summary">
             {belowMin && minOrderValue != null && (
               <p className="notice warn">
                 {t('minOrderNotice', {
