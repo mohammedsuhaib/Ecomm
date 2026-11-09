@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { disableStaffPush, enableStaffPush } from '../lib/push';
 
 const STORAGE_KEY = 'tb-admin-order-alert';
 
@@ -9,10 +10,11 @@ const STORAGE_KEY = 'tb-admin-order-alert';
  * cancellation or a delivery — with a short chime plus a desktop notification,
  * so the queue does not have to be watched continuously.
  *
- * <p>Deliberately page-scoped rather than Web Push — staff keep the dashboard
- * open through the shift, and a desktop notification from an open tab needs no
- * service worker, no VAPID keys and no per-device subscription. It fires while
- * the tab is backgrounded, which is the case that actually matters.
+ * <p>Two layers. This page raises the chime and a notification while the
+ * dashboard is open (even backgrounded). Turning alerts on also registers the
+ * device for Web Push (see lib/push.ts), so a new order still reaches a tablet
+ * whose screen is off or whose app is closed; the service worker's push handler
+ * stays quiet while a dashboard window is visible, so the two never double up.
  *
  * <p>The chime is synthesised with WebAudio so there is no audio asset to ship
  * or cache. Browsers block audio until the user interacts with the page, so the
@@ -56,7 +58,12 @@ export function useNewOrderAlert() {
 
   useEffect(() => {
     try {
-      setEnabled(window.localStorage.getItem(STORAGE_KEY) === 'on');
+      const on = window.localStorage.getItem(STORAGE_KEY) === 'on';
+      setEnabled(on);
+      // Alerts were left on: make sure the server still has this device for
+      // push (a new sign-in, a rotated subscription, a different staffer on
+      // the same tablet). Silent and idempotent.
+      if (on) void enableStaffPush();
     } catch {
       // Private mode / storage blocked — stay off.
     }
@@ -164,6 +171,8 @@ export function useNewOrderAlert() {
       } catch {
         /* ignore */
       }
+      // Off means off: stop the pushes that reach a closed app too.
+      void disableStaffPush();
       return;
     }
 
@@ -192,6 +201,10 @@ export function useNewOrderAlert() {
     }
 
     setEnabled(true);
+    // With permission in hand, also register for push so alerts arrive when the
+    // screen is off or the app is closed. Not awaited: the chime and the
+    // on-page notification already work without it.
+    void enableStaffPush();
     try {
       window.localStorage.setItem(STORAGE_KEY, 'on');
     } catch {

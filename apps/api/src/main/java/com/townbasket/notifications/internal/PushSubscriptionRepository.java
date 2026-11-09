@@ -9,6 +9,8 @@ interface PushSubscriptionRepository extends JpaRepository<PushSubscriptionEntit
 
     List<PushSubscriptionEntity> findByUserId(Long userId);
 
+    List<PushSubscriptionEntity> findByAudience(String audience);
+
     Optional<PushSubscriptionEntity> findByEndpoint(String endpoint);
 
     void deleteByEndpoint(String endpoint);

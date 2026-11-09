@@ -137,14 +137,60 @@ const serwist = new Serwist({
 
 serwist.addEventListeners();
 
+// ---------------------------------------------------------------------------
+// Staff alerts by Web Push — a new order, or a delivery that failed — so a
+// tablet with its screen off or the app closed still hears about it. Payload is
+// the JSON the API's notifications module builds: { title, body, url, orderId,
+// type, status }. Nothing here touches a cache; it only shows a notification.
+// ---------------------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let payload: { title?: string; body?: string; url?: string; type?: string } = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    // Not JSON — fall through to the generic copy below.
+  }
+
+  event.waitUntil(
+    (async () => {
+      // A dashboard that is on screen already chimed and showed its own
+      // notification; showing this one too would be the same order twice. The
+      // browser allows skipping the notification exactly when the site is
+      // visible, so this stays within the rules.
+      const windows = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      if (windows.some((w) => w.visibilityState === 'visible')) return;
+
+      await self.registration.showNotification(payload.title || 'Town Basket', {
+        body: payload.body || 'Open the dashboard for details.',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        // Same tags the page uses, so a notification it raised earlier is
+        // replaced rather than stacked.
+        tag: payload.type === 'DELIVERY_FAILED' ? 'tb-delivery-failed' : 'tb-new-order',
+        renotify: true,
+        // A new order wants a person: keep it on screen until it is tapped.
+        requireInteraction: payload.type === 'ORDER_PLACED',
+        vibrate: [200, 100, 200],
+        data: { url: payload.url || '/' },
+      } as NotificationOptions);
+    })(),
+  );
+});
+
 // Tapping an order alert brings the dashboard forward (or opens it), rather than
-// just dismissing the notification. The alerts are raised by the page through
-// this worker (see useNewOrderAlert), so the click lands here.
+// just dismissing the notification. Alerts come from the page (useNewOrderAlert)
+// and from the push handler above, so the click lands here either way.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((windows) => (windows.length > 0 ? windows[0].focus() : self.clients.openWindow('/'))),
+      .then((windows) =>
+        windows.length > 0 ? windows[0].focus() : self.clients.openWindow(target),
+      ),
   );
 });

@@ -7,9 +7,11 @@ import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
 import org.apache.http.HttpResponse;
@@ -51,6 +53,9 @@ class WebPushNotificationChannel implements NotificationChannel {
 
     /** Push services drop an undelivered message after this many seconds. */
     private static final int TTL_SECONDS = 6 * 60 * 60;
+
+    /** The staff-facing events worth a push to a locked tablet. */
+    private static final Set<String> STAFF_PUSH_TYPES = Set.of("ORDER_PLACED", "DELIVERY_FAILED");
 
     private final WebPushProperties properties;
     private final PushSubscriptionRepository subscriptions;
@@ -105,7 +110,12 @@ class WebPushNotificationChannel implements NotificationChannel {
     @Override
     @Transactional
     public boolean send(NotificationMessage message) {
-        // Staff-queue messages have no customer recipient; they travel by SSE.
+        // Staff-queue messages have no single recipient: the open dashboard
+        // hears them over SSE, and the few that need someone to act also go to
+        // every device on which staff turned alerts on.
+        if (message.audience() == NotificationMessage.Audience.ADMIN) {
+            return sendToStaff(message);
+        }
         if (message.recipientUserId() == null) {
             return false;
         }
@@ -136,6 +146,40 @@ class WebPushNotificationChannel implements NotificationChannel {
         }
         log.debug("Push {} for order {}: delivered to {} of {} device(s) for user {}",
                 message.type(), message.orderId(), delivered, targets.size(), message.recipientUserId());
+        return delivered > 0;
+    }
+
+    /**
+     * Staff alerts: a new order, or a delivery that failed. Those are the two
+     * the shop must act on; confirmations, deliveries and cancellations only
+     * move the live queue, and buzzing a tablet for each would teach staff to
+     * ignore it.
+     *
+     * <p>Same sign-in rule as everyone else: a device whose owner has signed
+     * out (a tablet handed to the next shift, an account an admin disabled)
+     * stays quiet. The session is checked once per account, not per device.
+     */
+    private boolean sendToStaff(NotificationMessage message) {
+        if (!STAFF_PUSH_TYPES.contains(message.type())) {
+            return false;
+        }
+        List<PushSubscriptionEntity> devices =
+                subscriptions.findByAudience(PushSubscriptionEntity.AUDIENCE_STAFF);
+        if (devices.isEmpty()) {
+            return false;
+        }
+        byte[] payload = payload(message);
+        Map<Long, Boolean> signedIn = new HashMap<>();
+        int delivered = 0;
+        for (PushSubscriptionEntity device : devices) {
+            boolean active = signedIn.computeIfAbsent(
+                    device.getUserId(), authService::hasActiveSession);
+            if (active && deliver(device, payload)) {
+                delivered++;
+            }
+        }
+        log.debug("Staff push {} for order {}: delivered to {} of {} device(s)",
+                message.type(), message.orderId(), delivered, devices.size());
         return delivered > 0;
     }
 

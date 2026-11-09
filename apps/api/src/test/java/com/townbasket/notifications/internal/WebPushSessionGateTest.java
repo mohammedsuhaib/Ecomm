@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,12 +55,60 @@ class WebPushSessionGateTest {
     }
 
     @Test
-    void staffQueueMessagesNeverAskAboutASession() {
-        // They have no recipient — they travel by SSE to an authenticated page.
+    void staffQueueMessagesThatAreNotPushWorthyNeverTouchTheDatabaseOrASession() {
+        // A confirmation or delivery only moves the live queue; no device is
+        // buzzed for it.
         assertThat(channel.send(NotificationMessage.forAdmin(
-                1L, "ORDER_PLACED", "CONFIRMED", "New order", "A new order came in"))).isFalse();
+                1L, "ORDER_CONFIRMED", "CONFIRMED", "Order confirmed", "Accepted"))).isFalse();
+
+        verify(subscriptions, never()).findByAudience(any());
+        verify(authService, never()).hasActiveSession(any());
+    }
+
+    @Test
+    void newOrderIsNotPushedToAStaffDeviceWhoseOwnerHasSignedOut() {
+        PushSubscriptionEntity tablet = staffDevice(5L);
+        when(subscriptions.findByAudience("STAFF")).thenReturn(List.of(tablet));
+        when(authService.hasActiveSession(5L)).thenReturn(false);
+
+        assertThat(channel.send(newOrder())).isFalse();
+
+        // Signed out: the device is skipped without a send, and the row stays.
+        verify(subscriptions, never()).delete(any());
+    }
+
+    @Test
+    void newOrderAsksAboutEachStaffAccountOnce() {
+        when(subscriptions.findByAudience("STAFF"))
+                .thenReturn(List.of(staffDevice(5L), staffDevice(5L), staffDevice(6L)));
+        when(authService.hasActiveSession(5L)).thenReturn(false);
+        when(authService.hasActiveSession(6L)).thenReturn(false);
+
+        channel.send(newOrder());
+
+        verify(authService, times(1)).hasActiveSession(5L);
+        verify(authService, times(1)).hasActiveSession(6L);
+    }
+
+    @Test
+    void noStaffDevicesMeansNothingToSend() {
+        when(subscriptions.findByAudience("STAFF")).thenReturn(List.of());
+
+        assertThat(channel.send(newOrder())).isFalse();
 
         verify(authService, never()).hasActiveSession(any());
+    }
+
+    private static NotificationMessage newOrder() {
+        return NotificationMessage.forAdmin(
+                1L, "ORDER_PLACED", "PLACED", "New order #ABC", "A new order just came in.");
+    }
+
+    private static PushSubscriptionEntity staffDevice(Long userId) {
+        PushSubscriptionEntity e = new PushSubscriptionEntity(
+                userId, "https://push.example/" + userId + "/" + System.nanoTime(), "p", "a", "JUnit");
+        e.setAudience("STAFF");
+        return e;
     }
 
     private static NotificationMessage assignment() {

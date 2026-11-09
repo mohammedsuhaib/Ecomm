@@ -20,6 +20,9 @@ import java.time.Instant;
 @Table(name = "push_subscriptions", schema = "notifications")
 class PushSubscriptionEntity {
 
+    static final String AUDIENCE_USER = "USER";
+    static final String AUDIENCE_STAFF = "STAFF";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -35,6 +38,10 @@ class PushSubscriptionEntity {
 
     @Column(nullable = false)
     private String auth;
+
+    /** {@code USER} (default) or {@code STAFF}; see V9_3. */
+    @Column(nullable = false)
+    private String audience = AUDIENCE_USER;
 
     @Column(name = "user_agent")
     private String userAgent;
@@ -77,6 +84,14 @@ class PushSubscriptionEntity {
     /** Per-subscription key material — never serialize to a client. */
     String getAuth() {
         return auth;
+    }
+
+    String getAudience() {
+        return audience;
+    }
+
+    void setAudience(String audience) {
+        this.audience = audience;
     }
 
     void setUserId(Long userId) {

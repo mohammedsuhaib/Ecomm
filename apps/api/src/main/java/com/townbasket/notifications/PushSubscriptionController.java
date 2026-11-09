@@ -48,7 +48,7 @@ class PushSubscriptionController {
     @Operation(summary = "Register this browser to receive order-update notifications.")
     void subscribe(@RequestBody PushSubscriptionRequest request,
                    @RequestHeader(value = "User-Agent", required = false) String userAgent) {
-        service.subscribe(currentUserId(), request, userAgent);
+        service.subscribe(currentUserId(), request, userAgent, isStaffCaller());
     }
 
     @DeleteMapping("/subscriptions")
@@ -56,6 +56,14 @@ class PushSubscriptionController {
     @Operation(summary = "Stop sending notifications to this browser.")
     void unsubscribe(@RequestBody PushSubscriptionRequest request) {
         service.unsubscribe(request == null ? null : request.endpoint());
+    }
+
+    /** Whether the caller holds a staff role (STORE_STAFF or ADMIN). */
+    private static boolean isStaffCaller() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_STORE_STAFF".equals(a.getAuthority())
+                        || "ROLE_ADMIN".equals(a.getAuthority()));
     }
 
     /**
