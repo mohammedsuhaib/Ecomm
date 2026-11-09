@@ -43,17 +43,34 @@ public class PushSubscriptionService {
      */
     @Transactional
     public void subscribe(Long userId, PushSubscriptionRequest request, String userAgent) {
+        subscribe(userId, request, userAgent, false);
+    }
+
+    /**
+     * As above, for a caller whose role is known. {@code staffCaller} is whether
+     * they are store staff / admin; only they may register for the store-wide
+     * staff alerts, because those carry every customer's order.
+     */
+    @Transactional
+    public void subscribe(Long userId, PushSubscriptionRequest request, String userAgent, boolean staffCaller) {
         if (request == null || isBlank(request.endpoint())) {
             throw new BusinessRuleException("A push subscription endpoint is required.");
         }
         if (request.keys() == null || isBlank(request.keys().p256dh()) || isBlank(request.keys().auth())) {
             throw new BusinessRuleException("A push subscription must carry its p256dh and auth keys.");
         }
+        if (request.forStaff() && !staffCaller) {
+            throw new BusinessRuleException("Only store staff can receive staff alerts.");
+        }
+        String audience = request.forStaff()
+                ? PushSubscriptionEntity.AUDIENCE_STAFF : PushSubscriptionEntity.AUDIENCE_USER;
         String endpoint = request.endpoint().trim();
         PushSubscriptionEntity entity = subscriptions.findByEndpoint(endpoint).orElse(null);
         if (entity == null) {
             PushSubscriptionEntity saved = subscriptions.save(new PushSubscriptionEntity(
                     userId, endpoint, request.keys().p256dh().trim(), request.keys().auth().trim(), userAgent));
+            saved.setAudience(audience);
+            subscriptions.save(saved);
             // Row id, never the endpoint: the endpoint URL is the capability that
             // authorises pushing to (and unsubscribing) that device.
             log.debug("Push subscription {} registered for user {}", saved.getId(), userId);
@@ -70,6 +87,7 @@ public class PushSubscriptionService {
         entity.setP256dh(request.keys().p256dh().trim());
         entity.setAuth(request.keys().auth().trim());
         entity.setUserAgent(userAgent);
+        entity.setAudience(audience);
         subscriptions.save(entity);
     }
 

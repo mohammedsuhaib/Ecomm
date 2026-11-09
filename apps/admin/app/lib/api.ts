@@ -859,3 +859,49 @@ export function getStaff(): Promise<StaffMember[]> {
 export function resetUserPassword(id: number, newPassword: string): Promise<null> {
   return apiMutate<null>('POST', `/admin/users/${encodeURIComponent(id)}/password`, { newPassword });
 }
+
+// ---- staff push alerts --------------------------------------------------------
+
+/** What the deployment supports: the VAPID key, or `enabled: false` when unset. */
+export interface PushConfig {
+  enabled: boolean;
+  publicKey: string | null;
+}
+
+/** The shape `PushSubscription.toJSON()` produces. */
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+/** GET /notifications/push-config — public; `enabled: false` when no VAPID keys. */
+export function getPushConfig(): Promise<PushConfig> {
+  return apiFetch<PushConfig>('/notifications/push-config');
+}
+
+/**
+ * POST /notifications/subscriptions with `audience: 'STAFF'` — register this
+ * browser for store-wide order alerts (a new order, a failed delivery). Stored
+ * against the signed-in staff account; the API refuses it for anyone else.
+ */
+export async function subscribeStaffToPush(
+  subscription: PushSubscriptionPayload,
+): Promise<void> {
+  await apiMutate<null>('POST', '/notifications/subscriptions', {
+    ...subscription,
+    audience: 'STAFF',
+  });
+}
+
+/**
+ * DELETE /notifications/subscriptions — authorised by the endpoint URL itself
+ * (an unguessable capability the browser minted), so no token is needed.
+ */
+export async function unsubscribeFromPush(endpoint: string): Promise<void> {
+  await fetch(buildUrl('/notifications/subscriptions'), {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+    cache: 'no-store',
+  });
+}

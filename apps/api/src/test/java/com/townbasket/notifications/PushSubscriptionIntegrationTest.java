@@ -52,6 +52,29 @@ class PushSubscriptionIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void staffAudienceIsRecordedForStaffAndRefusedForEveryoneElse() {
+        String endpoint = "https://fcm.googleapis.com/fcm/send/staff-tablet";
+        PushSubscriptionRequest staff = new PushSubscriptionRequest(
+                endpoint, new PushSubscriptionRequest.Keys("k", "a"), "STAFF");
+
+        // A customer (or rider) must not be able to claim the store-wide alerts:
+        // they carry every customer's order.
+        assertThatThrownBy(() -> service.subscribe(1L, staff, null, false))
+                .isInstanceOf(BusinessRuleException.class);
+        assertThat(countFor(endpoint)).isZero();
+
+        service.subscribe(3L, staff, null, true);
+        assertThat(audienceOf(endpoint)).isEqualTo("STAFF");
+
+        // The same browser re-registered as an ordinary subscription goes back
+        // to being one — switching alerts off must not leave it receiving them.
+        service.subscribe(3L, request(endpoint, "k", "a"), null, true);
+        assertThat(audienceOf(endpoint)).isEqualTo("USER");
+
+        service.unsubscribe(endpoint);
+    }
+
+    @Test
     void rejectsSubscriptionsMissingEndpointOrKeys() {
         assertThatThrownBy(() -> service.subscribe(1L, request(null, "k", "a"), null))
                 .isInstanceOf(BusinessRuleException.class);
@@ -70,6 +93,12 @@ class PushSubscriptionIntegrationTest extends AbstractIntegrationTest {
 
     private static PushSubscriptionRequest request(String endpoint, String p256dh, String auth) {
         return new PushSubscriptionRequest(endpoint, new PushSubscriptionRequest.Keys(p256dh, auth));
+    }
+
+    private String audienceOf(String endpoint) {
+        return jdbc.queryForObject(
+                "SELECT audience FROM notifications.push_subscriptions WHERE endpoint = ?",
+                String.class, endpoint);
     }
 
     private Integer countFor(String endpoint) {

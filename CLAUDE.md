@@ -173,6 +173,17 @@ images use `output: 'standalone'`.
   it deliberately matches **nothing** on the API, so the worker stays out of the
   order queue's SSE stream (`/admin/orders/stream`).
 
+- **Staff alerts by Web Push.** The admin Alerts button also registers the
+  device (`lib/push.ts`) with `audience: 'STAFF'`; `push_subscriptions.audience`
+  (V9.3) is what routes store-wide events to it — `WebPushNotificationChannel`
+  sends only `ORDER_PLACED` and `DELIVERY_FAILED` to staff devices, with the same
+  per-account `hasActiveSession` gate as everyone else. Only STORE_STAFF/ADMIN
+  callers may register as STAFF (an ADMIN also uses the rider app, so it is the
+  requested audience, not the role, that decides). The admin worker's `push`
+  handler stays silent while a dashboard window is visible, because the page has
+  already chimed. It adds a handler only; the worker still caches the shell and
+  nothing else.
+
 - **Live rider location** is a *customer* field, `OrderDto.riderLocation`, and
   its gate lives in exactly one place: `OrderServiceImpl#riderLocationFor`. It is
   set only by `getOrderByToken` (the single-order tracking read), only while
