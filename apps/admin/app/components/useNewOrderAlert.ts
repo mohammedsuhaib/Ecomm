@@ -18,6 +18,36 @@ const STORAGE_KEY = 'tb-admin-order-alert';
  * or cache. Browsers block audio until the user interacts with the page, so the
  * AudioContext is created on the toggle click (a real user gesture) and reused.
  */
+/**
+ * Show a desktop/phone notification.
+ *
+ * <p>Through the service worker when there is one, because `new Notification()`
+ * is not allowed on Android Chrome or in an installed app there (it throws
+ * "Illegal constructor"), which is where a phone on the counter would run this.
+ * The constructor is the fallback for a browser with no worker registered, such
+ * as a dev build.
+ */
+async function showNotification(title: string, options: NotificationOptions) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const registration =
+      'serviceWorker' in navigator
+        ? await navigator.serviceWorker.getRegistration()
+        : undefined;
+    if (registration) {
+      await registration.showNotification(title, options);
+      return;
+    }
+  } catch {
+    /* fall through to the constructor */
+  }
+  try {
+    new Notification(title, options);
+  } catch {
+    // Unsupported or blocked: the chime already fired.
+  }
+}
+
 export function useNewOrderAlert() {
   // Off until switched on: a store laptop should not start making noise by
   // itself. The choice is remembered per browser.
@@ -32,10 +62,44 @@ export function useNewOrderAlert() {
     }
   }, []);
 
+  // The chime needs an AudioContext that a user gesture has unlocked, and that
+  // only happened when someone pressed the Alerts button. After a reload, a
+  // restart of the installed app or a deploy, the button reads "Alerts on" from
+  // the remembered choice while no gesture has happened since, so the chime was
+  // silently skipped. Any tap or key press on the dashboard is a gesture too:
+  // use the first one to unlock audio again.
+  useEffect(() => {
+    if (!enabled) return;
+    const unlock = () => {
+      try {
+        const Ctor =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (!Ctor) return;
+        audioRef.current ??= new Ctor();
+        if (audioRef.current.state === 'suspended') {
+          void audioRef.current.resume();
+        }
+      } catch {
+        /* no audio: the notification still shows */
+      }
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [enabled]);
+
   const chime = useCallback(() => {
     const ctx = audioRef.current;
     if (!ctx) return;
     try {
+      // A context the browser re-suspended (tab long in the background) wakes
+      // up again if a gesture has happened since.
+      if (ctx.state === 'suspended') void ctx.resume();
       // Two short rising notes — audible in a shop without being alarming.
       const now = ctx.currentTime;
       [
@@ -73,19 +137,16 @@ export function useNewOrderAlert() {
     ({ title, body, tag }: { title: string; body: string; tag: string }) => {
       if (!enabled) return;
       chime();
-      try {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(title, {
-            body,
-            // One notification per KIND — replace rather than stack a row per
-            // order during a busy spell, without a delivery evicting the alert
-            // about a brand-new order that still needs picking.
-            tag,
-          });
-        }
-      } catch {
-        // Notification unsupported or blocked — the chime already fired.
-      }
+      void showNotification(title, {
+        body,
+        // One notification per KIND — replace rather than stack a row per
+        // order during a busy spell, without a delivery evicting the alert
+        // about a brand-new order that still needs picking.
+        tag,
+        // A replaced notification is silent by default, so a second new order
+        // while the first is still on screen would never buzz again.
+        renotify: true,
+      } as NotificationOptions);
     },
     [enabled, chime],
   );

@@ -50,6 +50,8 @@ export default function OrderQueue() {
   // same reason as the filter: the SSE effect must not re-subscribe every time
   // the alert toggle changes.
   const alert = useNewOrderAlert();
+  // Orders already announced (or already waiting when the queue opened).
+  const seenPlacedRef = useRef<Set<string>>(new Set());
   const notifyRef = useRef(alert.notify);
   notifyRef.current = alert.notify;
 
@@ -135,6 +137,38 @@ export default function OrderQueue() {
     // new orders / transitions appear instantly when it works.
     pollTimer = setInterval(refetch, 8000);
 
+    const announceNewOrder = () =>
+      notifyRef.current({
+        title: 'New order',
+        body: 'A new order just came in.',
+        tag: 'tb-new-order',
+      });
+
+    // The stream is the fast path, not the only one. It drops whenever the token
+    // lapses, the proxy recycles the connection, the API restarts or the phone
+    // sleeps, and during any of those the chime used to be lost for good while
+    // the poll kept the list right. So also look for orders waiting to be
+    // confirmed on a slower beat, independent of the filter the queue is showing,
+    // and announce any not seen before. The first look only records what is
+    // already waiting.
+    let seeded = false;
+    const watchPlaced = () => {
+      getAdminOrders('PLACED')
+        .then((p) => {
+          // Compared as text: the id is a number on the wire, though typed
+          // loosely here, and the stream's frame carries the same number.
+          const fresh = p.content.filter((o) => !seenPlacedRef.current.has(String(o.id)));
+          fresh.forEach((o) => seenPlacedRef.current.add(String(o.id)));
+          if (seeded && fresh.length > 0) announceNewOrder();
+          seeded = true;
+        })
+        .catch(() => {
+          /* transient: the next beat tries again */
+        });
+    };
+    watchPlaced();
+    const placedTimer = setInterval(watchPlaced, 10_000);
+
     /**
      * Alert on the transitions staff actually need to look up for. A new order
      * is the loud one; a cancellation and a delivery are the two that change
@@ -203,12 +237,17 @@ export default function OrderQueue() {
       es.onopen = () => {
         attempt = 0;
       };
-      es.addEventListener('order-placed', () => {
-        notifyRef.current({
-          title: 'New order',
-          body: 'A new order just came in.',
-          tag: 'tb-new-order',
-        });
+      es.addEventListener('order-placed', (event) => {
+        // Note the order as seen first, so the poll below does not announce it a
+        // second time.
+        try {
+          const id = (JSON.parse((event as MessageEvent<string>).data) as { orderId?: number })
+            .orderId;
+          if (id != null) seenPlacedRef.current.add(String(id));
+        } catch {
+          /* an unparseable frame is still worth the alert */
+        }
+        announceNewOrder();
         refetch();
       });
       es.addEventListener('order-updated', (event) => {
@@ -238,6 +277,7 @@ export default function OrderQueue() {
       if (es) es.close();
       if (pollTimer) clearInterval(pollTimer);
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(placedTimer);
     };
   }, [onAuthExpired]);
 
