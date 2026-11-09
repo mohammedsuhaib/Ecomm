@@ -100,35 +100,63 @@ export function useNewOrderAlert() {
     };
   }, [enabled]);
 
-  const chime = useCallback(() => {
+  /**
+   * Play a sound. `'order'` is the new-order ring: a louder, longer two-phrase
+   * bell, deliberately unlike the soft two-note blip the other alerts use, so
+   * staff can tell "an order needs picking" from "something changed" without
+   * looking at the screen. `'info'` is that soft blip.
+   */
+  const chime = useCallback((kind: 'order' | 'info' = 'info') => {
     const ctx = audioRef.current;
     if (!ctx) return;
     try {
       // A context the browser re-suspended (tab long in the background) wakes
       // up again if a gesture has happened since.
       if (ctx.state === 'suspended') void ctx.resume();
-      // Two short rising notes — audible in a shop without being alarming.
       const now = ctx.currentTime;
-      [
-        { freq: 880, at: 0 },
-        { freq: 1320, at: 0.18 },
-      ].forEach(({ freq, at }) => {
+      const notes =
+        kind === 'order'
+          ? // Rising four-note phrase, played twice — about two seconds.
+            [0, 0.9].flatMap((offset) =>
+              [784, 988, 1175, 1568].map((freq, i) => ({
+                freq,
+                at: offset + i * 0.17,
+                len: i === 3 ? 0.5 : 0.22,
+                level: 0.5,
+                type: 'triangle' as OscillatorType,
+              })),
+            )
+          : [
+              { freq: 880, at: 0, len: 0.16, level: 0.25, type: 'sine' as OscillatorType },
+              { freq: 1320, at: 0.18, len: 0.16, level: 0.25, type: 'sine' as OscillatorType },
+            ];
+      notes.forEach(({ freq, at, len, level, type }) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = 'sine';
+        osc.type = type;
         osc.frequency.value = freq;
         // Fade each note in and out so it doesn't click.
         gain.gain.setValueAtTime(0.0001, now + at);
-        gain.gain.exponentialRampToValueAtTime(0.25, now + at + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.16);
+        gain.gain.exponentialRampToValueAtTime(level, now + at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + at + len);
         osc.connect(gain).connect(ctx.destination);
         osc.start(now + at);
-        osc.stop(now + at + 0.18);
+        osc.stop(now + at + len + 0.02);
       });
     } catch {
       // Audio is a convenience; never let it break the queue.
     }
   }, []);
+
+  /**
+   * Ring again for orders still waiting to be confirmed. A new-order ring is
+   * easy to miss at the packing counter, and an order nobody has accepted is
+   * a customer waiting — so the queue calls this while any are outstanding,
+   * until someone confirms them. No-op while alerts are off.
+   */
+  const remind = useCallback(() => {
+    if (enabled) chime('order');
+  }, [enabled, chime]);
 
   /**
    * Call when an order event worth looking up for arrives. No-op while the
@@ -141,9 +169,20 @@ export function useNewOrderAlert() {
    * a new order, which is worse than not alerting at all.
    */
   const notify = useCallback(
-    ({ title, body, tag }: { title: string; body: string; tag: string }) => {
+    ({
+      title,
+      body,
+      tag,
+      ring = false,
+    }: {
+      title: string;
+      body: string;
+      tag: string;
+      /** The loud new-order ring, instead of the soft blip. */
+      ring?: boolean;
+    }) => {
       if (!enabled) return;
-      chime();
+      chime(ring ? 'order' : 'info');
       void showNotification(title, {
         body,
         // One notification per KIND — replace rather than stack a row per
@@ -212,5 +251,5 @@ export function useNewOrderAlert() {
     }
   }, [enabled]);
 
-  return { enabled, toggle, notify };
+  return { enabled, toggle, notify, remind };
 }
