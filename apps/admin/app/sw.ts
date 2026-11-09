@@ -136,3 +136,15 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Tapping an order alert brings the dashboard forward (or opens it), rather than
+// just dismissing the notification. The alerts are raised by the page through
+// this worker (see useNewOrderAlert), so the click lands here.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windows) => (windows.length > 0 ? windows[0].focus() : self.clients.openWindow('/'))),
+  );
+});
