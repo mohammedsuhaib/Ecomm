@@ -21,6 +21,9 @@ import { ListSkeleton } from './Skeleton';
  * back to polling if EventSource is unavailable or erroring (ARCHITECTURE §3.8).
  * Mobile/tablet-friendly card layout.
  */
+/** How long an unconfirmed order may sit before the ring repeats. */
+const REMIND_EVERY_MS = 30_000;
+
 export default function OrderQueue() {
   const { refresh: refreshAuth } = useAuth();
   const [status, setStatus] = useState('');
@@ -54,6 +57,11 @@ export default function OrderQueue() {
   const seenPlacedRef = useRef<Set<string>>(new Set());
   const notifyRef = useRef(alert.notify);
   notifyRef.current = alert.notify;
+  const remindRef = useRef(alert.remind);
+  remindRef.current = alert.remind;
+  // When the new-order ring last sounded, so the reminder does not talk over
+  // the announcement it follows.
+  const lastRingRef = useRef(0);
 
   // When a call hits an unrecoverable 401, api.ts has already cleared the
   // stored session; re-sync the auth context so <LoginGate> drops to the login
@@ -137,12 +145,15 @@ export default function OrderQueue() {
     // new orders / transitions appear instantly when it works.
     pollTimer = setInterval(refetch, 8000);
 
-    const announceNewOrder = () =>
+    const announceNewOrder = () => {
+      lastRingRef.current = Date.now();
       notifyRef.current({
         title: 'New order',
         body: 'A new order just came in.',
         tag: 'tb-new-order',
+        ring: true,
       });
+    };
 
     // The stream is the fast path, not the only one. It drops whenever the token
     // lapses, the proxy recycles the connection, the API restarts or the phone
@@ -159,7 +170,17 @@ export default function OrderQueue() {
           // loosely here, and the stream's frame carries the same number.
           const fresh = p.content.filter((o) => !seenPlacedRef.current.has(String(o.id)));
           fresh.forEach((o) => seenPlacedRef.current.add(String(o.id)));
-          if (seeded && fresh.length > 0) announceNewOrder();
+          if (seeded && fresh.length > 0) {
+            announceNewOrder();
+          } else if (
+            p.content.length > 0 &&
+            Date.now() - lastRingRef.current >= REMIND_EVERY_MS
+          ) {
+            // Orders are still waiting for someone to accept them (including
+            // ones already there when the dashboard opened): ring again.
+            lastRingRef.current = Date.now();
+            remindRef.current();
+          }
           seeded = true;
         })
         .catch(() => {
