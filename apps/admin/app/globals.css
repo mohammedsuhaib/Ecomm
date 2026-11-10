@@ -1535,6 +1535,40 @@ a {
   font-size: 0.9rem;
 }
 
+/* Orders waiting on staff glow, so the card that needs a person is the one the
+   eye lands on across a busy counter. Three reasons, three colours: a new order
+   nobody has accepted (amber), a failed delivery that needs a decision
+   (orange-red), and a packed bag with no rider (teal, matching its status).
+   The glow breathes rather than flashes — it has to be noticed, not be an
+   alarm — and is still, but still lit, for anyone who has asked their device
+   for reduced motion. */
+.order-card.needs-action {
+  --glow: 217, 163, 0;
+  border-color: rgb(var(--glow));
+  box-shadow: 0 0 0 1px rgba(var(--glow), 0.6), 0 0 14px 2px rgba(var(--glow), 0.45);
+  animation: order-glow 2s ease-in-out infinite;
+}
+.order-card.needs-action-failed {
+  --glow: 234, 88, 12;
+}
+.order-card.needs-action-rider {
+  --glow: 13, 148, 136;
+}
+@keyframes order-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(var(--glow), 0.5), 0 0 8px 1px rgba(var(--glow), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(var(--glow), 0.9), 0 0 22px 5px rgba(var(--glow), 0.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-card.needs-action {
+    animation: none;
+  }
+}
+
 /* Store panel: the live status card staff read before/after flipping a switch. */
 .store-status {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
