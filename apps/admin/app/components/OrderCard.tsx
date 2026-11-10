@@ -9,7 +9,13 @@ import {
   transitionOrder,
 } from '@/app/lib/api';
 import { formatRupees, formatTime } from '@/app/lib/format';
-import { STATUS_LABELS, awaitsRiderPickup, canCancel, nextStatus } from '@/app/lib/status';
+import {
+  STATUS_LABELS,
+  actionNeeded,
+  awaitsRiderPickup,
+  canCancel,
+  nextStatus,
+} from '@/app/lib/status';
 import type { DeliveryAgent, Order } from '@/app/lib/types';
 
 function agentLabel(a: DeliveryAgent): string {
@@ -53,6 +59,8 @@ export default function OrderCard({
   const [otp, setOtp] = useState('');
 
   const next = nextStatus(order.status);
+  // Glows while the queue is waiting on staff for this order.
+  const needsAction = actionNeeded(order);
   const terminal = order.status === 'DELIVERED' || order.status === 'CANCELLED';
   // The goods have left the shop. Assigning a rider here is recording who is
   // holding them, not handing out a new job — so an off-duty rider stays
@@ -198,7 +206,11 @@ export default function OrderCard({
   }
 
   return (
-    <article className={`order-card status-${order.status}`}>
+    <article
+      className={`order-card status-${order.status}${
+        needsAction ? ` needs-action needs-action-${needsAction}` : ''
+      }`}
+    >
       <header className="order-card-head">
         <div>
           <span className="order-id">#{order.publicCode}</span>

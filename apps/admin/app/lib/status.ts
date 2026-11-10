@@ -1,4 +1,4 @@
-import type { OrderStatus } from './types';
+import type { Order, OrderStatus } from './types';
 
 export const STATUS_LABELS: Record<OrderStatus, string> = {
   PLACED: 'Placed',
@@ -61,3 +61,27 @@ export const STATUS_TABS: { value: string; label: string }[] = [
   { value: 'DELIVERED', label: 'Delivered' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
+
+/**
+ * Why an order is asking for a person right now, or null when it is not.
+ *
+ * <p>These are the moments the queue is waiting on staff, not on the customer
+ * or the rider: a new order nobody has accepted, a delivery that came back and
+ * needs a decision, and a packed bag with no rider to take it. The in-progress
+ * steps (confirmed, packing, out for delivery) are deliberately absent — they
+ * are being worked, and a glow on every card would stop meaning anything.
+ */
+export type ActionReason = 'new' | 'failed' | 'rider';
+
+export function actionNeeded(order: Pick<Order, 'status' | 'assignedAgentId'>): ActionReason | null {
+  switch (order.status) {
+    case 'PLACED':
+      return 'new';
+    case 'DELIVERY_FAILED':
+      return 'failed';
+    case 'READY_FOR_DELIVERY':
+      return order.assignedAgentId == null ? 'rider' : null;
+    default:
+      return null;
+  }
+}
