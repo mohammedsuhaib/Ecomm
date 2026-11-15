@@ -151,8 +151,15 @@ export default function CartProvider({
   // The cart, readable synchronously from a callback. This is what lets every
   // action below keep a stable identity: none of them closes over `cart`.
   const cartRef = useRef<Cart | null>(null);
+  // Server line id for each variant seen in a cart. Reducing a line to zero
+  // drops it from `cartRef` immediately (optimistic), but the request that
+  // actually deletes it goes out a moment later and needs the line's id —
+  // without this the flush found no line, took it for a brand-new item and
+  // tried to ADD zero of it, which the server rejects ("qty must be positive").
+  const lineIdsRef = useRef<Map<string, string>>(new Map());
   const commit = useCallback((next: Cart | null) => {
     cartRef.current = next;
+    next?.items.forEach((i) => lineIdsRef.current.set(i.variantId, i.itemId));
     setCart(next);
     // A basket with something in it is a NEW basket, so the "you just ordered"
     // note has done its job — drop it. Without this the note outlives its
@@ -380,9 +387,28 @@ export default function CartProvider({
         try {
           const id = await ensureCartId();
           const line = cartRef.current?.items.find((i) => i.variantId === variantId);
-          updated = line
-            ? await updateCartItem(id, line.itemId, target)
+          // A line reduced to zero is already gone from the local cart; its
+          // remembered id is how the delete finds it on the server.
+          const itemId =
+            line?.itemId ?? (target <= 0 ? lineIdsRef.current.get(variantId) : undefined);
+          if (itemId === undefined && target <= 0) {
+            // Nothing to remove: it was never on the server, so there is no
+            // request to make. Never POST a zero quantity.
+            targetsRef.current.delete(variantId);
+            publishTargets();
+            // Same order as the failure path below: end this write first so the
+            // resync is allowed to commit, and tell `finally` it is done.
+            endWrite();
+            failed = true;
+            await refresh();
+            return;
+          }
+          updated = itemId !== undefined
+            ? await updateCartItem(id, itemId, target)
             : await addCartItem(id, variantId, target);
+          // The line is gone once removed; forget its id so a later re-add is
+          // treated as a new line rather than an update of a dead one.
+          if (target <= 0) lineIdsRef.current.delete(variantId);
 
           // Clear the pending target only if it is still the number we just
           // sent. A tap during the request left a newer one, which must survive
