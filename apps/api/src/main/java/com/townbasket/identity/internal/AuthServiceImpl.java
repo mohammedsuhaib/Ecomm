@@ -54,6 +54,14 @@ class AuthServiceImpl implements AuthService {
 
     private final UserRepository users;
     private final AddressRepository addresses;
+    /**
+     * How long after a rotation the spent token may be presented again without
+     * being treated as theft. Long enough for a racing request or a retry on a
+     * flaky mobile connection; short enough that a stolen token replayed later
+     * still revokes every session.
+     */
+    static final java.time.Duration REFRESH_REUSE_GRACE = java.time.Duration.ofSeconds(30);
+
     private final RefreshTokenRepository refreshTokens;
     private final RefreshTokenRevoker refreshTokenRevoker;
     private final JwtTokenService tokens;
@@ -175,6 +183,17 @@ class AuthServiceImpl implements AuthService {
         // family (in its own committed transaction) and reject. Distinguished from a
         // merely expired token, which is just rejected.
         if (stored.isRevoked()) {
+            // Spent a moment ago by a rotation, not replayed: the second half of a
+            // race between two requests holding the same token (two tabs, or a
+            // phone waking up and firing several calls at once). Reject it, but
+            // leave the person's sessions alone — revoking them all here is what
+            // used to sign people out of everything for no reason. The caller
+            // that won the race holds the new token.
+            if (stored.wasJustRotated(Instant.now(), REFRESH_REUSE_GRACE)) {
+                log.info("Refresh token presented again {}s after rotation for user {} — treating as a race, not reuse",
+                        REFRESH_REUSE_GRACE.toSeconds(), stored.getUserId());
+                throw new InvalidCredentialsException("Invalid refresh token");
+            }
             // The one security event in here that is not routine: either a token
             // was stolen and replayed, or a client is retrying a rotation it
             // already completed. Every session of that user is now dead, so the
@@ -198,8 +217,8 @@ class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException("Invalid refresh token");
         }
 
-        // Rotate: revoke the presented token, mint a fresh pair.
-        stored.revoke();
+        // Rotate: spend the presented token (noting when), mint a fresh pair.
+        stored.rotate(Instant.now());
         String access = tokens.issueAccessToken(user.getId(), user.getRole());
         String refresh = newStoredRefreshToken(user.getId());
         return new TokenPair(access, refresh);

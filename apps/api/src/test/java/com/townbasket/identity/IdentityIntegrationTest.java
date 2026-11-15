@@ -101,9 +101,29 @@ class IdentityIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void reuseWithinGraceWindowIsARaceNotTheft() {
+        AuthResponse res = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900006"));
+        TokenPair rotated = authService.refresh(new RefreshRequest(res.refreshToken()));
+
+        // A second request that raced the first arrives with the now-spent token.
+        // It is refused, but it must NOT take the person's other sessions down —
+        // the winner's new token has to keep working.
+        assertThatThrownBy(() -> authService.refresh(new RefreshRequest(res.refreshToken())))
+                .isInstanceOf(InvalidCredentialsException.class);
+
+        TokenPair next = authService.refresh(new RefreshRequest(rotated.refreshToken()));
+        assertThat(next.refreshToken()).isNotBlank();
+    }
+
+    @Test
     void reuseOfRevokedTokenRevokesWholeFamily() {
         AuthResponse res = authService.phoneVerify(new PhoneVerifyRequest("dev:9999900005"));
         TokenPair rotated = authService.refresh(new RefreshRequest(res.refreshToken()));
+
+        // Replayed well after the rotation (not within the race grace window — see
+        // reuseWithinGraceWindowIsARaceNotTheft), so push the rotation back in time.
+        jdbcTemplate.update(
+                "UPDATE identity.refresh_tokens SET rotated_at = now() - interval '5 minutes' WHERE rotated_at IS NOT NULL");
 
         // Replaying the already-rotated (revoked) token is treated as theft: the
         // request is rejected AND the whole token family is revoked (in its own

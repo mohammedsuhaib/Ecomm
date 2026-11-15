@@ -403,9 +403,11 @@ async function ensureFreshAccessToken(): Promise<void> {
   const refresh = loadRefreshToken();
   if (!refresh) return;
   try {
-    saveTokens(await refreshTokens(refresh));
+    await refreshSession(refresh);
   } catch {
-    clearAuth();
+    // A dead session was already cleared by refreshSession; a transient failure
+    // (offline, a 5xx) keeps it. Either way the order carries on, as a guest if
+    // need be, rather than blocking checkout.
   }
 }
 
@@ -487,6 +489,62 @@ function refreshTokens(refreshToken: string): Promise<TokenPair> {
   return apiMutate<TokenPair>('POST', '/auth/refresh', { refreshToken });
 }
 
+/** The refresh call in flight in this tab, so concurrent callers share one. */
+let refreshFlight: Promise<void> | null = null;
+
+/**
+ * Rotate the session's tokens — once, however many callers ask at the same time.
+ *
+ * <p>Refresh tokens are single-use: every rotation spends the old one. When the
+ * 15-minute access token lapsed, a page that fires several authenticated calls
+ * at once (or a second tab, or a phone waking up) sent the SAME refresh token
+ * from each of them. One won; the others presented a spent token, the server
+ * took that for a replayed (stolen) token, and the person was signed out — the
+ * most common reason customers reported being "logged out all the time".
+ *
+ * <p>Two layers prevent that here. Within a tab, callers share one in-flight
+ * request. Across tabs, a Web Lock serialises the rotation, and the stored
+ * refresh token is re-read once the lock is held: if it is no longer the one
+ * this caller started with, another tab already rotated it and the fresh pair is
+ * sitting in storage, so there is nothing left to do.
+ *
+ * <p>Only a refusal from the server (400/401: the token is expired, revoked or
+ * unknown) ends the session. A network failure or a 5xx leaves the person signed
+ * in so the next call can try again — losing signal for a moment must not log
+ * anyone out.
+ */
+function refreshSession(usedRefresh: string): Promise<void> {
+  if (refreshFlight) return refreshFlight;
+
+  const rotate = async (): Promise<void> => {
+    const current = loadRefreshToken();
+    if (!current) throw new ApiError(401, '/auth/refresh', 'Signed out');
+    // Someone else (another tab) rotated while we waited: use what they stored.
+    if (current !== usedRefresh) return;
+    try {
+      saveTokens(await refreshTokens(current));
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 400 || err.status === 401)) {
+        // The server may have refused because a racing request rotated it a
+        // moment ago. Only sign out if the stored token is still the one we sent.
+        if (loadRefreshToken() === current) clearAuth();
+      }
+      throw err;
+    }
+  };
+
+  const locks =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & { locks?: LockManager }).locks
+      : undefined;
+  const run = locks ? locks.request('tb-auth-refresh', rotate) : rotate();
+
+  refreshFlight = Promise.resolve(run).finally(() => {
+    refreshFlight = null;
+  });
+  return refreshFlight;
+}
+
 /** POST /auth/logout — revoke the refresh token (idempotent → 204). */
 export function logout(refreshToken: string): Promise<void> {
   return apiMutate<void>('POST', '/auth/logout', { refreshToken });
@@ -542,14 +600,10 @@ async function authRequest<T>(run: () => Promise<T>): Promise<T> {
       throw err;
     }
 
-    try {
-      const pair = await refreshTokens(refresh);
-      saveTokens(pair); // persist the rotated pair before retrying
-    } catch (refreshErr) {
-      // Refresh failed (expired/revoked) — drop the session and surface 401.
-      clearAuth();
-      throw refreshErr;
-    }
+    // Shared, serialised rotation — see refreshSession. It clears the session
+    // itself when the server really has refused it, and leaves it alone on a
+    // network blip (the error still propagates to this call).
+    await refreshSession(refresh);
 
     // Retry exactly once with the new access token.
     return run();

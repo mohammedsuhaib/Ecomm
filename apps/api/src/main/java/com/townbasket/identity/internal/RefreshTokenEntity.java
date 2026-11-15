@@ -34,6 +34,10 @@ class RefreshTokenEntity {
     @Column(nullable = false)
     private boolean revoked;
 
+    /** Set when spent by rotation; null for logout / family revokes. See V2_7. */
+    @Column(name = "rotated_at")
+    private Instant rotatedAt;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -62,6 +66,20 @@ class RefreshTokenEntity {
 
     void revoke() {
         this.revoked = true;
+    }
+
+    /** Spend this token by rotation, remembering when. */
+    void rotate(Instant now) {
+        this.revoked = true;
+        this.rotatedAt = now;
+    }
+
+    /**
+     * Whether this token was spent by rotation no more than {@code grace} ago —
+     * i.e. a second request that raced the one that rotated it, not a replay.
+     */
+    boolean wasJustRotated(Instant now, java.time.Duration grace) {
+        return rotatedAt != null && rotatedAt.plus(grace).isAfter(now);
     }
 
     boolean isUsable(Instant now) {
