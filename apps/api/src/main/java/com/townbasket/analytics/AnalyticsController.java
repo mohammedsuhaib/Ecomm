@@ -12,8 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
  * Admin analytics REST API — all endpoints under {@code /api/v1/admin/analytics}.
  * Secured by the existing {@code STORE_STAFF | ADMIN} rule on {@code /api/v1/admin/**}.
  *
- * <p>All queries run read-only against existing {@code orders.*} and
- * {@code inventory.*} schemas via native SQL; no additional tables required.
+ * <p>All queries run read-only against existing {@code orders.*},
+ * {@code inventory.*} and {@code identity.users} via native SQL; no additional
+ * tables required.
  */
 @RestController
 @RequestMapping("/api/v1/admin/analytics")
@@ -47,6 +48,14 @@ class AnalyticsController {
             @RequestParam(defaultValue = "30") int days,
             @RequestParam(defaultValue = "10") int limit) {
         return analyticsService.getTopProducts(storeId, Math.min(days, 90), Math.min(limit, 50));
+    }
+
+    @GetMapping("/customers")
+    @Operation(summary = "Customer accounts: total, new in the last N days, ordered at least once, repeat.")
+    CustomerStatsDto customers(
+            @RequestParam(defaultValue = "1") Long storeId,
+            @RequestParam(defaultValue = "30") int days) {
+        return analyticsService.getCustomerStats(storeId, Math.max(1, Math.min(days, 90)));
     }
 
     @GetMapping("/low-stock")

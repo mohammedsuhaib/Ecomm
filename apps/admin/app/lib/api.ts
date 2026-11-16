@@ -24,6 +24,7 @@ import type {
   AgentDeliveryStat,
   AdminVariant,
   AnalyticsSummary,
+  CustomerStats,
   AuthResponse,
   Category,
   DailySummary,
@@ -783,6 +784,14 @@ export function getTopProducts(
   limit = 10,
 ): Promise<TopProduct[]> {
   return apiFetch<TopProduct[]>('/admin/analytics/top-products', { storeId, days, limit });
+}
+
+/**
+ * GET /admin/analytics/customers — customer accounts in total, new in the last
+ * N days, and how many have ordered once / more than once.
+ */
+export function getCustomerStats(storeId = 1, days = 30): Promise<CustomerStats> {
+  return apiFetch<CustomerStats>('/admin/analytics/customers', { storeId, days });
 }
 
 /** GET /admin/analytics/low-stock — variants at or below their low-stock threshold. */

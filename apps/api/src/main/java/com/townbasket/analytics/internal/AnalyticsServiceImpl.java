@@ -2,6 +2,7 @@ package com.townbasket.analytics.internal;
 
 import com.townbasket.analytics.AnalyticsService;
 import com.townbasket.analytics.AnalyticsSummaryDto;
+import com.townbasket.analytics.CustomerStatsDto;
 import com.townbasket.analytics.DailySummaryDto;
 import com.townbasket.analytics.LowStockDto;
 import com.townbasket.analytics.TopProductDto;
@@ -64,6 +65,38 @@ class AnalyticsServiceImpl implements AnalyticsService {
                         rs.getInt("today_orders"),
                         rs.getInt("today_delivered"),
                         rs.getInt("pending_orders")));
+    }
+
+    @Override
+    public CustomerStatsDto getCustomerStats(Long storeId, int days) {
+        // Accounts come from identity.users (role CUSTOMER); "ordered" is counted
+        // from this store's non-cancelled orders that carry a user id. Orders
+        // placed before login was required have none, so they are not customers
+        // here. Days are IST, matching the rest of the dashboard.
+        String sql = """
+                WITH buyers AS (
+                  SELECT user_id, COUNT(*) AS orders
+                  FROM orders.orders
+                  WHERE store_id = :storeId AND status != 'CANCELLED' AND user_id IS NOT NULL
+                  GROUP BY user_id
+                )
+                SELECT
+                  (SELECT COUNT(*) FROM identity.users WHERE role = 'CUSTOMER') AS total,
+                  (SELECT COUNT(*) FROM identity.users
+                     WHERE role = 'CUSTOMER'
+                       AND (created_at AT TIME ZONE 'Asia/Kolkata')::date
+                         > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date - :days) AS new_in_period,
+                  (SELECT COUNT(*) FROM buyers) AS with_orders,
+                  (SELECT COUNT(*) FROM buyers WHERE orders >= 2) AS repeat_customers
+                """;
+        return jdbc.queryForObject(
+                sql,
+                new MapSqlParameterSource("storeId", storeId).addValue("days", days),
+                (rs, n) -> new CustomerStatsDto(
+                        rs.getInt("total"),
+                        rs.getInt("new_in_period"),
+                        rs.getInt("with_orders"),
+                        rs.getInt("repeat_customers")));
     }
 
     @Override
