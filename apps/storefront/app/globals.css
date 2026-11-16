@@ -878,6 +878,61 @@ a:hover {
   text-align: center;
 }
 
+/* ---- Sticky cart bar (phones) ----
+   Fixed to the bottom once the basket has something in it. Hidden from 768px up,
+   where the header's cart button stays in view. The spacer is the same height
+   as the bar so the footer and the last products are never covered; the safe-
+   area inset keeps it clear of the home indicator on notched phones. */
+.sticky-cart-bar,
+.sticky-cart-spacer {
+  display: none;
+}
+@media (max-width: 767px) {
+  .sticky-cart-spacer {
+    display: block;
+    height: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+  .sticky-cart-bar {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    z-index: 30; /* above the page and header (20), below the location prompt (100) */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 52px;
+    padding: 0.55rem 1rem;
+    border-radius: 14px;
+    background: var(--green);
+    color: var(--on-primary);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    text-decoration: none;
+  }
+  .sticky-cart-bar:hover {
+    color: var(--on-primary);
+  }
+  .sticky-cart-summary {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+  .sticky-cart-count {
+    font-size: 0.78rem;
+    opacity: 0.9;
+  }
+  .sticky-cart-total {
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+  .sticky-cart-cta {
+    font-size: 1rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+}
+
 /* ---- Quantity stepper ---- */
 .add-to-cart {
   display: flex;

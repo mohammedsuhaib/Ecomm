@@ -11,6 +11,7 @@ import CartProvider from './components/CartProvider';
 import AuthProvider from './components/AuthProvider';
 import ChunkErrorRecovery from './components/ChunkErrorRecovery';
 import InstallPrompt from './components/InstallPrompt';
+import StickyCartBar from './components/StickyCartBar';
 import { isNoIndex, siteUrl } from './lib/site';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -127,6 +128,8 @@ export default async function RootLayout({
                   <Suspense fallback={null}>{children}</Suspense>
                 </main>
                 <Footer />
+                {/* Phones only: the way to the cart, kept under the thumb. */}
+                <StickyCartBar />
               </CartProvider>
             </AuthProvider>
           </LocationGate>

@@ -68,6 +68,10 @@
     "ariaYourAccount": "Your account",
     "ariaLogIn": "Log in"
   },
+  "stickyCart": {
+    "items": "{count, plural, one {# item} other {# items}}",
+    "view": "View cart"
+  },
   "cartIndicator": {
     "aria": "Cart, {count, plural, one {# item} other {# items}}"
   },
