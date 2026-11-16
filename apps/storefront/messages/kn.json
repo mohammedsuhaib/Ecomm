@@ -68,6 +68,10 @@
     "ariaYourAccount": "ನಿಮ್ಮ ಖಾತೆ",
     "ariaLogIn": "ಲಾಗಿನ್ ಮಾಡಿ"
   },
+  "stickyCart": {
+    "items": "{count, plural, one {# ವಸ್ತು} other {# ವಸ್ತುಗಳು}}",
+    "view": "ಕಾರ್ಟ್ ನೋಡಿ"
+  },
   "cartIndicator": {
     "aria": "ಕಾರ್ಟ್, {count, plural, one {# ವಸ್ತು} other {# ವಸ್ತುಗಳು}}"
   },
