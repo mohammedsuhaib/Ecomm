@@ -148,6 +148,13 @@ a:hover {
   .header-search {
     order: 0;
     width: auto;
+    /* A smaller starting width (it still grows to fill the row): the larger
+       cart button needs the room, and a wrapped header drops it onto a second
+       line on a normal laptop screen. */
+    flex-basis: 160px;
+    /* Without this a flex item never shrinks below its content's natural width
+       (the input's default size), so the smaller basis above would be ignored. */
+    min-width: 0;
   }
 }
 
@@ -834,38 +841,39 @@ a:hover {
 .cart-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   position: relative;
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--on-primary);
+  /* Solid white on the green header: the one control that must never be missed. */
+  background: #fff;
+  color: var(--green-dark);
   border-radius: 999px;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
+  /* A comfortable thumb target (>= 44px tall). */
+  min-height: 44px;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 .cart-pill:hover {
-  background: rgba(255, 255, 255, 0.26);
-  color: var(--on-primary);
+  background: var(--green-light);
+  color: var(--green-dark);
 }
-.cart-pill .cart-label {
-  display: none;
-}
-@media (min-width: 480px) {
-  .cart-pill .cart-label {
-    display: inline;
-  }
+.cart-pill .cart-icon {
+  flex: none;
 }
 .cart-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  top: -7px;
+  right: -7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
   border-radius: 999px;
-  background: #fff;
-  color: var(--green-dark);
-  font-size: 0.72rem;
-  font-weight: 700;
+  background: #f5a300;
+  color: #1f1300;
+  border: 2px solid var(--green);
+  font-size: 0.75rem;
+  font-weight: 800;
   line-height: 18px;
   text-align: center;
 }
