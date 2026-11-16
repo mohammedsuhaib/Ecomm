@@ -14,6 +14,12 @@ public interface AnalyticsService {
     /** Top {@code limit} variants by units sold in the last {@code days} days. */
     List<TopProductDto> getTopProducts(Long storeId, int days, int limit);
 
+    /**
+     * Customer counts for a store: accounts in total, those created in the last
+     * {@code days} days, and how many have ordered once or more than once.
+     */
+    CustomerStatsDto getCustomerStats(Long storeId, int days);
+
     /** All variants at or below their low-stock threshold for a store. */
     List<LowStockDto> getLowStockItems(Long storeId);
 }

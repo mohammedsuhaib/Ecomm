@@ -4,12 +4,19 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   exportSalesReport,
   getAnalyticsSummary,
+  getCustomerStats,
   getDailySummary,
   getLowStockItems,
   getTopProducts,
   AuthRequiredError,
 } from '@/app/lib/api';
-import type { AnalyticsSummary, DailySummary, LowStockItem, TopProduct } from '@/app/lib/types';
+import type {
+  AnalyticsSummary,
+  CustomerStats,
+  DailySummary,
+  LowStockItem,
+  TopProduct,
+} from '@/app/lib/types';
 import { useAuth } from './AuthProvider';
 
 function fmt(n: number) {
@@ -44,6 +51,7 @@ export default function AnalyticsDashboard() {
   const [daily, setDaily] = useState<DailySummary[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [customers, setCustomers] = useState<CustomerStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,16 +84,23 @@ export default function AnalyticsDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const [s, d, tp, ls] = await Promise.all([
+        const [s, d, tp, ls, cs] = await Promise.all([
           getAnalyticsSummary(),
           getDailySummary(1, days),
           getTopProducts(1, days, 10),
           getLowStockItems(),
+          // Not essential: if only this call fails (an older API, say), the
+          // rest of the dashboard should still load, so it settles to null.
+          getCustomerStats(1, days).catch((err) => {
+            if (err instanceof AuthRequiredError) throw err;
+            return null;
+          }),
         ]);
         setSummary(s);
         setDaily(d);
         setTopProducts(tp);
         setLowStock(ls);
+        setCustomers(cs);
       } catch (err) {
         if (err instanceof AuthRequiredError) {
           refreshAuth();
@@ -201,6 +216,31 @@ export default function AnalyticsDashboard() {
             <div className="kpi-value">{fmt(periodGrossProfit)}</div>
             <div className="kpi-sub">{pct(periodGrossProfit, periodRevenue)} margin · {fmt(periodRevenue)} revenue</div>
           </div>
+          {customers && (
+            <>
+              <div className="kpi-card">
+                <div className="kpi-label">Customers</div>
+                <div className="kpi-value">{customers.total}</div>
+                <div className="kpi-sub">
+                  {customers.newInPeriod} new in {period} days
+                </div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Customers who ordered</div>
+                <div className="kpi-value">{customers.withOrders}</div>
+                <div className="kpi-sub">
+                  {pct(customers.withOrders, customers.total)} of customers
+                </div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Repeat customers</div>
+                <div className="kpi-value">{customers.repeatCustomers}</div>
+                <div className="kpi-sub">
+                  {pct(customers.repeatCustomers, customers.withOrders)} of those who ordered
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

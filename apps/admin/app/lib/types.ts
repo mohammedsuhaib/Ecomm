@@ -207,6 +207,14 @@ export interface AnalyticsSummary {
   // 7/30/90-day filter is summed from the daily series, which the filter drives.
 }
 
+/** Customer accounts: how many exist, how many are new, how many have ordered. */
+export interface CustomerStats {
+  total: number;
+  newInPeriod: number;
+  withOrders: number;
+  repeatCustomers: number;
+}
+
 /** Revenue, order count, and gross profit for a single calendar day. */
 export interface DailySummary {
   date: string; // yyyy-MM-dd
