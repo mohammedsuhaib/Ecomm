@@ -224,37 +224,90 @@ a:hover {
   margin: 1.5rem 0 0.85rem;
 }
 
-/* ---- Category grid ---- */
+/* ---- Category grid ----
+   The first thing under the banner, so it is built to be seen and tapped: big
+   round pictures on a soft colour halo, four to a row on a phone so all the
+   aisles are visible without a long scroll. The halo colours cycle through a
+   fixed set of pastels (no per-category data needed) to give the grid some life
+   without any one tile shouting. */
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.85rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem 0.5rem;
+}
+@media (min-width: 560px) {
+  .category-grid {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 1.25rem 0.85rem;
+  }
 }
 .category-card {
+  --halo: #dcefdd;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  gap: 0.45rem;
+  padding: 0;
+  background: none;
+  border: none;
   text-align: center;
   color: var(--text);
-  transition: border-color 0.15s, transform 0.05s;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+  transition: transform 0.05s;
 }
+.category-card:nth-child(6n + 2) { --halo: #ffe8c7; }
+.category-card:nth-child(6n + 3) { --halo: #d3e8fb; }
+.category-card:nth-child(6n + 4) { --halo: #f9d3df; }
+.category-card:nth-child(6n + 5) { --halo: #ead5f0; }
+.category-card:nth-child(6n + 6) { --halo: #fdf3b8; }
 .category-card:hover {
-  border-color: var(--green);
   color: var(--green-dark);
 }
+.category-card .cat-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  /* A tinted rounded square holding a round picture: a colour block that reads
+     as a button and matches the tiles customers know from other quick-commerce
+     apps. (The category pictures are circles saved as JPEGs with black corners,
+     so they are clipped round rather than filling the square.) */
+  border-radius: 18px;
+  background: var(--halo);
+  padding: 9%;
+  transition: box-shadow 0.15s;
+}
+.category-card:hover .cat-tile {
+  box-shadow: 0 0 0 2px var(--green);
+}
 .category-card .cat-emoji {
-  font-size: 1.6rem;
+  font-size: 2rem;
 }
 .category-card img {
-  width: 56px;
-  height: 56px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+/* Long names ("Dry fruits, Spices & Masalas") wrap and then stop, so one very
+   long name cannot make its row much taller than the rest. Three lines on a
+   phone, where four tiles share the width, so nothing is cut short. */
+.category-card .cat-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  font-size: 0.78rem;
+}
+@media (min-width: 560px) {
+  .category-card .cat-name {
+    -webkit-line-clamp: 2;
+    font-size: 0.8rem;
+  }
 }
 
 /* ---- Product grid ---- */

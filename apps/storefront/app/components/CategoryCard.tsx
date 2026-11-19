@@ -8,15 +8,17 @@ export default function CategoryCard({ category }: { category: Category }) {
   const locale = useLocale();
   return (
     <Link href={`/category/${category.slug}`} className="category-card">
-      {category.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={category.imageUrl} alt="" loading="lazy" />
-      ) : (
-        <span className="cat-emoji" aria-hidden>
-          🧺
-        </span>
-      )}
-      <span>{categoryDisplayName(category, locale)}</span>
+      <span className="cat-tile">
+        {category.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={category.imageUrl} alt="" loading="lazy" />
+        ) : (
+          <span className="cat-emoji" aria-hidden>
+            🧺
+          </span>
+        )}
+      </span>
+      <span className="cat-name">{categoryDisplayName(category, locale)}</span>
     </Link>
   );
 }
