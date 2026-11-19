@@ -29,7 +29,7 @@ export async function generateMetadata() {
   };
 }
 
-/** How many "Popular picks" the home page shows above the categories: the 20 best-selling featured products. */
+/** How many "Popular picks" the home page shows below the categories: the 20 best-selling featured products. */
 const FEATURED_COUNT = 20;
 
 export default async function Home({
@@ -87,17 +87,9 @@ export default async function Home({
       {/* Page-level h1 for the document outline; section titles are h2s. */}
       <h1 className="sr-only">{t('bannerTitle')}</h1>
 
-      {featured.length > 0 && (
-        <>
-          <h2 className="section-title">{t('popularPicks')}</h2>
-          <div className="product-grid">
-            {featured.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </>
-      )}
-
+      {/* Categories come first, straight under the banner: a customer who can
+          see every aisle at a glance knows what the shop sells and can go
+          straight to it. Popular picks and the best sellers follow. */}
       <h2 className="section-title">{t('shopByCategory')}</h2>
       {categories.length > 0 ? (
         <div className="category-grid">
@@ -109,6 +101,17 @@ export default async function Home({
         <p className="empty-state">
           {t('categoriesEmpty')}
         </p>
+      )}
+
+      {featured.length > 0 && (
+        <>
+          <h2 className="section-title">{t('popularPicks')}</h2>
+          <div className="product-grid">
+            {featured.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </>
       )}
 
       <div className="listing-head">
