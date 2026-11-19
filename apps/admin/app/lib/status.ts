@@ -85,3 +85,28 @@ export function actionNeeded(order: Pick<Order, 'status' | 'assignedAgentId'>): 
       return null;
   }
 }
+
+/**
+ * Who cancelled an order, read off its timeline.
+ *
+ * <p>The API records this on the CANCELLED timeline entry: the customer's own
+ * self-service cancel carries the reserved token {@code CUSTOMER_REQUEST} as its
+ * note, and anything else (including no note at all) is the store cancelling,
+ * with the note being the reason staff typed. Which staff account did it is not
+ * recorded, so this says "store", never a name. Returns null for an order that
+ * is not cancelled, or one with no cancellation entry on its timeline.
+ */
+export interface CancelInfo {
+  by: 'customer' | 'store';
+  /** The reason staff typed; null for a customer cancel or when left blank. */
+  reason: string | null;
+}
+
+export function cancelInfo(order: Pick<Order, 'status' | 'timeline'>): CancelInfo | null {
+  if (order.status !== 'CANCELLED') return null;
+  const entry = [...order.timeline].reverse().find((e) => e.toStatus === 'CANCELLED');
+  if (!entry) return null;
+  if (entry.note === 'CUSTOMER_REQUEST') return { by: 'customer', reason: null };
+  const reason = entry.note?.trim();
+  return { by: 'store', reason: reason ? reason : null };
+}

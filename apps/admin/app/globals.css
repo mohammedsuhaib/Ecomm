@@ -1506,6 +1506,15 @@ a {
   background: #fef3c7;
   color: #92400e;
 }
+/* Why the store cancelled an order, in the words staff typed. */
+.order-cancel-reason {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #7f1d1d;
+  font-size: 0.9rem;
+}
 .order-fail-reason {
   margin: 0.5rem 0 0;
   padding: 0.5rem 0.75rem;

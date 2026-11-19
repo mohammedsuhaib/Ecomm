@@ -13,6 +13,7 @@ import {
   STATUS_LABELS,
   actionNeeded,
   awaitsRiderPickup,
+  cancelInfo,
   canCancel,
   nextStatus,
 } from '@/app/lib/status';
@@ -76,6 +77,8 @@ export default function OrderCard({
     order.status === 'DELIVERY_FAILED'
       ? [...order.timeline].reverse().find((e) => e.toStatus === 'DELIVERY_FAILED')?.note ?? null
       : null;
+  // Who cancelled it, for a cancelled order.
+  const cancelled = cancelInfo(order);
   const assignedAgent =
     agents.find((a) => a.id === order.assignedAgentId) ?? null;
   // The roster is active riders only, so an order still held by a rider who has
@@ -217,7 +220,11 @@ export default function OrderCard({
           <span className="order-time">{formatTime(order.placedAt)}</span>
         </div>
         <span className={`status-badge status-${order.status}`}>
-          {STATUS_LABELS[order.status]}
+          {cancelled
+            ? cancelled.by === 'customer'
+              ? 'Cancelled by customer'
+              : 'Cancelled by store'
+            : STATUS_LABELS[order.status]}
         </span>
       </header>
 
@@ -226,6 +233,12 @@ export default function OrderCard({
         <a href={`tel:${order.phone}`}>{order.phone}</a>
         <span className="muted">{order.address.line}</span>
       </div>
+
+      {cancelled?.reason && (
+        <p className="order-cancel-reason" role="status">
+          <strong>Reason given:</strong> {cancelled.reason}
+        </p>
+      )}
 
       {failureReason && (
         <p className="order-fail-reason" role="status">
