@@ -242,7 +242,7 @@ a:hover {
   }
 }
 .category-card {
-  --halo: #e8f5e9;
+  --halo: #dcefdd;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -253,15 +253,15 @@ a:hover {
   text-align: center;
   color: var(--text);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
   transition: transform 0.05s;
 }
-.category-card:nth-child(6n + 2) { --halo: #fff3e0; }
-.category-card:nth-child(6n + 3) { --halo: #e3f2fd; }
-.category-card:nth-child(6n + 4) { --halo: #fce4ec; }
-.category-card:nth-child(6n + 5) { --halo: #f3e5f5; }
-.category-card:nth-child(6n + 6) { --halo: #fffde7; }
+.category-card:nth-child(6n + 2) { --halo: #ffe8c7; }
+.category-card:nth-child(6n + 3) { --halo: #d3e8fb; }
+.category-card:nth-child(6n + 4) { --halo: #f9d3df; }
+.category-card:nth-child(6n + 5) { --halo: #ead5f0; }
+.category-card:nth-child(6n + 6) { --halo: #fdf3b8; }
 .category-card:hover {
   color: var(--green-dark);
 }
@@ -270,17 +270,18 @@ a:hover {
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 96px;
   aspect-ratio: 1;
-  border-radius: 50%;
+  /* A tinted rounded square holding a round picture: a colour block that reads
+     as a button and matches the tiles customers know from other quick-commerce
+     apps. (The category pictures are circles saved as JPEGs with black corners,
+     so they are clipped round rather than filling the square.) */
+  border-radius: 18px;
   background: var(--halo);
-  /* A ring of the halo colour plus a soft lift: the picture reads as a
-     button, not a stamp. */
-  box-shadow: 0 0 0 4px var(--halo), 0 3px 8px rgba(0, 0, 0, 0.14);
-  overflow: hidden;
+  padding: 9%;
+  transition: box-shadow 0.15s;
 }
 .category-card:hover .cat-tile {
-  box-shadow: 0 0 0 4px var(--green), 0 3px 8px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 0 0 2px var(--green);
 }
 .category-card .cat-emoji {
   font-size: 2rem;
@@ -289,6 +290,7 @@ a:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 /* Long names ("Dry fruits, Spices & Masalas") wrap and then stop, so one very
    long name cannot make its row much taller than the rest. Three lines on a
@@ -299,7 +301,7 @@ a:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: break-word;
-  font-size: 0.74rem;
+  font-size: 0.78rem;
 }
 @media (min-width: 560px) {
   .category-card .cat-name {
