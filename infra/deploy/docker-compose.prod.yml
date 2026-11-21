@@ -54,16 +54,6 @@ services:
     # connections' buffers — comes out of the remaining 30%.
     mem_limit: ${API_MEM_LIMIT:-1500m}
     environment:
-      # JVM options. The first two are the image's defaults (see the Dockerfile),
-      # repeated here because setting JAVA_OPTS replaces them. The last two are the
-      # interim mitigation for CVE-2026-114938 ("Java4Shell"), a memory-corruption
-      # flaw in the JVM's AVX-512 Base64 decoder: -XX:-UseBASE64Intrinsics turns off
-      # that decoder and -XX:UseAVX=2 stops the JVM using AVX-512 at all. Cost: a
-      # negligible slowdown in Base64 decoding. Remove them once the image is built
-      # on a patched Temurin 21 (the deploy build now pulls a fresh base image) and
-      # `java -version` in the container shows the fixed release. Override the whole
-      # string with API_JAVA_OPTS in .env if the heap needs retuning.
-      JAVA_OPTS: ${API_JAVA_OPTS:--XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError -XX:-UseBASE64Intrinsics -XX:UseAVX=2}
       # Recommended: point at DO Managed Postgres. A blank value does NOT fall
       # back to application.yml's localhost default — Spring treats an empty env
       # var as "set", so the datasource would be misconfigured rather than local.
