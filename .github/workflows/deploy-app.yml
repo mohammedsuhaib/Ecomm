@@ -148,6 +148,11 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
+          # Re-fetch the base image on every build. The layer cache would
+          # otherwise keep serving the Java runtime from the first build, so a
+          # security patch to the base image (eclipse-temurin) never reaches
+          # production until the cache happens to expire.
+          pull: true
           # provenance manifests confuse some older docker daemons on pull.
           provenance: false
           tags: |
