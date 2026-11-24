@@ -1,3 +1,5 @@
+import { brand } from './brand';
+
 /**
  * Where this deployment lives on the public internet, and whether it belongs
  * in a search index at all.
@@ -15,7 +17,7 @@
  * running container was given.
  *
  * <ul>
- *   <li>{@code SITE_URL} — the canonical origin, e.g. https://shop.town-basket.com.
+ *   <li>{@code SITE_URL} — the canonical origin, e.g. https://shop.example.com.
  *       Must be the ONE hostname the shop answers on; every other host should
  *       redirect to it, or search engines split the site in two.</li>
  *   <li>{@code SEO_NOINDEX} — set to "true" on any non-production deployment.
@@ -25,12 +27,14 @@
  */
 
 /** Used when SITE_URL is unset, so a misconfigured deploy still emits sane absolute URLs. */
-export const DEFAULT_SITE_URL = 'https://shop.town-basket.com';
+export function defaultSiteUrl(): string {
+  return brand().siteUrl;
+}
 
 /** The canonical origin, with any trailing slash removed. */
 export function siteUrl(): string {
   const raw = process.env.SITE_URL?.trim();
-  const base = raw && /^https?:\/\//i.test(raw) ? raw : DEFAULT_SITE_URL;
+  const base = raw && /^https?:\/\//i.test(raw) ? raw : defaultSiteUrl();
   return base.replace(/\/+$/, '');
 }
 

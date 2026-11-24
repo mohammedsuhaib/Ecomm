@@ -123,14 +123,16 @@ self.addEventListener('push', (event: PushEvent) => {
     // Non-JSON payload — fall through to the generic copy below.
   }
 
-  const title = payload.title ?? 'Town Basket';
+  // The API always sends a title; this fallback is only for a malformed push,
+  // and the worker has no access to the shop's brand, so it stays neutral.
+  const title = payload.title ?? 'Order update';
   const url = payload.url ?? '/account';
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body: payload.body ?? 'Your order has an update.',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      icon: '/brand-icon',
+      badge: '/brand-icon',
       // Collapse repeat updates for the same order into one notification
       // rather than stacking a row per status change.
       tag: payload.orderId ? `tb-order-${payload.orderId}` : 'tb-order',

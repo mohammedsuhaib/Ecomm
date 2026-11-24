@@ -205,6 +205,20 @@ images use `output: 'standalone'`.
   server call per poll per open page and would still need this fallback when
   no Maps key is set. Tune the two constants there, not the copy.
 
+- **Brand** (`apps/storefront/brands/*.json`, `app/lib/brand.ts`). Everything
+  that makes the storefront one client's shop — name, three colours, logo and
+  icons, share picture, policy-page address — is one JSON file per client, chosen
+  per deployment by the **runtime** env var `BRAND` (default `townbasket`), like
+  `SITE_URL`: one image serves every client. `brand()` is server-only; client
+  components get just name and slug from `useBrand()`. Translation files say
+  `{brand}` and `withBrand` fills it when messages load. An unknown `BRAND` throws
+  on purpose. Next's file-convention images (`icon.png`, `opengraph-image.png`)
+  cannot vary per deployment, so those are brand assets referenced from metadata
+  instead. Pages that set their own `openGraph` must pass `shareImages()`
+  themselves (Next replaces, not merges, that object). Adding a client and the
+  known gaps (admin and rider apps, the "5 km" in messages) are in
+  `brands/README.md`.
+
 - **Search visibility** lives in three storefront files: `app/robots.ts` and
   `app/sitemap.ts` (both `force-dynamic`, because they depend on the runtime
   hostname), and `app/lib/structuredData.ts` for the schema.org blocks, rendered

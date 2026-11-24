@@ -10,10 +10,11 @@ worker (`app/sw.ts`) also uses `icon-192.png` for push notifications.
   (mark scaled to ~62% so it stays inside the ~80% safe zone when Android
   masks the icon to a circle/squircle)
 
-The favicon is `app/icon.png` and the iOS home-screen icon is
-`app/apple-icon.png` — both picked up automatically by the Next.js App Router
-file conventions. The header logo is `public/images/logo-mark.png`
-(transparent background).
+The favicon is `public/images/favicon.png` and the iOS home-screen icon is
+`public/images/apple-touch-icon.png`; the header logo is
+`public/images/logo-mark.png` (transparent background). Which files a shop uses
+is set in its brand file (`brands/<id>.json`), not by file name — see
+`brands/README.md`.
 
 To regenerate at other sizes, scale down from `brand/` — never scale up.
 

@@ -1,0 +1,24 @@
+{
+  "id": "townbasket",
+  "name": "Town Basket",
+  "slug": "townbasket",
+  "siteUrl": "https://shop.town-basket.com",
+  "policyBaseUrl": "https://town-basket.com",
+  "description": "Fresh groceries from your neighbourhood supermarket, delivered within 5 km.",
+  "colors": {
+    "primary": "#2e7d32",
+    "primaryDark": "#1b5e20",
+    "primaryLight": "#e8f5e9",
+    "splashBackground": "#fdfcf3"
+  },
+  "assets": {
+    "logoMark": "/images/logo-mark.png",
+    "icon192": "/icons/icon-192.png",
+    "icon512": "/icons/icon-512.png",
+    "iconMaskable512": "/icons/icon-maskable-512.png",
+    "shareImage": "/images/share-image.png",
+    "favicon": "/images/favicon.png",
+    "appleTouchIcon": "/images/apple-touch-icon.png"
+  },
+  "shareImageAlt": "Town Basket — groceries from your neighbourhood supermarket, delivered to your door."
+}

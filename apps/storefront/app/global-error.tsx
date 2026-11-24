@@ -14,18 +14,32 @@ const COPY = {
   en: {
     updating: 'Updating to the latest version…',
     title: 'That didn’t work',
-    body: 'Town Basket didn’t finish loading. Try reloading.',
+    body: (name: string) => `${name || 'The app'} didn’t finish loading. Try reloading.`,
     reload: 'Reload',
     reference: 'Reference',
   },
   kn: {
     updating: 'ಇತ್ತೀಚಿನ ಆವೃತ್ತಿಗೆ ನವೀಕರಿಸಲಾಗುತ್ತಿದೆ…',
     title: 'ಏನೋ ತಪ್ಪಾಗಿದೆ',
-    body: 'Town Basket ಸಂಪೂರ್ಣವಾಗಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಲೋಡ್ ಮಾಡಿದರೆ ಸಾಮಾನ್ಯವಾಗಿ ಸರಿಹೋಗುತ್ತದೆ.',
+    body: (name: string) =>
+      `${name || 'ಈ ಆ್ಯಪ್'} ಸಂಪೂರ್ಣವಾಗಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಲೋಡ್ ಮಾಡಿದರೆ ಸಾಮಾನ್ಯವಾಗಿ ಸರಿಹೋಗುತ್ತದೆ.`,
     reload: 'ಮತ್ತೆ ಲೋಡ್ ಮಾಡಿ',
     reference: 'ಉಲ್ಲೇಖ',
   },
 } as const;
+
+/**
+ * The shop's name, read back from the page's own `application-name` tag. This
+ * screen renders outside every provider (the root layout is what failed), so it
+ * cannot use the brand context; the tag is the one place the name already sits
+ * in the DOM. Empty when even that is gone, and the copy then says "the app".
+ */
+function shopName(): string {
+  if (typeof document === 'undefined') return '';
+  return (
+    document.querySelector('meta[name="application-name"]')?.getAttribute('content')?.trim() ?? ''
+  );
+}
 
 /** The language the switcher last saved, straight from its cookie (i18n/config.ts). */
 function localeFromCookie(): keyof typeof COPY {
@@ -99,7 +113,7 @@ export default function GlobalError({
                 {copy.title}
               </h1>
               <p style={{ color: '#5a6b62', lineHeight: 1.55 }}>
-                {copy.body}
+                {copy.body(shopName())}
               </p>
               <button
                 type="button"

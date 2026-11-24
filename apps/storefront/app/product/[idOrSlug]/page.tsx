@@ -10,6 +10,7 @@ import AddToCartButton from '@/app/components/AddToCartButton';
 import JsonLd from '@/app/components/JsonLd';
 import ProductCard from '@/app/components/ProductCard';
 import ProductThumb from '@/app/components/ProductThumb';
+import { shareImages } from '@/app/lib/brand';
 import { absoluteUrl } from '@/app/lib/site';
 import { breadcrumbJsonLd, productJsonLd } from '@/app/lib/structuredData';
 import type { Product } from '@/app/lib/types';
@@ -68,7 +69,8 @@ export async function generateMetadata({ params }: Params) {
       title,
       description: product.description,
       url: canonical,
-      ...(product.imageUrl ? { images: [{ url: absoluteUrl(product.imageUrl) }] } : {}),
+      // The product's own picture; the shop's share picture when it has none.
+      images: product.imageUrl ? [{ url: absoluteUrl(product.imageUrl) }] : shareImages(),
     },
   };
 }
