@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
+import { useBrand } from '@/app/components/BrandProvider';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -79,6 +80,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
   const tCheckout = useTranslations('checkout');
   const tPayment = useTranslations('paymentStatus');
   const locale = useLocale();
+  const { slug: brandSlug } = useBrand();
 
   // Orders are owner-scoped server-side: the token alone grants nothing, so a
   // signed-out visitor is sent to log in first (and brought back here). Auth
@@ -292,7 +294,7 @@ export default function OrderPage({ params }: { params: { id: string } }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `townbasket-invoice-${order?.publicCode ?? trackingToken}.pdf`;
+      a.download = `${brandSlug}-invoice-${order?.publicCode ?? trackingToken}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

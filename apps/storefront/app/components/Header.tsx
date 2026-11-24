@@ -6,9 +6,11 @@ import CartIndicator from './CartIndicator';
 import AccountIndicator from './AccountIndicator';
 import BackButton from './BackButton';
 import LanguageSwitcher from './LanguageSwitcher';
+import { brand } from '@/app/lib/brand';
 
 /** Site header: brand, search, and the delivery-location indicator. */
 export default function Header() {
+  const { name, assets } = brand();
   return (
     <header className="site-header">
       <div className="header-inner">
@@ -20,9 +22,9 @@ export default function Header() {
         <Link href="/" className="brand">
           <span className="logo" aria-hidden>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/logo-mark.png" alt="" width={24} height={24} />
+            <img src={assets.logoMark} alt="" width={24} height={24} />
           </span>
-          <span>Town Basket</span>
+          <span>{name}</span>
         </Link>
         <div className="header-search">
           {/* SearchBar uses useSearchParams() — needs its own Suspense

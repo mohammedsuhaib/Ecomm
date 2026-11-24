@@ -3,9 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { getStore } from '@/app/lib/api';
 import type { Store } from '@/app/lib/types';
 import InstallLink from './InstallLink';
-
-/** Where the published policy pages are served (see holding-site/). */
-const POLICY_BASE = 'https://town-basket.com';
+import { brand } from '@/app/lib/brand';
 
 const POLICY_PAGES = [
   { key: 'terms', file: 'terms.html' },
@@ -34,6 +32,8 @@ export default async function Footer() {
   const store = await getStore().catch(() => null as Store | null);
   const phone = store?.supportPhone?.trim() || null;
   const year = new Date().getFullYear();
+  // Where the published policy pages are served (see holding-site/).
+  const policyBase = brand().policyBaseUrl;
   return (
     <footer className="site-footer">
       <div className="footer-inner">
@@ -48,7 +48,7 @@ export default async function Footer() {
         </nav>
         <InstallLink />
         {/* The shop's published policies. They have always existed on
-            town-basket.com but nothing in the app linked them, while the
+            the marketing site but nothing in the app linked them, while the
             cancellation copy cited the refund policy by name — so a customer
             was pointed at a document they had no way to open. Absolute URLs
             because these live on the marketing site, not this app. */}
@@ -56,7 +56,7 @@ export default async function Footer() {
           {POLICY_PAGES.map(({ key, file }) => (
             <a
               key={key}
-              href={`${POLICY_BASE}/${file}`}
+              href={`${policyBase}/${file}`}
               target="_blank"
               rel="noopener noreferrer"
             >

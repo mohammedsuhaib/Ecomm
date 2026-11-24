@@ -12,11 +12,14 @@ import AuthProvider from './components/AuthProvider';
 import ChunkErrorRecovery from './components/ChunkErrorRecovery';
 import InstallPrompt from './components/InstallPrompt';
 import StickyCartBar from './components/StickyCartBar';
+import { brand, brandCssVariables, publicBrand, shareImages } from './lib/brand';
+import { BrandProvider } from './components/BrandProvider';
 import { isNoIndex, siteUrl } from './lib/site';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
   const locale = await getLocale();
+  const { name, assets, shareImageAlt } = brand();
   return {
     // Everything relative in a page's metadata — canonicals, Open Graph
     // images — is resolved against this. Without it Next emits relative OG
@@ -26,15 +29,24 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t('title'),
     description: t('description'),
     manifest: '/manifest.webmanifest',
-    applicationName: 'Town Basket',
+    // The brand's own files: Next's icon.png / apple-icon.png convention files
+    // cannot change per deployment.
+    icons: {
+      icon: [{ url: assets.favicon, sizes: '128x128', type: 'image/png' }],
+      apple: [{ url: assets.appleTouchIcon, sizes: '180x180', type: 'image/png' }],
+    },
+    applicationName: name,
     appleWebApp: {
       capable: true,
       statusBarStyle: 'default',
-      title: 'Town Basket',
+      title: name,
     },
     openGraph: {
       type: 'website',
-      siteName: 'Town Basket',
+      siteName: name,
+      // The brand's own file, not Next's opengraph-image convention file, which
+      // cannot change per deployment.
+      images: shareImages(),
       title: t('title'),
       description: t('description'),
       locale: locale === 'kn' ? 'kn_IN' : 'en_IN',
@@ -42,6 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
+      images: [{ url: assets.shareImage, alt: shareImageAlt }],
       title: t('title'),
       description: t('description'),
     },
@@ -51,11 +64,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport: Viewport = {
-  themeColor: '#2e7d32',
-  width: 'device-width',
-  initialScale: 1,
-};
+export function generateViewport(): Viewport {
+  return {
+    themeColor: brand().colors.primary,
+    width: 'device-width',
+    initialScale: 1,
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -68,7 +83,7 @@ export default async function RootLayout({
   const tc = await getTranslations('common');
 
   return (
-    <html lang={locale}>
+    <html lang={locale} style={brandCssVariables() as React.CSSProperties}>
       <body>
         {/* Keyboard users skip the header's 7+ tab stops; visible on focus. */}
         <a href="#main" className="skip-link">
@@ -102,6 +117,7 @@ export default async function RootLayout({
             renders nothing. */}
         <ChunkErrorRecovery />
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <BrandProvider brand={publicBrand()}>
           {/* LocationGate is the provider for the whole shell so the header's
               location pill can re-open it. It prompts for location on first
               visit and blocks the catalogue when out of range; otherwise it
@@ -133,6 +149,7 @@ export default async function RootLayout({
               </CartProvider>
             </AuthProvider>
           </LocationGate>
+          </BrandProvider>
         </NextIntlClientProvider>
       </body>
     </html>

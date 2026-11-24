@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { getCategories, getProducts, getStore } from './lib/api';
 import { formatHours, formatRupees } from './lib/format';
 import CategoryCard from './components/CategoryCard';
+import { brand, shareImages } from './lib/brand';
 import JsonLd from './components/JsonLd';
 import ProductCard from './components/ProductCard';
 import SortControl from './components/SortControl';
@@ -25,7 +26,7 @@ export async function generateMetadata() {
     title: t('title'),
     description: t('description'),
     alternates: { canonical: '/' },
-    openGraph: { title: t('title'), description: t('description'), url: '/' },
+    openGraph: { title: t('title'), description: t('description'), url: '/', images: shareImages() },
   };
 }
 
@@ -64,7 +65,7 @@ export default async function Home({
           rendered when the API answered; inventing a shop's hours because a
           fetch failed is exactly the kind of mismatch that earns a penalty. */}
       {store && <JsonLd data={groceryStoreJsonLd(store)} />}
-      <JsonLd data={webSiteJsonLd(store?.name ?? 'Town Basket')} />
+      <JsonLd data={webSiteJsonLd(store?.name ?? brand().name)} />
 
       <section
         className="notice"

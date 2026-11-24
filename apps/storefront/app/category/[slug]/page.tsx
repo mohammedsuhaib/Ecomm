@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { getCategories, getProducts } from '@/app/lib/api';
 import JsonLd from '@/app/components/JsonLd';
+import { shareImages } from '@/app/lib/brand';
 import ProductCard from '@/app/components/ProductCard';
 import SortControl from '@/app/components/SortControl';
 import { categoryDisplayName } from '@/app/lib/productName';
@@ -33,7 +34,7 @@ export async function generateMetadata({ params, searchParams }: Params) {
     title,
     ...(name ? { description: t('categoryDescription', { name }) } : {}),
     alternates: { canonical },
-    openGraph: { title, url: canonical },
+    openGraph: { title, url: canonical, images: shareImages() },
   };
 }
 

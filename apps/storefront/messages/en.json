@@ -38,21 +38,21 @@
     "nonVeg": "Non-veg"
   },
   "metadata": {
-    "title": "Town Basket — Groceries delivered",
+    "title": "{brand} — Groceries delivered",
     "description": "Order groceries from your local supermarket. We deliver within 5 km.",
-    "categoryTitle": "{name} — Town Basket",
-    "categoryDescription": "Buy {name} online from Town Basket. Delivered from our store, within 5 km.",
-    "categoryFallback": "Category — Town Basket",
-    "productTitle": "{name} — Town Basket",
-    "productFallback": "Product — Town Basket",
-    "searchTitle": "“{q}” — Town Basket",
-    "searchFallback": "Search — Town Basket",
-    "offlineTitle": "Offline — Town Basket"
+    "categoryTitle": "{name} — {brand}",
+    "categoryDescription": "Buy {name} online from {brand}. Delivered from our store, within 5 km.",
+    "categoryFallback": "Category — {brand}",
+    "productTitle": "{name} — {brand}",
+    "productFallback": "Product — {brand}",
+    "searchTitle": "“{q}” — {brand}",
+    "searchFallback": "Search — {brand}",
+    "offlineTitle": "Offline — {brand}"
   },
   "footer": {
     "ariaLabel": "Footer",
     "callStore": "Call the store: {phone}",
-    "copyright": "© {year} Town Basket. Delivering within 5 km of the store.",
+    "copyright": "© {year} {brand}. Delivering within 5 km of the store.",
     "policies": "Policies",
     "terms": "Terms",
     "privacy": "Privacy",
@@ -286,7 +286,7 @@
     "working": "Working…",
     "perDevice": "This only applies to this device. Turn it on separately on your phone and computer.",
     "blocked": "Notifications are blocked for this site. Allow them in your browser settings, then come back.",
-    "unsupported": "This browser can't show notifications. On an iPhone, add Town Basket to your home screen first.",
+    "unsupported": "This browser can't show notifications. On an iPhone, add {brand} to your home screen first.",
     "unavailable": "Order notifications aren't available right now. You can still track your order on its page.",
     "failed": "Couldn’t change that setting. Try again."
   },
@@ -433,11 +433,11 @@
   },
   "offline": {
     "title": "You’re offline",
-    "body": "You need an internet connection to load Town Basket. Reconnect and try again. Pages you’ve already opened may still work.",
+    "body": "You need an internet connection to load {brand}. Reconnect and try again. Pages you’ve already opened may still work.",
     "tryAgain": "Try again"
   },
   "install": {
-    "title": "Install Town Basket.",
+    "title": "Install {brand}.",
     "footerLink": "Install app",
     "body": "Add it to your home screen to reorder in a tap and get order updates.",
     "install": "Install",
@@ -446,7 +446,7 @@
     "dismiss": "No thanks",
     "iosStepShare": "Tap the Share button in Safari’s toolbar.",
     "iosStepAdd": "Scroll down and choose “Add to Home Screen”.",
-    "iosStepConfirm": "Tap “Add”. Town Basket shows up with your other apps."
+    "iosStepConfirm": "Tap “Add”. {brand} shows up with your other apps."
   },
   "priceChange": {
     "title": "Prices changed.",
